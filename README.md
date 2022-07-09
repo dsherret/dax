@@ -1,0 +1,48 @@
+# ax
+
+**Note:** This is very early stages. Just started working on it. A lot is not tested and won't work.
+
+An automation toolkit for Deno inspired by [zx](https://github.com/google/zx).
+
+Differences:
+
+1. No globals or custom CLI command to execute—import into a script then use `deno run -A your_script.ts`.
+1. Cross platform shell to help the code work on Windows.
+   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+   - This is very early stages, so I only have simple commands working at the moment and no cross platform commands.
+   - This also means you will be able to use `cd` like so if you wanted (not implemented, but trivial to implement):
+     ```ts
+     await $`cd someDir`;
+     await $`pwd`.inherit(); // outputs a directory containing "someDir"
+     ```
+
+## Example
+
+```ts
+// note: this is not published yet...
+import $ from "https://deno.land/x/ax@{VERSION_GOES_HERE}/mod.ts";
+
+const result = await $`deno eval 'console.log(5);'`;
+console.log(result.stdout.trim()); // 5
+
+// runs the script showing stdout and stderr
+await $`deno run my_script.ts`.inherit();
+
+await $.sleep(1000);
+await $.which("deno"); // path to deno executable
+await $.withRetries({
+  count: 5,
+  delay: 5_000,
+  action: async () => {
+    await $`cargo publish`;
+  },
+});
+
+// re-export of deno_std's path
+$.path.basename("./deno/std/path/mod.ts"); // mod.ts
+
+// re-export of deno_std's fs
+for await (const file of $.fs.expandGlob("**/*.ts")) {
+  console.log(file);
+}
+```
