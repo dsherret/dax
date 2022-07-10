@@ -350,14 +350,37 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
   const result: string[] = [];
   let currentText = "";
   for (const stringPart of stringParts) {
+    let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
       case "text":
         currentText += stringPart.value;
         break;
       case "variable":
+        evaluationResult = context.env[stringPart.value]; // value is name
+        break;
       case "command":
       default:
         throw new Error(`Not implemented: ${stringPart.kind}`);
+    }
+
+    if (evaluationResult != null) {
+      const parts = evaluationResult.split(" ")
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+      if (parts.length > 0) {
+        // append the first part to the current text
+        currentText += parts[0];
+
+        // store the current text
+        result.push(currentText);
+
+        // store all the rest of the parts
+        result.push(...parts.slice(1));
+
+        // use the last part as the current text so it maybe
+        // gets appended to in the future
+        currentText = result.pop()!;
+      }
     }
   }
   if (currentText.length !== 0) {

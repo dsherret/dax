@@ -84,4 +84,11 @@ const result = await $`test=123 deno eval 'console.log(Deno.env.get('test'))'`;
 console.log(result.stdout); // 123
 ```
 
+Variable substitution:
+
+```ts
+const result = await $`deno eval "console.log($TEST)"`.env("TEST", "123");
+console.log(result.stdout); // 123
+```
+
 todo...

@@ -80,3 +80,8 @@ Deno.test("set var for command", async () => {
     .env("test", "456");
   assertEquals(output.stdout.trim(), "123\n456");
 });
+
+Deno.test("variable substitution", async () => {
+  const output = await $`deno eval "console.log($TEST);"`.env("TEST", "123");
+  assertEquals(output.stdout.trim(), "123");
+});
