@@ -76,4 +76,12 @@ Sequential lists:
 const result = await $`cd someDir ; deno eval 'console.log(Deno.cwd())'`;
 ```
 
+Setting env var for command in the shell (generally you can just use `.env(...)` though):
+
+```ts
+// result will contain the directory in someDir
+const result = await $`test=123 deno eval 'console.log(Deno.env.get('test'))'`;
+console.log(result.stdout); // 123
+```
+
 todo...

@@ -73,3 +73,10 @@ Deno.test("allow setting multiple env", async () => {
   });
   assertEquals(output.stdout.trim(), "123456");
 });
+
+Deno.test("set var for command", async () => {
+  const output = await $
+    `test=123 deno eval 'console.log(Deno.env.get("test"));' ; deno eval 'console.log(Deno.env.get("test"));'`
+    .env("test", "456");
+  assertEquals(output.stdout.trim(), "123\n456");
+});

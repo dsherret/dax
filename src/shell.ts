@@ -19,7 +19,8 @@ export interface ShellVar extends EnvVar {
 }
 
 export interface EnvVar {
-  // todo...
+  name: string;
+  value: StringOrWord;
 }
 
 export interface Pipeline {
@@ -97,25 +98,23 @@ class Context {
   stderr: ShellPipeWriter;
   cwd: string;
   env: {
-    [key: string]: string | undefined;
+    [key: string]: string;
   };
 
   constructor(opts: {
     stdin: ShellPipeReader;
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
+    cwd: string;
     env: {
-      [key: string]: string | undefined;
+      [key: string]: string;
     };
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
-    this.cwd = Deno.cwd();
-    this.env = {
-      ...Deno.env.toObject(),
-      ...opts.env,
-    };
+    this.cwd = opts.cwd;
+    this.env = opts.env;
   }
 
   applyChanges(changes: EnvChange[]) {
@@ -130,6 +129,24 @@ class Context {
           throw new Error(`Not implemented env change: ${change.kind}`);
       }
     }
+  }
+
+  applyEnvVar(name: string, value: string | undefined) {
+    if (value == null || value.length === 0) {
+      delete this.env[name];
+    } else {
+      this.env[name] = value;
+    }
+  }
+
+  clone() {
+    return new Context({
+      stdin: this.stdin,
+      stdout: this.stdout,
+      stderr: this.stderr,
+      cwd: this.cwd,
+      env: { ...this.env },
+    });
   }
 }
 
@@ -146,7 +163,16 @@ export interface SpawnOpts {
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
-  const context = new Context(opts);
+  const context = new Context({
+    cwd: Deno.cwd(),
+    env: Deno.env.toObject(),
+    stdin: opts.stdin,
+    stdout: opts.stdout,
+    stderr: opts.stderr,
+  });
+  for (const [key, value] of Object.entries(opts.env)) {
+    context.applyEnvVar(key, value);
+  }
   const result = await executeSequentialList(list, context);
   return result.code;
 }
@@ -217,41 +243,50 @@ function executeCommand(command: Command, context: Context): Promise<ExecuteResu
 async function executeCommandInner(command: CommandInner, context: Context): Promise<ExecuteResult> {
   switch (command.kind) {
     case "simple":
-      if (command.envVars.length > 0) {
-        throw new Error("Env vars on commands are not implemented.");
-      }
-      const commandArgs = await evaluateArgs(command.args, context);
-      if (commandArgs[0] === "cd") {
-        return await cdCommand(context.cwd, commandArgs.slice(1), context.stderr);
-      } else {
-        const p = Deno.run({
-          cmd: commandArgs,
-          cwd: context.cwd,
-          env: context.env as { [name: string]: string },
-          stdin: getStdioStringValue(context.stdin),
-          stdout: getStdioStringValue(context.stdout.kind),
-          stderr: getStdioStringValue(context.stderr.kind),
-        });
-        try {
-          const writeStdinTask = writeStdin(context.stdin, p);
-          const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
-          const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
-          const [status] = await Promise.all([
-            p.status(),
-            writeStdinTask,
-            readStdoutTask,
-            readStderrTask,
-          ]);
-          return resultFromCode(status.code);
-        } finally {
-          p.close();
-          p.stdout?.close();
-          p.stderr?.close();
-        }
-      }
+      return await executeSimpleCommand(command, context);
     case "sequentialList":
     default:
       throw new Error(`Not implemented: ${command.kind}`);
+  }
+}
+
+async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
+  const context = parentContext.clone();
+  for (const envVar of command.envVars) {
+    context.applyEnvVar(envVar.name, await evaluateStringOrWord(envVar.value, context));
+  }
+  const commandArgs = await evaluateArgs(command.args, context);
+  return await executeCommandArgs(commandArgs, context);
+}
+
+async function executeCommandArgs(commandArgs: string[], context: Context) {
+  if (commandArgs[0] === "cd") {
+    return await cdCommand(context.cwd, commandArgs.slice(1), context.stderr);
+  } else {
+    const p = Deno.run({
+      cmd: commandArgs,
+      cwd: context.cwd,
+      env: context.env,
+      stdin: getStdioStringValue(context.stdin),
+      stdout: getStdioStringValue(context.stdout.kind),
+      stderr: getStdioStringValue(context.stderr.kind),
+    });
+    try {
+      const writeStdinTask = writeStdin(context.stdin, p);
+      const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
+      const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
+      const [status] = await Promise.all([
+        p.status(),
+        writeStdinTask,
+        readStdoutTask,
+        readStderrTask,
+      ]);
+      return resultFromCode(status.code);
+    } finally {
+      p.close();
+      p.stdout?.close();
+      p.stderr?.close();
+    }
   }
 
   async function writeStdin(stdin: ShellPipeReader, p: Deno.Process) {
@@ -303,6 +338,11 @@ async function evaluateArgs(stringOrWords: StringOrWord[], context: Context) {
     }
   }
   return result;
+}
+
+async function evaluateStringOrWord(stringOrWord: StringOrWord, context: Context) {
+  const result = await evaluateStringParts(stringOrWord.value, context);
+  return result.join(" ");
 }
 
 async function evaluateStringParts(stringParts: StringPart[], context: Context) {
