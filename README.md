@@ -27,11 +27,22 @@ await $`deno run my_script.ts`.stdout("inherit");
 const result = await $`deno eval 'console.error(5);'`.stderr("piped");
 console.log(result.stderr.trim()); // 5, would throw if not piped
 
-// sleep
-await $.sleep(1000);
+// setting env variables
+await $`deno eval 'console.log(Deno.env.get("var1"));'`
+  .env("var1", "value")
+  .env("var2", "value2")
+  // or use object syntax
+  .env({
+    var3: "value3",
+    var4: "value4",
+  })
+  .stdout("inherit");
 
 // change directory
 $.cd("newDir");
+
+// sleep
+await $.sleep(1000);
 
 // get path to an executable
 await $.which("deno"); // path to deno executable
@@ -53,3 +64,16 @@ for await (const file of $.fs.expandGlob("**/*.ts")) {
   console.log(file);
 }
 ```
+
+## Shell
+
+The shell is cross platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).
+
+Sequential lists:
+
+```ts
+// result will contain the directory in someDir
+const result = await $`cd someDir ; deno eval 'console.log(Deno.cwd())'`;
+```
+
+todo...

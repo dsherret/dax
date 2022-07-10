@@ -97,20 +97,25 @@ class Context {
   stderr: ShellPipeWriter;
   cwd: string;
   env: {
-    [key: string]: string;
+    [key: string]: string | undefined;
   };
 
   constructor(opts: {
     stdin: ShellPipeReader;
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
+    env: {
+      [key: string]: string | undefined;
+    };
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
-    // todo: configurable
     this.cwd = Deno.cwd();
-    this.env = Deno.env.toObject();
+    this.env = {
+      ...Deno.env.toObject(),
+      ...opts.env,
+    };
   }
 
   applyChanges(changes: EnvChange[]) {
@@ -137,6 +142,7 @@ export interface SpawnOpts {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
+  env: { [name: string]: string | undefined };
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
@@ -221,7 +227,7 @@ async function executeCommandInner(command: CommandInner, context: Context): Pro
         const p = Deno.run({
           cmd: commandArgs,
           cwd: context.cwd,
-          env: context.env,
+          env: context.env as { [name: string]: string },
           stdin: getStdioStringValue(context.stdin),
           stdout: getStdioStringValue(context.stdout.kind),
           stderr: getStdioStringValue(context.stderr.kind),

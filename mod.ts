@@ -2,6 +2,8 @@ import { Buffer, fs, path, which, whichSync } from "./src/deps.ts";
 import { NullPipeWriter, ShellPipeReader, ShellPipeWriter } from "./src/pipes.ts";
 import { parseArgs, spawn } from "./src/shell.ts";
 
+const textDecoder = new TextDecoder();
+
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: string[]): CommandPromise;
   cd(path: string | URL): void;
@@ -81,6 +83,7 @@ export class CommandPromise implements PromiseLike<CommandResult> {
   #stdout: BufferStdio = new Buffer();
   #stderr: BufferStdio = "inherit";
   #nothrow = false;
+  #env: { [name: string]: string | undefined } = {};
 
   constructor(command: string) {
     this.#command = command;
@@ -109,6 +112,7 @@ export class CommandPromise implements PromiseLike<CommandResult> {
       stdin: this.#stdin,
       stdout,
       stderr,
+      env: this.#env,
     });
     if (code !== 0 && !this.#nothrow) {
       throw new Error(`Exited with error code: ${code}`);
@@ -146,9 +150,20 @@ export class CommandPromise implements PromiseLike<CommandResult> {
     }
     return this;
   }
-}
 
-const textDecoder = new TextDecoder();
+  env(items: { [name: string]: string | undefined }): this;
+  env(name: string, value: string | undefined): this;
+  env(nameOrItems: string | { [name: string]: string | undefined }, value?: string) {
+    if (typeof nameOrItems === "string") {
+      this.#env[nameOrItems] = value;
+    } else {
+      for (const [key, value] of Object.entries(nameOrItems)) {
+        this.#env[key] = value;
+      }
+    }
+    return this;
+  }
+}
 
 export class CommandResult {
   #stdout: BufferStdio;
@@ -162,9 +177,13 @@ export class CommandResult {
     this.#stderr = stderr;
   }
 
+  #memoizedStdout: string | undefined;
+
   get stdout() {
-    // todo: memoize
-    return textDecoder.decode(this.stdoutBytes);
+    if (!this.#memoizedStdout) {
+      this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
+    }
+    return this.#memoizedStdout;
   }
 
   get stdoutBytes(): Uint8Array {
@@ -174,9 +193,13 @@ export class CommandResult {
     return this.#stdout.bytes();
   }
 
+  #memoizedStderr: string | undefined;
+
   get stderr() {
-    // todo: memoize
-    return textDecoder.decode(this.stderrBytes);
+    if (!this.#memoizedStderr) {
+      this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
+    }
+    return this.#memoizedStderr;
   }
 
   get stderrBytes(): Uint8Array {

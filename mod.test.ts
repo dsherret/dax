@@ -60,3 +60,16 @@ Deno.test("should change the cwd, but only in the shell", async () => {
   const standardizedOutput = output.stdout.trim().replace(/\\/g, "/");
   assertEquals(standardizedOutput.endsWith("src"), true, standardizedOutput);
 });
+
+Deno.test("allow setting env", async () => {
+  const output = await $`deno eval 'console.log(Deno.env.get("test"));'`.env("test", "123");
+  assertEquals(output.stdout.trim(), "123");
+});
+
+Deno.test("allow setting multiple env", async () => {
+  const output = await $`deno eval 'console.log(Deno.env.get("test") + Deno.env.get("other"));'`.env({
+    test: "123",
+    other: "456",
+  });
+  assertEquals(output.stdout.trim(), "123456");
+});
