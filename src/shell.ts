@@ -1,4 +1,7 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
+import { cdCommand } from "./commands/cd.ts";
+import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
+import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -88,46 +91,6 @@ export interface BooleanList {
   // todo...
 }
 
-export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
-export type ShellPipeWriter = "inherit" | "null" | Deno.Writer;
-
-type ExecuteResult = ExitExecuteResult | ContinueExecuteResult;
-
-function resultFromCode(code: number): ContinueExecuteResult {
-  return {
-    kind: "continue",
-    code,
-  };
-}
-
-export interface ExitExecuteResult {
-  kind: "exit";
-  code: number;
-}
-
-export interface ContinueExecuteResult {
-  kind: "continue";
-  code: number;
-  changes?: EnvChange[];
-}
-
-export type EnvChange = SetEnvVarChange | SetShellVarChange | CdChange;
-
-export interface SetEnvVarChange {
-  kind: "envvar";
-  // todo...
-}
-
-export interface SetShellVarChange {
-  kind: "shellvar";
-  // todo...
-}
-
-export interface CdChange {
-  kind: "cd";
-  // todo...
-}
-
 class Context {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
@@ -149,6 +112,20 @@ class Context {
     this.cwd = Deno.cwd();
     this.env = Deno.env.toObject();
   }
+
+  applyChanges(changes: EnvChange[]) {
+    for (const change of changes) {
+      switch (change.kind) {
+        case "cd":
+          this.cwd = change.dir;
+          break;
+        case "envvar":
+        case "shellvar":
+        default:
+          throw new Error(`Not implemented env change: ${change.kind}`);
+      }
+    }
+  }
 }
 
 export async function parseArgs(command: string) {
@@ -164,7 +141,13 @@ export interface SpawnOpts {
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const context = new Context(opts);
-  let code = 0;
+  const result = await executeSequentialList(list, context);
+  return result.code;
+}
+
+async function executeSequentialList(list: SequentialList, context: Context): Promise<ExecuteResult> {
+  let finalExitCode = 0;
+  let finalChanges = [];
   for (const item of list.items) {
     if (item.isAsync) {
       throw new Error("Async commands are not implemented.");
@@ -172,15 +155,23 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
     const result = await executeSequence(item.sequence, context);
     switch (result.kind) {
       case "continue":
-        code = result.code;
+        if (result.changes) {
+          context.applyChanges(result.changes);
+          finalChanges.push(...result.changes);
+        }
+        finalExitCode = result.code;
         break;
       case "exit":
-        return result.code;
+        return result;
       default:
         const _assertNever: never = result;
     }
   }
-  return code;
+  return {
+    kind: "continue",
+    code: finalExitCode,
+    changes: finalChanges,
+  };
 }
 
 function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> {
@@ -224,29 +215,33 @@ async function executeCommandInner(command: CommandInner, context: Context): Pro
         throw new Error("Env vars on commands are not implemented.");
       }
       const commandArgs = await evaluateArgs(command.args, context);
-      const p = Deno.run({
-        cmd: commandArgs,
-        cwd: context.cwd,
-        env: context.env,
-        stdin: getStdioStringValue(context.stdin),
-        stdout: getStdioStringValue(context.stdout),
-        stderr: getStdioStringValue(context.stderr),
-      });
-      try {
-        const writeStdinTask = writeStdin(context.stdin, p);
-        const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
-        const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
-        const [status] = await Promise.all([
-          p.status(),
-          writeStdinTask,
-          readStdoutTask,
-          readStderrTask,
-        ]);
-        return resultFromCode(status.code);
-      } finally {
-        p.close();
-        p.stdout?.close();
-        p.stderr?.close();
+      if (commandArgs[0] === "cd") {
+        return await cdCommand(context.cwd, commandArgs.slice(1), context.stderr);
+      } else {
+        const p = Deno.run({
+          cmd: commandArgs,
+          cwd: context.cwd,
+          env: context.env,
+          stdin: getStdioStringValue(context.stdin),
+          stdout: getStdioStringValue(context.stdout.kind),
+          stderr: getStdioStringValue(context.stderr.kind),
+        });
+        try {
+          const writeStdinTask = writeStdin(context.stdin, p);
+          const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
+          const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
+          const [status] = await Promise.all([
+            p.status(),
+            writeStdinTask,
+            readStdoutTask,
+            readStderrTask,
+          ]);
+          return resultFromCode(status.code);
+        } finally {
+          p.close();
+          p.stdout?.close();
+          p.stderr?.close();
+        }
       }
     case "sequentialList":
     default:
@@ -278,7 +273,7 @@ async function executeCommandInner(command: CommandInner, context: Context): Pro
     }
   }
 
-  function getStdioStringValue(value: ShellPipeReader | ShellPipeWriter) {
+  function getStdioStringValue(value: ShellPipeReader | ShellPipeWriterKind) {
     if (value === "inherit" || value === "null") {
       return value;
     }

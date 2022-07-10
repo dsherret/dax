@@ -1,8 +1,10 @@
 import { Buffer, fs, path, which, whichSync } from "./src/deps.ts";
-import { parseArgs, ShellPipeReader, spawn } from "./src/shell.ts";
+import { NullPipeWriter, ShellPipeReader, ShellPipeWriter } from "./src/pipes.ts";
+import { parseArgs, spawn } from "./src/shell.ts";
 
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: string[]): CommandPromise;
+  cd(path: string | URL): void;
   fs: typeof fs;
   path: typeof path;
   sleep(ms: number): Promise<void>;
@@ -41,6 +43,10 @@ async function withRetries<TReturn>(params: RetryParams<TReturn>) {
   throw new Error(`Failed after ${params.count} attempts.`);
 }
 
+function cd(path: string | URL) {
+  Deno.chdir(path);
+}
+
 export const $: $Type = Object.assign(
   (strings: TemplateStringsArray, ...exprs: string[]) => {
     const parts = [];
@@ -58,6 +64,7 @@ export const $: $Type = Object.assign(
   {
     fs,
     path,
+    cd,
     sleep,
     withRetries,
     which,
@@ -88,10 +95,20 @@ export class CommandPromise implements PromiseLike<CommandResult> {
 
   async spawn(): Promise<CommandResult> {
     const list = await parseArgs(this.#command);
+    const stdout = this.#stdout === "null"
+      ? new ShellPipeWriter("null", new NullPipeWriter())
+      : this.#stdout === "inherit"
+      ? new ShellPipeWriter("inherit", Deno.stdout)
+      : new ShellPipeWriter("writer", this.#stdout);
+    const stderr = this.#stderr === "null"
+      ? new ShellPipeWriter("null", new NullPipeWriter())
+      : this.#stderr === "inherit"
+      ? new ShellPipeWriter("inherit", Deno.stderr)
+      : new ShellPipeWriter("writer", this.#stderr);
     const code = await spawn(list, {
       stdin: this.#stdin,
-      stdout: this.#stdout,
-      stderr: this.#stderr,
+      stdout,
+      stderr,
     });
     if (code !== 0 && !this.#nothrow) {
       throw new Error(`Exited with error code: ${code}`);
@@ -118,6 +135,7 @@ export class CommandPromise implements PromiseLike<CommandResult> {
     } else {
       this.#stdout = kind;
     }
+    return this;
   }
 
   stderr(kind: "pipe" | "inherit" | "null") {
@@ -126,6 +144,7 @@ export class CommandPromise implements PromiseLike<CommandResult> {
     } else {
       this.#stderr = kind;
     }
+    return this;
   }
 }
 
