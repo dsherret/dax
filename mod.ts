@@ -5,7 +5,7 @@ import { parseArgs, spawn } from "./src/shell.ts";
 const textDecoder = new TextDecoder();
 
 export interface $Type {
-  (strings: TemplateStringsArray, ...exprs: string[]): CommandPromise;
+  (strings: TemplateStringsArray, ...exprs: any[]): CommandPromise;
   cd(path: string | URL): void;
   echo: typeof console.log;
   fs: typeof fs;
@@ -51,18 +51,18 @@ function cd(path: string | URL) {
 }
 
 export const $: $Type = Object.assign(
-  (strings: TemplateStringsArray, ...exprs: string[]) => {
-    const parts = [];
+  (strings: TemplateStringsArray, ...exprs: any[]) => {
+    // don't bother escaping for now... work on that later
+    let result = "";
     for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
       if (strings.length > i) {
-        parts.push(strings[i]);
+        result += strings[i];
       }
       if (exprs.length > i) {
-        parts.push(`"${exprs[i].replace(`"`, `\\"`)}"`);
+        result += `${exprs[i]}`;
       }
     }
-    const command = parts.join(" ");
-    return new CommandPromise(command);
+    return new CommandPromise(result);
   },
   {
     fs,

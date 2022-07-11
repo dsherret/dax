@@ -97,3 +97,9 @@ Deno.test("stderrJson", async () => {
   assertEquals(output.stderrJson, { test: 5 });
   assertEquals(output.stderrJson === output.stderrJson, true); // should be memoized
 });
+
+Deno.test("should handle interpolation", async () => {
+  const output = await $`deno eval 'console.log(${5});'`;
+  assertEquals(output.code, 0);
+  assertEquals(output.stdout, "5\n");
+});
