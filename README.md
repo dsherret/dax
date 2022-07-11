@@ -9,7 +9,7 @@ Differences:
 1. No globals or custom CLI command to execute—import into a script then use `deno run -A your_script.ts`.
 1. Cross platform shell to help the code work on Windows.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
-   - This is very early stages, so I only have simple commands working at the moment and no cross platform commands.
+   - This is very early stages, so still a lot not working at the moment and no cross platform commands.
 
 ## Example
 
@@ -37,6 +37,9 @@ await $`deno eval 'console.log(Deno.env.get("var1"));'`
     var4: "value4",
   })
   .stdout("inherit");
+
+// setting cwd for command
+await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
 // change directory
 $.cd("newDir");

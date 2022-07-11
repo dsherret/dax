@@ -69,8 +69,20 @@ export const $: $Type = Object.assign(
     cd,
     sleep,
     withRetries,
-    which,
-    whichSync,
+    which(commandName: string) {
+      if (commandName.toUpperCase() === "DENO") {
+        return Promise.resolve(Deno.execPath());
+      } else {
+        return which(commandName);
+      }
+    },
+    whichSync(commandName: string) {
+      if (commandName.toUpperCase() === "DENO") {
+        return Deno.execPath();
+      } else {
+        return whichSync(commandName);
+      }
+    },
   },
 );
 export default $;
@@ -83,7 +95,8 @@ export class CommandPromise implements PromiseLike<CommandResult> {
   #stdout: BufferStdio = new Buffer();
   #stderr: BufferStdio = "inherit";
   #nothrow = false;
-  #env: { [name: string]: string | undefined } = {};
+  #env: { [name: string]: string } = Deno.env.toObject();
+  #cwd: string = Deno.cwd();
 
   constructor(command: string) {
     this.#command = command;
@@ -113,6 +126,7 @@ export class CommandPromise implements PromiseLike<CommandResult> {
       stdout,
       stderr,
       env: this.#env,
+      cwd: this.#cwd,
     });
     if (code !== 0 && !this.#nothrow) {
       throw new Error(`Exited with error code: ${code}`);
@@ -122,14 +136,6 @@ export class CommandPromise implements PromiseLike<CommandResult> {
 
   nothrow(): this {
     this.#nothrow = true;
-    return this;
-  }
-
-  /** Sets stdin, stdout, and stderr to all inherit. */
-  inherit(): this {
-    this.#stdin = "inherit";
-    this.#stdout = "inherit";
-    this.#stderr = "inherit";
     return this;
   }
 
@@ -155,13 +161,28 @@ export class CommandPromise implements PromiseLike<CommandResult> {
   env(name: string, value: string | undefined): this;
   env(nameOrItems: string | { [name: string]: string | undefined }, value?: string) {
     if (typeof nameOrItems === "string") {
-      this.#env[nameOrItems] = value;
+      this.#setEnv(nameOrItems, value);
     } else {
       for (const [key, value] of Object.entries(nameOrItems)) {
-        this.#env[key] = value;
+        this.#setEnv(key, value);
       }
     }
     return this;
+  }
+
+  #setEnv(key: string, value: string | undefined) {
+    if (Deno.build.os === "windows") {
+      key = key.toUpperCase();
+    }
+    if (value == null) {
+      delete this.#env[key];
+    } else {
+      this.#env[key] = value;
+    }
+  }
+
+  cwd(dirPath: string) {
+    this.#cwd = path.resolve(dirPath);
   }
 }
 

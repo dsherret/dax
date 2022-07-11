@@ -1,5 +1,6 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
 import { cdCommand } from "./commands/cd.ts";
+import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
@@ -99,7 +100,7 @@ class Context {
   cwd: string;
   env: {
     [key: string]: string;
-  };
+  } = {};
 
   constructor(opts: {
     stdin: ShellPipeReader;
@@ -114,7 +115,10 @@ class Context {
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.cwd = opts.cwd;
-    this.env = opts.env;
+
+    for (const [key, value] of Object.entries(opts.env)) {
+      this.applyEnvVar(key, value);
+    }
   }
 
   applyChanges(changes: EnvChange[]) {
@@ -132,6 +136,9 @@ class Context {
   }
 
   applyEnvVar(name: string, value: string | undefined) {
+    if (Deno.build.os === "windows") {
+      name = name.toUpperCase();
+    }
     if (value == null || value.length === 0) {
       delete this.env[name];
     } else {
@@ -159,20 +166,18 @@ export interface SpawnOpts {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
-  env: { [name: string]: string | undefined };
+  env: { [name: string]: string };
+  cwd: string;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const context = new Context({
-    cwd: Deno.cwd(),
-    env: Deno.env.toObject(),
+    cwd: opts.cwd,
+    env: opts.env,
     stdin: opts.stdin,
     stdout: opts.stdout,
     stderr: opts.stderr,
   });
-  for (const [key, value] of Object.entries(opts.env)) {
-    context.applyEnvVar(key, value);
-  }
   const result = await executeSequentialList(list, context);
   return result.code;
 }
@@ -263,8 +268,9 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   if (commandArgs[0] === "cd") {
     return await cdCommand(context.cwd, commandArgs.slice(1), context.stderr);
   } else {
+    const commandPath = await resolveCommand(commandArgs[0], context);
     const p = Deno.run({
-      cmd: commandArgs,
+      cmd: [commandPath, ...commandArgs.slice(1)],
       cwd: context.cwd,
       env: context.env,
       stdin: getStdioStringValue(context.stdin),
@@ -320,6 +326,42 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     }
     return "piped";
   }
+}
+
+async function resolveCommand(commandName: string, context: Context) {
+  const realEnvironment = new DenoWhichRealEnvironment();
+  if (commandName.includes("/") || commandName.includes("\\")) {
+    if (!path.isAbsolute(commandName)) {
+      commandName = path.relative(context.cwd, commandName);
+    }
+    if (await realEnvironment.fileExists(commandName)) {
+      return commandName;
+    } else {
+      throw new Error(`Command not found: ${commandName}`);
+    }
+  }
+
+  // always use the current executable for "deno"
+  if (commandName.toUpperCase() === "DENO") {
+    return Deno.execPath();
+  }
+
+  const commandPath = await which(commandName, {
+    os: Deno.build.os,
+    fileExists(path: string) {
+      return realEnvironment.fileExists(path);
+    },
+    env(key) {
+      if (Deno.build.os === "windows") {
+        key = key.toUpperCase();
+      }
+      return context.env[key];
+    },
+  });
+  if (commandPath == null) {
+    throw new Error(`Command not found: ${commandName}`);
+  }
+  return commandPath;
 }
 
 async function evaluateArgs(stringOrWords: StringOrWord[], context: Context) {
