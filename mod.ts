@@ -207,8 +207,13 @@ export class CommandResult {
     return this.#memoizedStdout;
   }
 
+  #memoizedStdoutJson: any | undefined;
+
   get stdoutJson() {
-    return JSON.parse(this.stdout);
+    if (this.#memoizedStdoutJson == null) {
+      this.#memoizedStdoutJson = JSON.parse(this.stdout);
+    }
+    return this.#memoizedStdoutJson;
   }
 
   get stdoutBytes(): Uint8Array {
@@ -227,8 +232,13 @@ export class CommandResult {
     return this.#memoizedStderr;
   }
 
+  #memoizedStderrJson: any | undefined;
+
   get stderrJson() {
-    return JSON.parse(this.stderr);
+    if (this.#memoizedStderrJson == null) {
+      this.#memoizedStderrJson = JSON.parse(this.stderr);
+    }
+    return this.#memoizedStderrJson;
   }
 
   get stderrBytes(): Uint8Array {

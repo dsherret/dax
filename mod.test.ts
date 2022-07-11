@@ -89,9 +89,11 @@ Deno.test("variable substitution", async () => {
 Deno.test("stdoutJson", async () => {
   const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`;
   assertEquals(output.stdoutJson, { test: 5 });
+  assertEquals(output.stdoutJson === output.stdoutJson, true); // should be memoized
 });
 
 Deno.test("stderrJson", async () => {
-  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`;
+  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("pipe");
   assertEquals(output.stderrJson, { test: 5 });
+  assertEquals(output.stderrJson === output.stderrJson, true); // should be memoized
 });
