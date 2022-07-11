@@ -45,6 +45,9 @@ await $`deno eval 'console.log(Deno.env.get("var1"));'`
 // setting cwd for command
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
+// echo (console.log alias)
+$.echo("Hello!");
+
 // change directory
 $.cd("newDir");
 

@@ -7,6 +7,7 @@ const textDecoder = new TextDecoder();
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: string[]): CommandPromise;
   cd(path: string | URL): void;
+  echo: typeof console.log;
   fs: typeof fs;
   path: typeof path;
   sleep(ms: number): Promise<void>;
@@ -67,6 +68,9 @@ export const $: $Type = Object.assign(
     fs,
     path,
     cd,
+    echo(...data: any[]) {
+      console.log(...data);
+    },
     sleep,
     withRetries,
     which(commandName: string) {
