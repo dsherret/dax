@@ -207,6 +207,10 @@ export class CommandResult {
     return this.#memoizedStdout;
   }
 
+  get stdoutJson() {
+    return JSON.parse(this.stdout);
+  }
+
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
       throw new Error(`Stdout was not piped (was ${this.#stdout}). By default stdout is piped.`);
@@ -221,6 +225,10 @@ export class CommandResult {
       this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
     }
     return this.#memoizedStderr;
+  }
+
+  get stderrJson() {
+    return JSON.parse(this.stderr);
   }
 
   get stderrBytes(): Uint8Array {

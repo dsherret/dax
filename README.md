@@ -27,6 +27,10 @@ await $`deno run my_script.ts`.stdout("inherit");
 const result = await $`deno eval 'console.error(5);'`.stderr("piped");
 console.log(result.stderr.trim()); // 5, would throw if not piped
 
+// get output as json
+const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`;
+console.log(output.stdoutJson);
+
 // setting env variables
 await $`deno eval 'console.log(Deno.env.get("var1"));'`
   .env("var1", "value")
