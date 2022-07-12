@@ -125,3 +125,28 @@ Deno.test("command builder should build", async () => {
     assertEquals(output.stdout, "456\n");
   }
 });
+
+Deno.test("should handle boolean list 'or'", async () => {
+  {
+    const output = await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`;
+    assertEquals(output.stdout.trim(), "5");
+  }
+  {
+    const output = await $`deno eval 'Deno.exit(1)' || deno eval 'Deno.exit(2)' || deno eval 'Deno.exit(3)'`.noThrow();
+    assertEquals(output.stdout, "");
+    assertEquals(output.code, 3);
+  }
+});
+
+Deno.test("should handle boolean list 'and'", async () => {
+  {
+    const output = await $`deno eval 'Deno.exit(5)' && deno eval 'console.log(5)'`.noThrow();
+    assertEquals(output.code, 5);
+    assertEquals(output.stdout, "");
+  }
+  {
+    const output = await $`deno eval 'Deno.exit(0)' && deno eval 'console.log(5)' && deno eval 'console.log(6)'`;
+    assertEquals(output.code, 0);
+    assertEquals(output.stdout.trim(), "5\n6");
+  }
+});

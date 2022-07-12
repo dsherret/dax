@@ -88,9 +88,13 @@ export interface PipeSequence {
   // todo...
 }
 
+export type BooleanListOperator = "and" | "or";
+
 export interface BooleanList {
   kind: "booleanList";
-  // todo...
+  current: Sequence;
+  op: BooleanListOperator;
+  next: Sequence;
 }
 
 class Context {
@@ -121,7 +125,10 @@ class Context {
     }
   }
 
-  applyChanges(changes: EnvChange[]) {
+  applyChanges(changes: EnvChange[] | undefined) {
+    if (changes == null) {
+      return;
+    }
     for (const change of changes) {
       switch (change.kind) {
         case "cd":
@@ -216,9 +223,89 @@ function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteR
     case "pipeline":
       return executePipeline(sequence, context);
     case "booleanList":
+      return executeBooleanList(sequence, context);
     case "shellVar":
     default:
       throw new Error(`Not implemented: ${sequence.kind}`);
+  }
+}
+
+async function executeBooleanList(list: BooleanList, context: Context): Promise<ExecuteResult> {
+  const changes = [];
+  // handle first result
+  const firstResult = await executeSequence(
+    list.current,
+    context.clone(),
+  );
+  let exitCode = 0;
+  switch (firstResult.kind) {
+    case "exit":
+      return firstResult;
+    case "continue":
+      if (firstResult.changes) {
+        context.applyChanges(firstResult.changes);
+        changes.push(...firstResult.changes);
+      }
+      exitCode = firstResult.code;
+      break;
+    default:
+      const _assertNever: never = firstResult;
+      throw new Error("Not handled.");
+  }
+
+  const next = findNextSequence(list, exitCode);
+  if (next == null) {
+    return {
+      kind: "continue",
+      code: exitCode,
+      changes,
+    };
+  } else {
+    const nextResult = await executeSequence(
+      next,
+      context.clone(),
+    );
+    switch (nextResult.kind) {
+      case "exit":
+        return firstResult;
+      case "continue":
+        if (nextResult.changes) {
+          changes.push(...nextResult.changes);
+        }
+        return {
+          kind: "continue",
+          code: nextResult.code,
+          changes,
+        };
+      default:
+        const _assertNever: never = nextResult;
+        throw new Error("Not Implemented");
+    }
+  }
+
+  function findNextSequence(current: BooleanList, exitCode: number) {
+    if (opMovesNextForExitCode(current.op, exitCode)) {
+      return current.next;
+    } else {
+      let next = current.next;
+      while (next.kind === "booleanList") {
+        if (opMovesNextForExitCode(next.op, exitCode)) {
+          return next.next;
+        } else {
+          next = next.next;
+        }
+      }
+      return undefined;
+    }
+  }
+
+  function opMovesNextForExitCode(op: BooleanListOperator, exitCode: number) {
+    switch (op) {
+      case "or":
+        return exitCode !== 0;
+      case "and":
+        return exitCode === 0;
+    }
   }
 }
 
@@ -429,44 +516,4 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
     result.push(currentText);
   }
   return result;
-}
-
-// todo: remove and replace with above
-export function parseArgsOld(command: string) {
-  const args: string[] = [];
-  let current = "";
-  for (let i = 0; i < command.length; i++) {
-    let char = command[i];
-    if (char === "'" || char === "\"") {
-      const startChar = char;
-      i++;
-      for (; i < command.length; i++) {
-        char = command[i];
-        if (char === startChar) {
-          break;
-        } else if (char === "\\" && command[i + 1] === startChar) {
-          // skip the escaped quote
-          i++;
-          current += startChar;
-        } else {
-          current += char;
-        }
-      }
-    } else if (char === " ") {
-      checkAddArg();
-    } else {
-      current += char;
-    }
-  }
-
-  checkAddArg();
-  return args;
-
-  function checkAddArg() {
-    const arg = current.trim();
-    if (arg.length > 0) {
-      args.push(arg);
-    }
-    current = "";
-  }
 }

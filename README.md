@@ -86,6 +86,15 @@ Sequential lists:
 const result = await $`cd someDir ; deno eval 'console.log(Deno.cwd())'`;
 ```
 
+Boolean lists:
+
+```ts
+// returns stdout with 1\n\2n
+await $`deno eval 'console.log(1)' && deno eval 'console.log(2)'`;
+// returns stdout with 1\n
+await $`deno eval 'console.log(1)' || deno eval 'console.log(2)'`;
+```
+
 Setting env var for command in the shell (generally you can just use `.env(...)` though):
 
 ```ts
