@@ -1,11 +1,11 @@
 import { Buffer, fs, path, which, whichSync } from "./src/deps.ts";
-import { NullPipeWriter, ShellPipeReader, ShellPipeWriter } from "./src/pipes.ts";
+import { NullPipeWriter, ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./src/pipes.ts";
 import { parseArgs, spawn } from "./src/shell.ts";
 
 const textDecoder = new TextDecoder();
 
 export interface $Type {
-  (strings: TemplateStringsArray, ...exprs: any[]): CommandPromise;
+  (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
   cd(path: string | URL): void;
   echo: typeof console.log;
   fs: typeof fs;
@@ -16,94 +16,51 @@ export interface $Type {
   whichSync: typeof whichSync;
 }
 
-function sleep(ms: number) {
-  return new Promise<void>(resolve => setTimeout(resolve, ms));
-}
-
-export interface RetryParams<TReturn> {
-  count: number;
-  /** Delay in milliseconds. */
-  delay: number;
-  action: () => Promise<TReturn>;
-}
-
-async function withRetries<TReturn>(params: RetryParams<TReturn>) {
-  for (let i = 0; i < params.count; i++) {
-    if (i > 0) {
-      console.error(
-        `Failed. Trying again in ${params.delay} seconds...`,
-      );
-      await sleep(params.delay);
-      console.error(`Attempt ${i + 1}/${params.count}...`);
-    }
-    try {
-      return await params.action();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  throw new Error(`Failed after ${params.count} attempts.`);
-}
-
-function cd(path: string | URL) {
-  Deno.chdir(path);
-}
-
-export const $: $Type = Object.assign(
-  (strings: TemplateStringsArray, ...exprs: any[]) => {
-    // don't bother escaping for now... work on that later
-    let result = "";
-    for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-      if (strings.length > i) {
-        result += strings[i];
-      }
-      if (exprs.length > i) {
-        result += `${exprs[i]}`;
-      }
-    }
-    return new CommandPromise(result);
-  },
-  {
-    fs,
-    path,
-    cd,
-    echo(...data: any[]) {
-      console.log(...data);
-    },
-    sleep,
-    withRetries,
-    which(commandName: string) {
-      if (commandName.toUpperCase() === "DENO") {
-        return Promise.resolve(Deno.execPath());
-      } else {
-        return which(commandName);
-      }
-    },
-    whichSync(commandName: string) {
-      if (commandName.toUpperCase() === "DENO") {
-        return Deno.execPath();
-      } else {
-        return whichSync(commandName);
-      }
-    },
-  },
-);
-export default $;
-
 type BufferStdio = "inherit" | "null" | Buffer;
 
-export class CommandPromise implements PromiseLike<CommandResult> {
-  #command: string;
-  #stdin: ShellPipeReader = "inherit";
-  #stdout: BufferStdio = new Buffer();
-  #stderr: BufferStdio = "inherit";
-  #nothrow = false;
-  #env: { [name: string]: string } = Deno.env.toObject();
-  #cwd: string = Deno.cwd();
+interface CommandBuilderState {
+  command: string | undefined;
+  stdin: ShellPipeReader;
+  stdoutKind: ShellPipeWriterKind;
+  stderrKind: ShellPipeWriterKind;
+  noThrow: boolean;
+  env: { [name: string]: string };
+  cwd: string;
+}
 
-  constructor(command: string) {
-    this.#command = command;
+export class CommandBuilder implements PromiseLike<CommandResult> {
+  #state: CommandBuilderState | undefined;
+
+  #getState() {
+    if (this.#state == null) {
+      this.#state = {
+        command: undefined,
+        stdin: "inherit",
+        stdoutKind: "pipe",
+        stderrKind: "inherit",
+        noThrow: false,
+        env: Deno.env.toObject(),
+        cwd: Deno.cwd(),
+      };
+    }
+    return this.#state;
+  }
+
+  clone() {
+    const builder = new CommandBuilder();
+    if (this.#state != null) {
+      // be explicit here in order to evaluate each property on a case by case basis
+      builder.#state = {
+        command: this.#state.command,
+        stdin: this.#state.stdin,
+        stdoutKind: this.#state.stdoutKind,
+        stderrKind: this.#state.stderrKind,
+        noThrow: this.#state.noThrow,
+        env: { ...this.#state.env },
+        cwd: this.#state.cwd,
+      };
+    }
+    return builder;
   }
 
   then<TResult1 = CommandResult, TResult2 = never>(
@@ -113,51 +70,44 @@ export class CommandPromise implements PromiseLike<CommandResult> {
     return this.spawn().then(onfulfilled).catch(onrejected);
   }
 
-  async spawn(): Promise<CommandResult> {
-    const list = await parseArgs(this.#command);
-    const stdout = this.#stdout === "null"
-      ? new ShellPipeWriter("null", new NullPipeWriter())
-      : this.#stdout === "inherit"
-      ? new ShellPipeWriter("inherit", Deno.stdout)
-      : new ShellPipeWriter("writer", this.#stdout);
-    const stderr = this.#stderr === "null"
-      ? new ShellPipeWriter("null", new NullPipeWriter())
-      : this.#stderr === "inherit"
-      ? new ShellPipeWriter("inherit", Deno.stderr)
-      : new ShellPipeWriter("writer", this.#stderr);
-    const code = await spawn(list, {
-      stdin: this.#stdin,
-      stdout,
-      stderr,
-      env: this.#env,
-      cwd: this.#cwd,
+  build$(): $Type {
+    return create$(this.clone());
+  }
+
+  spawn(): Promise<CommandResult> {
+    const currentState = this.#getState();
+    // store a snapshot of the current command
+    // in case someone wants to spawn multiple
+    // commands with different state
+    return parseAndSpawnCommand({
+      command: currentState.command,
+      stdin: currentState.stdin,
+      stdoutKind: currentState.stdoutKind,
+      stderrKind: currentState.stderrKind,
+      noThrow: currentState.noThrow,
+      env: { ...currentState.env },
+      cwd: currentState.cwd,
     });
-    if (code !== 0 && !this.#nothrow) {
-      throw new Error(`Exited with error code: ${code}`);
-    }
-    return new CommandResult(code, this.#stdout, this.#stderr);
   }
 
-  nothrow(): this {
-    this.#nothrow = true;
+  /** Sets the raw command to execute. */
+  command(commandText: string) {
+    this.#getState().command = commandText;
     return this;
   }
 
-  stdout(kind: "pipe" | "inherit" | "null") {
-    if (kind === "pipe") {
-      this.#stdout = new Buffer();
-    } else {
-      this.#stdout = kind;
-    }
+  noThrow(): this {
+    this.#getState().noThrow = true;
     return this;
   }
 
-  stderr(kind: "pipe" | "inherit" | "null") {
-    if (kind === "pipe") {
-      this.#stderr = new Buffer();
-    } else {
-      this.#stderr = kind;
-    }
+  stdout(kind: ShellPipeWriterKind) {
+    this.#getState().stdoutKind = kind;
+    return this;
+  }
+
+  stderr(kind: ShellPipeWriterKind) {
+    this.#getState().stderrKind = kind;
     return this;
   }
 
@@ -179,15 +129,61 @@ export class CommandPromise implements PromiseLike<CommandResult> {
       key = key.toUpperCase();
     }
     if (value == null) {
-      delete this.#env[key];
+      delete this.#getState().env[key];
     } else {
-      this.#env[key] = value;
+      this.#getState().env[key] = value;
     }
   }
 
   cwd(dirPath: string) {
-    this.#cwd = path.resolve(dirPath);
+    this.#getState().cwd = path.resolve(dirPath);
   }
+}
+
+async function parseAndSpawnCommand(state: CommandBuilderState) {
+  if (state.command == null) {
+    throw new Error("A command must be set before it can be spawned.");
+  }
+
+  const stdoutBuffer = state.stdoutKind === "null"
+    ? "null"
+    : state.stdoutKind === "inherit"
+    ? "inherit"
+    : new Buffer();
+  const stdout = new ShellPipeWriter(
+    state.stdoutKind,
+    stdoutBuffer === "null"
+      ? new NullPipeWriter()
+      : stdoutBuffer === "inherit"
+      ? Deno.stdout
+      : stdoutBuffer,
+  );
+  const stderrBuffer = state.stderrKind === "null"
+    ? "null"
+    : state.stderrKind === "inherit"
+    ? "inherit"
+    : new Buffer();
+  const stderr = new ShellPipeWriter(
+    state.stderrKind,
+    stderrBuffer === "null"
+      ? new NullPipeWriter()
+      : stderrBuffer === "inherit"
+      ? Deno.stderr
+      : stderrBuffer,
+  );
+
+  const list = await parseArgs(state.command);
+  const code = await spawn(list, {
+    stdin: state.stdin,
+    stdout,
+    stderr,
+    env: state.env,
+    cwd: state.cwd,
+  });
+  if (code !== 0 && !state.noThrow) {
+    throw new Error(`Exited with error code: ${code}`);
+  }
+  return new CommandResult(code, stdoutBuffer, stderrBuffer);
 }
 
 export class CommandResult {
@@ -252,3 +248,81 @@ export class CommandResult {
     return this.#stderr.bytes();
   }
 }
+
+function sleep(ms: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, ms));
+}
+
+export interface RetryParams<TReturn> {
+  count: number;
+  /** Delay in milliseconds. */
+  delay: number;
+  action: () => Promise<TReturn>;
+}
+
+async function withRetries<TReturn>(params: RetryParams<TReturn>) {
+  for (let i = 0; i < params.count; i++) {
+    if (i > 0) {
+      console.error(
+        `Failed. Trying again in ${params.delay} seconds...`,
+      );
+      await sleep(params.delay);
+      console.error(`Attempt ${i + 1}/${params.count}...`);
+    }
+    try {
+      return await params.action();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  throw new Error(`Failed after ${params.count} attempts.`);
+}
+
+function cd(path: string | URL) {
+  Deno.chdir(path);
+}
+
+const helperObject = {
+  fs,
+  path,
+  cd,
+  echo(...data: any[]) {
+    console.log(...data);
+  },
+  sleep,
+  withRetries,
+  which(commandName: string) {
+    if (commandName.toUpperCase() === "DENO") {
+      return Promise.resolve(Deno.execPath());
+    } else {
+      return which(commandName);
+    }
+  },
+  whichSync(commandName: string) {
+    if (commandName.toUpperCase() === "DENO") {
+      return Deno.execPath();
+    } else {
+      return whichSync(commandName);
+    }
+  },
+};
+
+function create$(ownedStartingBuilder: CommandBuilder) {
+  return Object.assign((strings: TemplateStringsArray, ...exprs: any[]) => {
+    // don't bother escaping for now... work on that later
+    let result = "";
+    for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+      if (strings.length > i) {
+        result += strings[i];
+      }
+      if (exprs.length > i) {
+        result += `${exprs[i]}`;
+      }
+    }
+    return ownedStartingBuilder.clone().command(result);
+  }, helperObject);
+}
+
+export const $: $Type = create$(new CommandBuilder());
+export default $;

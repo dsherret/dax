@@ -1,4 +1,4 @@
-import $ from "./mod.ts";
+import $, { CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 
 Deno.test("should get stdout by default", async () => {
@@ -102,4 +102,26 @@ Deno.test("should handle interpolation", async () => {
   const output = await $`deno eval 'console.log(${5});'`;
   assertEquals(output.code, 0);
   assertEquals(output.stdout, "5\n");
+});
+
+Deno.test("command builder should build", async () => {
+  const builder = new CommandBuilder()
+    .env("TEST", "123");
+  {
+    const $ = builder.build$();
+    // after creating a $, the environment should be set in stone, so changing
+    // this environment variable should have no effect here
+    builder.env("TEST", "456");
+    const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`;
+    assertEquals(output.code, 0);
+    assertEquals(output.stdout, "123\n");
+  }
+
+  {
+    // but this one should be
+    const $ = builder.build$();
+    const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`;
+    assertEquals(output.code, 0);
+    assertEquals(output.stdout, "456\n");
+  }
 });

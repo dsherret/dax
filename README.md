@@ -102,3 +102,21 @@ console.log(result.stdout); // 123
 ```
 
 todo...
+
+## Command Builder
+
+You may wish to create your own `$` function that has a certain setup context (for example, a defined environment variable or cwd). You may do this by using a `CommandBuilder`, which is what the main default exported `$` function uses internally:
+
+```ts
+import { CommandBuilder } from "https://deno.land/x/ax@{VERSION_GOES_HERE}/mod.ts";
+
+const builder = new CommandBuilder()
+  .cwd("./subDir")
+  .env("HTTPS_PROXY", "some_value");
+
+// creates a $ object with the starting environment as shown above
+const $ = builder.build$();
+
+// this command would then be executed with that environment
+await $`deno run my_script.ts`;
+```

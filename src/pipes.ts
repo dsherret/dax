@@ -3,7 +3,7 @@ import { writeAll } from "./deps.ts";
 const encoder = new TextEncoder();
 
 export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
-export type ShellPipeWriterKind = "inherit" | "null" | "writer";
+export type ShellPipeWriterKind = "inherit" | "null" | "pipe";
 
 export class NullPipeWriter implements Deno.Writer {
   write(p: Uint8Array): Promise<number> {
