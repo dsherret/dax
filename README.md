@@ -1,6 +1,8 @@
-# ax
+# dax
 
-**Note:** This is very early stages. Just started working on it. A lot is not tested and won't work.
+[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
+
+**Note:** This is very early stages. Just started working on it.
 
 An automation toolkit for Deno inspired by [zx](https://github.com/google/zx).
 
@@ -10,12 +12,12 @@ Differences:
 1. Cross platform shell to help the code work on Windows.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
    - Allows exporting the shell's environment to the current process (see `.exportEnv()` below)
+1. Named after my cat.
 
 ## Example
 
 ```ts
-// note: this is not published yet...
-import $ from "https://deno.land/x/ax@{VERSION_GOES_HERE}/mod.ts";
+import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
 const result = await $`echo 5`;
 console.log(result.stdout); // 5\n
@@ -158,7 +160,7 @@ Currently implemented (though not every option is supported):
 You may wish to create your own `$` function that has a certain setup context (for example, a defined environment variable or cwd). You may do this by using a `CommandBuilder`, which is what the main default exported `$` function uses internally:
 
 ```ts
-import { CommandBuilder } from "https://deno.land/x/ax@{VERSION_GOES_HERE}/mod.ts";
+import { CommandBuilder } from "https://deno.land/x/dax@{VERSION_GOES_HERE}/mod.ts";
 
 const builder = new CommandBuilder()
   .cwd("./subDir")
