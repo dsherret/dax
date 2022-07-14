@@ -4,7 +4,7 @@
 
 **Note:** This is very early stages. Just started working on it.
 
-An automation toolkit for Deno inspired by [zx](https://github.com/google/zx).
+Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
 
 Differences:
 
@@ -125,8 +125,8 @@ Shell variables (these aren't exported):
 ```ts
 // the 'test' variable WON'T be exported to the sub processes, so
 // that will print a blank line, but it will be used in the final echo command
-const result = await $
-  `test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
+const result =
+  await $`test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
 ```
 
 Env variables (these are exported):
@@ -134,8 +134,8 @@ Env variables (these are exported):
 ```ts
 // the 'test' variable WILL be exported to the sub processes and
 // it will be used in the final echo command
-const result = await $
-  `export test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
+const result =
+  await $`export test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
 ```
 
 Variable substitution:
