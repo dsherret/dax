@@ -26,6 +26,7 @@ interface CommandBuilderState {
   noThrow: boolean;
   env: { [name: string]: string };
   cwd: string;
+  exportEnv: boolean;
 }
 
 export class CommandBuilder implements PromiseLike<CommandResult> {
@@ -41,6 +42,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         noThrow: false,
         env: Deno.env.toObject(),
         cwd: Deno.cwd(),
+        exportEnv: false,
       };
     }
     return this.#state;
@@ -58,6 +60,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         noThrow: this.#state.noThrow,
         env: { ...this.#state.env },
         cwd: this.#state.cwd,
+        exportEnv: this.#state.exportEnv,
       };
     }
     return builder;
@@ -87,6 +90,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: currentState.noThrow,
       env: { ...currentState.env },
       cwd: currentState.cwd,
+      exportEnv: currentState.exportEnv,
     });
   }
 
@@ -138,6 +142,24 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   cwd(dirPath: string) {
     this.#getState().cwd = path.resolve(dirPath);
   }
+
+  /**
+   * Exports the environment of the command to the executing process.
+   *
+   * So for example, changing the directory in a command or exporting
+   * an environment variable will actually change the environment
+   * of the executing process.
+   *
+   * ```ts
+   * await $`cd src && export SOME_VALUE=5`;
+   * console.log(Deno.env.get("SOME_VALUE")); // 5
+   * console.log(Deno.cwd()); // will be in the src directory
+   * ```
+   */
+  exportEnv(value = true) {
+    this.#getState().exportEnv = value;
+    return this;
+  }
 }
 
 async function parseAndSpawnCommand(state: CommandBuilderState) {
@@ -179,6 +201,7 @@ async function parseAndSpawnCommand(state: CommandBuilderState) {
     stderr,
     env: state.env,
     cwd: state.cwd,
+    exportEnv: state.exportEnv,
   });
   if (code !== 0 && !state.noThrow) {
     throw new Error(`Exited with error code: ${code}`);
@@ -317,7 +340,13 @@ function create$(ownedStartingBuilder: CommandBuilder) {
         result += strings[i];
       }
       if (exprs.length > i) {
-        result += `${exprs[i]}`;
+        const expr = exprs[i];
+        if (expr instanceof CommandResult) {
+          // remove last newline
+          result += expr.stdout.replace(/\r?\n$/, "");
+        } else {
+          result += `${exprs[i]}`;
+        }
       }
     }
     return ownedStartingBuilder.clone().command(result);

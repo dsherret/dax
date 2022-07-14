@@ -20,14 +20,18 @@ export interface ContinueExecuteResult {
 
 export type EnvChange = SetEnvVarChange | SetShellVarChange | CdChange;
 
+/** `export ENV_VAR=VALUE` */
 export interface SetEnvVarChange {
   kind: "envvar";
-  // todo...
+  name: string;
+  value: string;
 }
 
+/** `ENV_VAR=VALUE` */
 export interface SetShellVarChange {
   kind: "shellvar";
-  // todo...
+  name: string;
+  value: string;
 }
 
 export interface CdChange {

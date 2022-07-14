@@ -1,5 +1,7 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
 import { cdCommand } from "./commands/cd.ts";
+import { echoCommand } from "./commands/echo.ts";
+import { exportCommand } from "./commands/export.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
@@ -97,32 +99,129 @@ export interface BooleanList {
   next: Sequence;
 }
 
+interface Env {
+  setCwd(cwd: string): void;
+  getCwd(): string;
+  setEnvVar(key: string, value: string | undefined): void;
+  getEnvVar(key: string): string | undefined;
+  getEnvVars(): { [key: string]: string };
+  clone(): Env;
+}
+
+class RealEnv implements Env {
+  setCwd(cwd: string) {
+    Deno.chdir(cwd);
+  }
+
+  getCwd() {
+    return Deno.cwd();
+  }
+
+  setEnvVar(key: string, value: string | undefined) {
+    if (value == null) {
+      Deno.env.delete(key);
+    } else {
+      Deno.env.set(key, value);
+    }
+  }
+
+  getEnvVar(key: string) {
+    return Deno.env.get(key);
+  }
+
+  getEnvVars() {
+    return Deno.env.toObject();
+  }
+
+  clone(): Env {
+    return new ShellEnv({
+      cwd: this.getCwd(),
+      env: this.getEnvVars(),
+    });
+  }
+}
+
+interface ShellEnvOpts {
+  cwd: string;
+  env: {
+    [key: string]: string;
+  };
+}
+
+class ShellEnv implements Env {
+  #cwd: string;
+  #envVars: {
+    [key: string]: string;
+  } = {};
+
+  constructor(opts: ShellEnvOpts) {
+    this.#cwd = opts.cwd;
+
+    // ensure the env vars are normalized
+    for (const [key, value] of Object.entries(opts.env)) {
+      this.setEnvVar(key, value);
+    }
+  }
+
+  setCwd(cwd: string) {
+    this.#cwd = cwd;
+  }
+
+  getCwd(): string {
+    return this.#cwd;
+  }
+
+  setEnvVar(key: string, value: string | undefined) {
+    if (Deno.build.os === "windows") {
+      key = key.toUpperCase();
+    }
+    if (value == null || value.length === 0) {
+      delete this.#envVars[key];
+    } else {
+      this.#envVars[key] = value;
+    }
+  }
+
+  getEnvVar(key: string) {
+    if (Deno.build.os === "windows") {
+      key = key.toUpperCase();
+    }
+    return this.#envVars[key];
+  }
+
+  getEnvVars() {
+    return { ...this.#envVars };
+  }
+
+  clone() {
+    return new ShellEnv({
+      cwd: this.#cwd,
+      env: { ...this.#envVars },
+    });
+  }
+}
+
 class Context {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
-  cwd: string;
-  env: {
+  #env: Env;
+  #shellVars: {
     [key: string]: string;
-  } = {};
+  };
 
   constructor(opts: {
     stdin: ShellPipeReader;
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
-    cwd: string;
-    env: {
-      [key: string]: string;
-    };
+    env: Env;
+    shellVars: { [key: string]: string };
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
-    this.cwd = opts.cwd;
-
-    for (const [key, value] of Object.entries(opts.env)) {
-      this.applyEnvVar(key, value);
-    }
+    this.#env = opts.env;
+    this.#shellVars = opts.shellVars;
   }
 
   applyChanges(changes: EnvChange[] | undefined) {
@@ -132,25 +231,66 @@ class Context {
     for (const change of changes) {
       switch (change.kind) {
         case "cd":
-          this.cwd = change.dir;
+          this.#env.setCwd(change.dir);
           break;
         case "envvar":
+          this.setEnvVar(change.name, change.value);
+          break;
         case "shellvar":
+          this.setShellVar(change.name, change.value);
+          break;
         default:
-          throw new Error(`Not implemented env change: ${change.kind}`);
+          const _assertNever: never = change;
+          throw new Error(`Not implemented env change: ${change}`);
       }
     }
   }
 
-  applyEnvVar(name: string, value: string | undefined) {
+  setEnvVar(key: string, value: string | undefined) {
     if (Deno.build.os === "windows") {
-      name = name.toUpperCase();
+      key = key.toUpperCase();
     }
-    if (value == null || value.length === 0) {
-      delete this.env[name];
+    if (key === "PWD") {
+      if (value != null && path.isAbsolute(value)) {
+        this.#env.setCwd(path.resolve(value));
+      }
     } else {
-      this.env[name] = value;
+      delete this.#shellVars[key];
+      this.#env.setEnvVar(key, value);
     }
+  }
+
+  setShellVar(key: string, value: string | undefined) {
+    if (Deno.build.os === "windows") {
+      key = key.toUpperCase();
+    }
+    if (this.#env.getEnvVar(key) != null || key === "PWD") {
+      this.setEnvVar(key, value);
+    } else {
+      if (value == null || value.length === 0) {
+        delete this.#shellVars[key];
+      } else {
+        this.#shellVars[key] = value;
+      }
+    }
+  }
+
+  getEnvVars() {
+    return this.#env.getEnvVars();
+  }
+
+  getCwd() {
+    return this.#env.getCwd();
+  }
+
+  getVar(key: string) {
+    if (Deno.build.os === "windows") {
+      key = key.toUpperCase();
+    }
+    if (key === "PWD") {
+      return this.#env.getCwd();
+    }
+    return this.#env.getEnvVar(key) ?? this.#shellVars[key];
   }
 
   clone() {
@@ -158,8 +298,8 @@ class Context {
       stdin: this.stdin,
       stdout: this.stdout,
       stderr: this.stderr,
-      cwd: this.cwd,
-      env: { ...this.env },
+      env: this.#env.clone(),
+      shellVars: { ...this.#shellVars },
     });
   }
 }
@@ -175,15 +315,16 @@ export interface SpawnOpts {
   stderr: ShellPipeWriter;
   env: { [name: string]: string };
   cwd: string;
+  exportEnv: boolean;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const context = new Context({
-    cwd: opts.cwd,
-    env: opts.env,
+    env: opts.exportEnv ? new RealEnv() : new ShellEnv(opts),
     stdin: opts.stdin,
     stdout: opts.stdout,
     stderr: opts.stderr,
+    shellVars: {},
   });
   const result = await executeSequentialList(list, context);
   return result.code;
@@ -225,9 +366,18 @@ function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteR
     case "booleanList":
       return executeBooleanList(sequence, context);
     case "shellVar":
+      return executeShellVar(sequence, context);
     default:
-      throw new Error(`Not implemented: ${sequence.kind}`);
+      const _assertNever: never = sequence;
+      throw new Error(`Not implemented: ${sequence}`);
   }
+}
+
+function executePipeline(pipeline: Pipeline, context: Context): Promise<ExecuteResult> {
+  if (pipeline.negated) {
+    throw new Error("Negated pipelines are not implemented.");
+  }
+  return executePipelineInner(pipeline.inner, context);
 }
 
 async function executeBooleanList(list: BooleanList, context: Context): Promise<ExecuteResult> {
@@ -309,11 +459,17 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
   }
 }
 
-function executePipeline(pipeline: Pipeline, context: Context): Promise<ExecuteResult> {
-  if (pipeline.negated) {
-    throw new Error("Negated pipelines are not implemented.");
-  }
-  return executePipelineInner(pipeline.inner, context);
+async function executeShellVar(sequence: ShellVar, context: Context): Promise<ExecuteResult> {
+  const value = await evaluateStringOrWord(sequence.value, context);
+  return {
+    kind: "continue",
+    code: 0,
+    changes: [{
+      kind: "shellvar",
+      name: sequence.name,
+      value,
+    }],
+  };
 }
 
 function executePipelineInner(inner: PipelineInner, context: Context): Promise<ExecuteResult> {
@@ -332,10 +488,10 @@ function executeCommand(command: Command, context: Context): Promise<ExecuteResu
   return executeCommandInner(command.inner, context);
 }
 
-async function executeCommandInner(command: CommandInner, context: Context): Promise<ExecuteResult> {
+function executeCommandInner(command: CommandInner, context: Context): Promise<ExecuteResult> {
   switch (command.kind) {
     case "simple":
-      return await executeSimpleCommand(command, context);
+      return executeSimpleCommand(command, context);
     case "sequentialList":
     default:
       throw new Error(`Not implemented: ${command.kind}`);
@@ -345,7 +501,7 @@ async function executeCommandInner(command: CommandInner, context: Context): Pro
 async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
   const context = parentContext.clone();
   for (const envVar of command.envVars) {
-    context.applyEnvVar(envVar.name, await evaluateStringOrWord(envVar.value, context));
+    context.setEnvVar(envVar.name, await evaluateStringOrWord(envVar.value, context));
   }
   const commandArgs = await evaluateArgs(command.args, context);
   return await executeCommandArgs(commandArgs, context);
@@ -353,13 +509,17 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
 
 async function executeCommandArgs(commandArgs: string[], context: Context) {
   if (commandArgs[0] === "cd") {
-    return await cdCommand(context.cwd, commandArgs.slice(1), context.stderr);
+    return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
+  } else if (commandArgs[0] === "echo") {
+    return await echoCommand(commandArgs.slice(1), context.stdout);
+  } else if (commandArgs[0] === "export") {
+    return await exportCommand(commandArgs.slice(1));
   } else {
     const commandPath = await resolveCommand(commandArgs[0], context);
     const p = Deno.run({
       cmd: [commandPath, ...commandArgs.slice(1)],
-      cwd: context.cwd,
-      env: context.env,
+      cwd: context.getCwd(),
+      env: context.getEnvVars(),
       stdin: getStdioStringValue(context.stdin),
       stdout: getStdioStringValue(context.stdout.kind),
       stderr: getStdioStringValue(context.stderr.kind),
@@ -419,7 +579,7 @@ async function resolveCommand(commandName: string, context: Context) {
   const realEnvironment = new DenoWhichRealEnvironment();
   if (commandName.includes("/") || commandName.includes("\\")) {
     if (!path.isAbsolute(commandName)) {
-      commandName = path.relative(context.cwd, commandName);
+      commandName = path.relative(context.getCwd(), commandName);
     }
     if (await realEnvironment.fileExists(commandName)) {
       return commandName;
@@ -439,10 +599,7 @@ async function resolveCommand(commandName: string, context: Context) {
       return realEnvironment.fileExists(path);
     },
     env(key) {
-      if (Deno.build.os === "windows") {
-        key = key.toUpperCase();
-      }
-      return context.env[key];
+      return context.getVar(key);
     },
   });
   if (commandPath == null) {
@@ -485,7 +642,7 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
         currentText += stringPart.value;
         break;
       case "variable":
-        evaluationResult = context.env[stringPart.value]; // value is name
+        evaluationResult = context.getVar(stringPart.value); // value is name
         break;
       case "command":
       default:

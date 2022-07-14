@@ -1,20 +1,21 @@
 import $, { CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import { path } from "./src/deps.ts";
 
 Deno.test("should get stdout by default", async () => {
-  const output = await $`deno eval 'console.log(5);'`;
+  const output = await $`echo 5`;
   assertEquals(output.code, 0);
   assertEquals(output.stdout, "5\n");
 });
 
 Deno.test("should not get stdout when inherited", async () => {
-  const output = await $`deno eval 'console.log("should output")'`.stdout("inherit");
+  const output = await $`echo "should output"`.stdout("inherit");
   assertEquals(output.code, 0);
   assertThrows(() => output.stdout, Error, `Stdout was not piped (was inherit).`);
 });
 
 Deno.test("should not get stdout when null", async () => {
-  const output = await $`deno eval 'console.log(5);'`.stdout("null");
+  const output = await $`echo 5`.stdout("null");
   assertEquals(output.code, 0);
   assertThrows(() => output.stdout, Error, `Stdout was not piped (was null).`);
 });
@@ -26,7 +27,7 @@ Deno.test("should not get stderr by default", async () => {
 });
 
 Deno.test("should not get stderr when null", async () => {
-  const output = await $`deno eval 'console.log(5);'`.stderr("null");
+  const output = await $`deno eval 'console.error(5);'`.stderr("null");
   assertEquals(output.code, 0);
   assertThrows(() => output.stderr, Error, `Stderr was not piped (was null). Call .stderr("pipe") on the process.`);
 });
@@ -62,12 +63,12 @@ Deno.test("should change the cwd, but only in the shell", async () => {
 });
 
 Deno.test("allow setting env", async () => {
-  const output = await $`deno eval 'console.log(Deno.env.get("test"));'`.env("test", "123");
+  const output = await $`echo $test`.env("test", "123");
   assertEquals(output.stdout.trim(), "123");
 });
 
 Deno.test("allow setting multiple env", async () => {
-  const output = await $`deno eval 'console.log(Deno.env.get("test") + Deno.env.get("other"));'`.env({
+  const output = await $`echo $test$other`.env({
     test: "123",
     other: "456",
   });
@@ -75,10 +76,9 @@ Deno.test("allow setting multiple env", async () => {
 });
 
 Deno.test("set var for command", async () => {
-  const output = await $
-    `test=123 deno eval 'console.log(Deno.env.get("test"));' ; deno eval 'console.log(Deno.env.get("test"));'`
+  const output = await $`test=123 echo $test ; echo $test`
     .env("test", "456");
-  assertEquals(output.stdout.trim(), "123\n456");
+  assertEquals(output.stdout, "123\n456\n");
 });
 
 Deno.test("variable substitution", async () => {
@@ -140,13 +140,45 @@ Deno.test("should handle boolean list 'or'", async () => {
 
 Deno.test("should handle boolean list 'and'", async () => {
   {
-    const output = await $`deno eval 'Deno.exit(5)' && deno eval 'console.log(5)'`.noThrow();
+    const output = await $`deno eval 'Deno.exit(5)' && echo 2`.noThrow();
     assertEquals(output.code, 5);
     assertEquals(output.stdout, "");
   }
   {
-    const output = await $`deno eval 'Deno.exit(0)' && deno eval 'console.log(5)' && deno eval 'console.log(6)'`;
+    const output = await $`deno eval 'Deno.exit(0)' && echo 5 && echo 6`;
     assertEquals(output.code, 0);
     assertEquals(output.stdout.trim(), "5\n6");
+  }
+});
+
+Deno.test("should provide result from one command to another", async () => {
+  const result = await $`echo 1`;
+  const result2 = await $`echo ${result}`;
+  assertEquals(result2.stdout, "1\n");
+});
+
+Deno.test("should actually change the environment when using .exportEnv()", async () => {
+  const originalDir = Deno.cwd();
+  try {
+    const srcDir = path.resolve("./src");
+    await $`cd src && export SOME_VALUE=5 && OTHER_VALUE=6`.exportEnv();
+    assertEquals(Deno.cwd(), srcDir);
+    assertEquals(Deno.env.get("SOME_VALUE"), "5");
+    assertEquals(Deno.env.get("OTHER_VALUE"), undefined);
+  } finally {
+    Deno.chdir(originalDir);
+  }
+});
+
+Deno.test("should handle the PWD variable", async () => {
+  const srcDir = path.resolve("./src");
+  {
+    const output = await $`cd src && echo $PWD `;
+    assertEquals(output.stdout.trim(), srcDir);
+  }
+  {
+    // changing PWD should affect this
+    const output = await $`PWD=$PWD/src && echo $PWD `;
+    assertEquals(output.stdout.trim(), srcDir);
   }
 });
