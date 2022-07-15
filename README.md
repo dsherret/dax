@@ -63,8 +63,19 @@ await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 // if either are set to "default" or "inherit"
 await $`echo 5`.quiet();
 
-// echo (console.log alias)
-$.echo("Hello!");
+// console.log alias
+$.log("Hello!");
+// log with the first argument as bold green
+$.logTitle("Fetching", "data from server...");
+// log an error with the first argument bold red
+$.logError("Error", "cannot retrieve data");
+// log with everything below indented
+await $.logIndent(async () => {
+  $.log("This will be indented.");
+  await $.logIndent(async () => {
+    $.log("This will indented even more.");
+  });
+});
 
 // change directory
 $.cd("newDir");

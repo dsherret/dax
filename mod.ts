@@ -1,4 +1,4 @@
-import { Buffer, fs, path, which, whichSync } from "./src/deps.ts";
+import { Buffer, colors, fs, path, which, whichSync } from "./src/deps.ts";
 import {
   CapturingBufferWriter,
   NullPipeWriter,
@@ -37,8 +37,11 @@ const textDecoder = new TextDecoder();
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
   cd(path: string | URL): void;
-  echo: typeof console.log;
   fs: typeof fs;
+  log(...data: any[]): void;
+  logError(boldText: string, ...data: any[]): void;
+  logTitle(title: string, ...data: any[]): void;
+  logIndent<TResult>(action: () => TResult): TResult;
   path: typeof path;
   sleep(ms: number): Promise<void>;
   withRetries<TReturn>(params: RetryParams<TReturn>): Promise<TReturn>;
@@ -54,7 +57,7 @@ interface CommandBuilderState {
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
-  env: { [name: string]: string };
+  env: Record<string, string>;
   cwd: string;
   exportEnv: boolean;
 }
@@ -145,9 +148,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return this;
   }
 
-  env(items: { [name: string]: string | undefined }): this;
+  env(items: Record<string, string | undefined>): this;
   env(name: string, value: string | undefined): this;
-  env(nameOrItems: string | { [name: string]: string | undefined }, value?: string) {
+  env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
     if (typeof nameOrItems === "string") {
       this.#setEnv(nameOrItems, value);
     } else {
@@ -366,12 +369,48 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
+// this is global because it then allows functions to easily call
+// other functions and those should be indented underneath
+let indentLevel = 0;
+function getIndentText() {
+  return "  ".repeat(indentLevel);
+}
+
 const helperObject = {
   fs,
   path,
   cd,
-  echo(...data: any[]) {
-    console.log(...data);
+  log(...data: any[]) {
+    if (data.length === 0) {
+      return;
+    }
+    const firstArg = `${getIndentText()}${data[0]}`;
+    console.log(firstArg, ...data.slice(1));
+  },
+  logError(boldText: string, ...data: any[]) {
+    console.error(getIndentText() + colors.bold(colors.red(boldText)), ...data);
+  },
+  logTitle(title: string, ...data: any[]) {
+    console.log(getIndentText() + colors.bold(colors.green(title)), ...data);
+  },
+  logIndent<TResult>(action: () => TResult): TResult {
+    indentLevel++;
+    let wasPromise = false;
+    try {
+      const result = action();
+      if (result instanceof Promise) {
+        wasPromise = true;
+        return result.finally(() => {
+          indentLevel--;
+        }) as any;
+      } else {
+        return result;
+      }
+    } finally {
+      if (!wasPromise) {
+        indentLevel--;
+      }
+    }
   },
   sleep,
   withRetries,

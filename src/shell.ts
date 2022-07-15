@@ -104,7 +104,7 @@ interface Env {
   getCwd(): string;
   setEnvVar(key: string, value: string | undefined): void;
   getEnvVar(key: string): string | undefined;
-  getEnvVars(): { [key: string]: string };
+  getEnvVars(): Record<string, string>;
   clone(): Env;
 }
 
@@ -215,7 +215,7 @@ class Context {
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
     env: Env;
-    shellVars: { [key: string]: string };
+    shellVars: Record<string, string>;
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
@@ -313,7 +313,7 @@ export interface SpawnOpts {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
-  env: { [name: string]: string };
+  env: Record<string, string>;
   cwd: string;
   exportEnv: boolean;
 }
