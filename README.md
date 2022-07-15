@@ -21,11 +21,15 @@ Differences:
 ```ts
 import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
-// runs a command
+// runs a command with its output sent to stdout
 await $`echo 5`;
 
-// providing result of command to other command
-// Note: This will read the command's stdout and trim the last newline
+// getting the stdout of a command
+const result = await $`echo 1`;
+console.log(result.stdout); // 1\n
+
+// providing stdout of command to other command
+// Note: This will read trim the last newline of the other command's stdout
 const result = await $`echo 1`;
 const result2 = await $`echo ${result}`;
 console.log(result2.stdout); // 1\n
