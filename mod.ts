@@ -18,7 +18,7 @@ import { parseArgs, spawn } from "./src/shell.ts";
  * 1. Cross platform shell to help the code work on Windows.
  *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
  *    - Allows exporting the shell's environment to the current process.
- * 1. Good for use in shell script replacements or application code.
+ * 1. Good for application code in addition to use as a shell script replacement
  * 1. Named after my cat.
  *
  * ## Example
