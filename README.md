@@ -55,6 +55,10 @@ await $`echo $var1 $var2 $var3 $var4`
 // setting cwd for command
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
+// makes a command not output anything to stdout and stderr
+// if either are set to "default" or "inherit"
+await $`echo 5`.quiet();
+
 // echo (console.log alias)
 $.echo("Hello!");
 

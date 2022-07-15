@@ -190,6 +190,28 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     this.#getState().exportEnv = value;
     return this;
   }
+
+  /** Ensures stdout and stderr are piped if they have the default behaviour or are inherited. */
+  quiet() {
+    const state = this.#getState();
+    state.stdoutKind = getQuietKind(state.stdoutKind);
+    state.stderrKind = getQuietKind(state.stderrKind);
+    return this;
+
+    function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
+      switch (kind) {
+        case "default":
+        case "inherit":
+          return "piped";
+        case "null":
+        case "piped":
+          return kind;
+        default:
+          const _assertNever: never = kind;
+          throw new Error(`Unhandled kind ${kind}.`);
+      }
+    }
+  }
 }
 
 async function parseAndSpawnCommand(state: CommandBuilderState) {
