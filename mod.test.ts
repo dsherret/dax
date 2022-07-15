@@ -20,8 +20,14 @@ Deno.test("should not get stdout when null", async () => {
   assertThrows(() => output.stdout, Error, `Stdout was not piped (was null).`);
 });
 
-Deno.test("should not get stderr by default", async () => {
-  const output = await $`deno eval 'console.error("should output");'`;
+Deno.test("should capture stderr by default", async () => {
+  const output = await $`deno eval 'console.error(5);'`;
+  assertEquals(output.code, 0);
+  assertEquals(output.stderr, "5\n");
+});
+
+Deno.test("should not get stderr when inherited only", async () => {
+  const output = await $`deno eval 'console.error("should output");'`.stderr("inherit");
   assertEquals(output.code, 0);
   assertThrows(() => output.stderr, Error, `Stderr was not piped (was inherit). Call .stderr("pipe") on the process.`);
 });
@@ -33,7 +39,7 @@ Deno.test("should not get stderr when null", async () => {
 });
 
 Deno.test("should capture stderr when piped", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("pipe");
+  const output = await $`deno eval 'console.error(5);'`.stderr("piped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
@@ -93,7 +99,7 @@ Deno.test("stdoutJson", async () => {
 });
 
 Deno.test("stderrJson", async () => {
-  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("pipe");
+  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("piped");
   assertEquals(output.stderrJson, { test: 5 });
   assertEquals(output.stderrJson === output.stderrJson, true); // should be memoized
 });

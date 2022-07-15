@@ -8,10 +8,12 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 
 Differences:
 
-1. No globals or custom CLI command to execute—import into a script then use `deno run -A your_script.ts`.
+1. No globals or global configuration.
+1. No custom CLI.
 1. Cross platform shell to help the code work on Windows.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
-   - Allows exporting the shell's environment to the current process (see `.exportEnv()` below)
+   - Allows exporting the shell's environment to the current process.
+1. Good for use in shell script replacements or application code.
 1. Named after my cat.
 
 ## Example
@@ -19,8 +21,8 @@ Differences:
 ```ts
 import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
-const result = await $`echo 5`;
-console.log(result.stdout); // 5\n
+// runs a command
+await $`echo 5`;
 
 // providing result of command to other command
 // Note: This will read the command's stdout and trim the last newline
@@ -28,12 +30,12 @@ const result = await $`echo 1`;
 const result2 = await $`echo ${result}`;
 console.log(result2.stdout); // 1\n
 
-// runs the script showing stdout (stderr is inherited by default)
-await $`deno run my_script.ts`.stdout("inherit");
+// runs the script showing stdout and stderr
+await $`deno run my_script.ts`;
 
-// capture stderr
-const result = await $`deno eval 'console.error(5);'`.stderr("piped");
-console.log(result.stderr.trim()); // 5, would throw if not piped
+// get captured stderr
+const result = await $`deno eval 'console.error(5);'`;
+console.log(result.stderr.trim()); // 5
 
 // get output as json
 const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`;

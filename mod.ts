@@ -1,6 +1,36 @@
 import { Buffer, fs, path, which, whichSync } from "./src/deps.ts";
-import { NullPipeWriter, ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./src/pipes.ts";
+import {
+  CapturingBufferWriter,
+  NullPipeWriter,
+  ShellPipeReader,
+  ShellPipeWriter,
+  ShellPipeWriterKind,
+} from "./src/pipes.ts";
 import { parseArgs, spawn } from "./src/shell.ts";
+
+/**
+ * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
+ *
+ * Differences:
+ *
+ * 1. No globals or global configuration.
+ * 1. No custom CLI.
+ * 1. Cross platform shell to help the code work on Windows.
+ *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+ *    - Allows exporting the shell's environment to the current process.
+ * 1. Good for use in shell script replacements or application code.
+ * 1. Named after my cat.
+ *
+ * ## Example
+ *
+ * ```ts
+ * import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+ *
+ * await $`echo hello`;
+ * ```
+ *
+ * @module
+ */
 
 const textDecoder = new TextDecoder();
 
@@ -37,8 +67,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       this.#state = {
         command: undefined,
         stdin: "inherit",
-        stdoutKind: "pipe",
-        stderrKind: "inherit",
+        stdoutKind: "default",
+        stderrKind: "default",
         noThrow: false,
         env: Deno.env.toObject(),
         cwd: Deno.cwd(),
@@ -167,7 +197,9 @@ async function parseAndSpawnCommand(state: CommandBuilderState) {
     throw new Error("A command must be set before it can be spawned.");
   }
 
-  const stdoutBuffer = state.stdoutKind === "null"
+  const stdoutBuffer = state.stdoutKind === "default"
+    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+    : state.stdoutKind === "null"
     ? "null"
     : state.stdoutKind === "inherit"
     ? "inherit"
@@ -180,7 +212,9 @@ async function parseAndSpawnCommand(state: CommandBuilderState) {
       ? Deno.stdout
       : stdoutBuffer,
   );
-  const stderrBuffer = state.stderrKind === "null"
+  const stderrBuffer = state.stderrKind === "default"
+    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+    : state.stderrKind === "null"
     ? "null"
     : state.stderrKind === "inherit"
     ? "inherit"
@@ -206,7 +240,11 @@ async function parseAndSpawnCommand(state: CommandBuilderState) {
   if (code !== 0 && !state.noThrow) {
     throw new Error(`Exited with error code: ${code}`);
   }
-  return new CommandResult(code, stdoutBuffer, stderrBuffer);
+  return new CommandResult(
+    code,
+    stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
+    stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
+  );
 }
 
 export class CommandResult {
