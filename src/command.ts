@@ -154,11 +154,26 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
-  /** Ensures stdout and stderr are piped if they have the default behaviour or are inherited. */
-  quiet() {
+  /**
+   * Ensures stdout and stderr are piped if they have the default behaviour or are inherited.
+   *
+   * ```ts
+   * // ensure both stdout and stderr is not logged to the console
+   * await $`echo 1`.quiet();
+   * // ensure stdout is not logged to the console
+   * await $`echo 1`.quiet("stdout");
+   * // ensure stderr is not logged to the console
+   * await $`echo 1`.quiet("stderr");
+   * ```
+   */
+  quiet(kind: "stdout" | "stderr" | "both" = "both") {
     return this.#newWithState(state => {
-      state.stdoutKind = getQuietKind(state.stdoutKind);
-      state.stderrKind = getQuietKind(state.stderrKind);
+      if (kind === "both" || kind === "stdout") {
+        state.stdoutKind = getQuietKind(state.stdoutKind);
+      }
+      if (kind === "both" || kind === "stderr") {
+        state.stderrKind = getQuietKind(state.stderrKind);
+      }
     });
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
