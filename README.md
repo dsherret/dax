@@ -86,10 +86,12 @@ await $`some_command`.timeout("1s");
 $.log("Hello!");
 // similar to console.error, but with potential indentation
 $.logError("Some error message.");
-// log with the first argument as bold green
-$.logTitle("Fetching", "data from server...");
-// log an error with the first argument bold red
-$.logTitleError("Error", "cannot retrieve data");
+// log with the first word as bold green
+$.logTitle("Fetching data from server...");
+// or force multiple words to be bold green by using two arguments
+$.logTitle("Setting up", "local directory...");
+// log an error with the first word bold red
+$.logTitleError("Error cannot retrieve data");
 // log with everything below indented
 await $.logIndent(async () => {
   $.log("This will be indented.");

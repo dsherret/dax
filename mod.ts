@@ -84,13 +84,15 @@ export interface $Type {
    */
   logError(...data: any[]): void;
   /**
-   * Similar to `$.log`, but has some text at the start that's bold green.
+   * Similar to `$.log`, but will bold the first word if one argument or
+   * first argument if multiple arguments.
    */
-  logTitle(title: string, ...data: any[]): void;
+  logTitle(firstArg: string, ...data: any[]): void;
   /**
-   * Similar to `$.logError`, but has some text at the start that's bold red.
+   * Similar to `$.logError`, but will bold the first word if one argument or
+   * first argument if multiple arguments.
    */
-  logTitleError(title: string, ...data: any[]): void;
+  logTitleError(firstArg: string, ...data: any[]): void;
   /**
    * Causes all `$.log` and like functions to be logged with indentation.
    *
@@ -192,17 +194,27 @@ const helperObject = {
   logError(...data: any[]) {
     console.error(getLogText(data));
   },
-  logTitle(title: string, ...data: any[]) {
-    console.log(getLogText([
-      colors.bold(colors.green(title)),
-      ...data,
-    ]));
+  logTitle(firstArg: string, ...data: any[]) {
+    if (data.length === 0) {
+      // emphasize the first word only
+      const parts = firstArg.split(" ");
+      parts[0] = colors.bold(colors.green(parts[0]));
+      firstArg = parts.join(" ");
+    } else {
+      firstArg = colors.bold(colors.green(firstArg));
+    }
+    console.log(getLogText([firstArg, ...data]));
   },
-  logTitleError(title: string, ...data: any[]) {
-    console.error(getLogText([
-      colors.bold(colors.red(title)),
-      ...data,
-    ]));
+  logTitleError(firstArg: string, ...data: any[]) {
+    if (data.length === 0) {
+      // emphasize the first word only
+      const parts = firstArg.split(" ");
+      parts[0] = colors.bold(colors.red(parts[0]));
+      firstArg = parts.join(" ");
+    } else {
+      firstArg = colors.bold(colors.red(firstArg));
+    }
+    console.error(getLogText([firstArg, ...data]));
   },
   logIndent<TResult>(action: () => TResult): TResult {
     indentLevel++;
