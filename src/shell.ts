@@ -206,9 +206,8 @@ class Context {
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   #env: Env;
-  #shellVars: {
-    [key: string]: string;
-  };
+  #shellVars: Record<string, string>;
+  #signal: AbortSignal;
 
   constructor(opts: {
     stdin: ShellPipeReader;
@@ -216,12 +215,18 @@ class Context {
     stderr: ShellPipeWriter;
     env: Env;
     shellVars: Record<string, string>;
+    signal: AbortSignal;
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.#env = opts.env;
     this.#shellVars = opts.shellVars;
+    this.#signal = opts.signal;
+  }
+
+  get signal() {
+    return this.#signal;
   }
 
   applyChanges(changes: EnvChange[] | undefined) {
@@ -300,6 +305,7 @@ class Context {
       stderr: this.stderr,
       env: this.#env.clone(),
       shellVars: { ...this.#shellVars },
+      signal: this.#signal,
     });
   }
 }
@@ -316,6 +322,7 @@ export interface SpawnOpts {
   env: Record<string, string>;
   cwd: string;
   exportEnv: boolean;
+  signal: AbortSignal;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
@@ -325,6 +332,7 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
     stdout: opts.stdout,
     stderr: opts.stderr,
     shellVars: {},
+    signal: opts.signal,
   });
   const result = await executeSequentialList(list, context);
   return result.code;
@@ -360,6 +368,9 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
 }
 
 function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> {
+  if (context.signal.aborted) {
+    return Promise.resolve(getAbortedResult());
+  }
   switch (sequence.kind) {
     case "pipeline":
       return executePipeline(sequence, context);
@@ -524,6 +535,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       stdout: getStdioStringValue(context.stdout.kind),
       stderr: getStdioStringValue(context.stderr.kind),
     });
+    const abortListener = () => p.kill("SIGKILL");
+    context.signal.addEventListener("abort", abortListener);
     try {
       const writeStdinTask = writeStdin(context.stdin, p);
       const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
@@ -534,8 +547,13 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
         readStdoutTask,
         readStderrTask,
       ]);
-      return resultFromCode(status.code);
+      if (context.signal.aborted) {
+        return getAbortedResult();
+      } else {
+        return resultFromCode(status.code);
+      }
     } finally {
+      context.signal.removeEventListener("abort", abortListener);
       p.close();
       p.stdout?.close();
       p.stderr?.close();
@@ -676,4 +694,11 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
     result.push(currentText);
   }
   return result;
+}
+
+function getAbortedResult(): ExecuteResult {
+  return {
+    kind: "exit",
+    code: 124, // same as timeout command
+  };
 }

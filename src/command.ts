@@ -1,3 +1,5 @@
+import { delayToMs } from "./common.ts";
+import { Delay } from "./common.ts";
 import { Buffer, path } from "./deps.ts";
 import {
   CapturingBufferWriter,
@@ -19,6 +21,7 @@ interface CommandBuilderState {
   env: Record<string, string>;
   cwd: string;
   exportEnv: boolean;
+  timeout: number | undefined;
 }
 
 const textDecoder = new TextDecoder();
@@ -41,6 +44,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       env: { ...state.env },
       cwd: state.cwd,
       exportEnv: state.exportEnv,
+      timeout: state.timeout,
     };
   }
 
@@ -54,6 +58,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       env: Deno.env.toObject(),
       cwd: Deno.cwd(),
       exportEnv: false,
+      timeout: undefined,
     };
   }
 
@@ -86,6 +91,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** The command should not throw when it fails or times out. */
   noThrow(value = true) {
     return this.#newWithState(state => {
       state.noThrow = value;
@@ -192,6 +198,19 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Specifies a timeout for the command. The command will exit with
+   * exit code `124` (timeout) if it times out.
+   *
+   * Note that when using `.noThrow()` this won't cause an error to
+   * be thrown when timing out.
+   */
+  timeout(delay: Delay) {
+    return this.#newWithState(state => {
+      state.timeout = delayToMs(delay);
+    });
+  }
+
+  /**
    * Sets stdout as quiet, spawns the command, and gets stdout as a Uint8Array.
    *
    * Shorthand for:
@@ -267,23 +286,40 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       : stderrBuffer,
   );
 
-  const list = await parseArgs(state.command);
-  const code = await spawn(list, {
-    stdin: state.stdin,
-    stdout,
-    stderr,
-    env: state.env,
-    cwd: state.cwd,
-    exportEnv: state.exportEnv,
-  });
-  if (code !== 0 && !state.noThrow) {
-    throw new Error(`Exited with error code: ${code}`);
+  const abortController = new AbortController();
+  let timeoutId: number | undefined;
+  if (state.timeout != null) {
+    timeoutId = setTimeout(() => abortController.abort(), state.timeout);
   }
-  return new CommandResult(
-    code,
-    stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
-    stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
-  );
+
+  try {
+    const list = await parseArgs(state.command);
+    const code = await spawn(list, {
+      stdin: state.stdin,
+      stdout,
+      stderr,
+      env: state.env,
+      cwd: state.cwd,
+      exportEnv: state.exportEnv,
+      signal: abortController.signal,
+    });
+    if (code !== 0 && !state.noThrow) {
+      if (abortController.signal.aborted) {
+        throw new Error(`Timed out with exit code: ${code}`);
+      } else {
+        throw new Error(`Exited with code: ${code}`);
+      }
+    }
+    return new CommandResult(
+      code,
+      stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
+      stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
+    );
+  } finally {
+    if (timeoutId != null) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 export class CommandResult {

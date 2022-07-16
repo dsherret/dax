@@ -133,7 +133,8 @@ async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
     try {
       return await opts.action();
     } catch (err) {
-      $.logError(err);
+      // don't bother with indentation here
+      console.error(err);
     }
   }
 

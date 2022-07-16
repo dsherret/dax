@@ -70,6 +70,9 @@ await $`echo 5`.quiet();
 await $`echo 5`.quiet("stdout"); // or just stdout
 await $`echo 5`.quiet("stderr"); // or just stderr
 
+// timeout a command after a specified time
+await $`some_command`.timeout("1s");
+
 // similar to console.log, but with potential indentation
 $.log("Hello!");
 // similar to console.error, but with potential indentation

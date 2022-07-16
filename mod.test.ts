@@ -50,7 +50,7 @@ Deno.test("should throw when exit code is non-zero", async () => {
       await $`deno eval 'Deno.exit(1);'`;
     },
     Error,
-    "Exited with error code: 1",
+    "Exited with code: 1",
   );
 
   await assertRejects(
@@ -58,7 +58,7 @@ Deno.test("should throw when exit code is non-zero", async () => {
       await $`deno eval 'Deno.exit(2);'`;
     },
     Error,
-    "Exited with error code: 2",
+    "Exited with code: 2",
   );
 });
 
@@ -193,4 +193,13 @@ Deno.test("should handle the PWD variable", async () => {
     const output = await $`PWD=$PWD/src && echo $PWD `;
     assertEquals(output.stdout.trim(), srcDir);
   }
+});
+
+Deno.test("timeout", async () => {
+  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
+    .timeout(200);
+  await assertRejects(async () => await command, Error, "Timed out with exit code: 124");
+
+  const result = await command.noThrow();
+  assertEquals(result.code, 124);
 });
