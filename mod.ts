@@ -59,6 +59,29 @@ export interface $Type {
   /** Changes the directory of the current process. */
   cd(path: string | URL): void;
   /**
+   * Escapes an argument for the shell when not using the template
+   * literal.
+   *
+   * This is done by default in the template literal, so you most likely
+   * don't need this, but it may be useful when using the command builder.
+   *
+   * For example:
+   *
+   * ```ts
+   * const builder = new CommandBuilder()
+   *  .command(`echo ${$.escapeArg("some text with spaces")}`);
+   *
+   * // equivalent to this:
+   * const builder = new CommandBuilder()
+   *  .command(`echo 'some text with spaces'`);
+   *
+   * // you may just want to do this though:
+   * const builder = new CommandBuilder()
+   *  .command(["echo", "some text with spaces"]);
+   * ```
+   */
+  escapeArg(arg: string): string;
+  /**
    * Gets if the provided path exists asynchronously.
    *
    * Although there is a potential for a race condition between the
@@ -182,6 +205,7 @@ const helperObject = {
   fs,
   path,
   cd,
+  escapeArg,
   existsSync(path: string) {
     return fs.existsSync(path);
   },
