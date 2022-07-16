@@ -36,6 +36,10 @@ console.log(result.prop); // 5
 const result = await $`echo 'test'`.bytes();
 console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
 
+// get the result of stdout as a list of lines
+const result = await $`echo 1 && echo 2`.lines();
+console.log(result); // ["1", "2"]
+
 // working with a lower level result that provides more details
 const result = await $`deno eval 'console.log(1); console.error(2);'`;
 console.log(result.code); // 0

@@ -241,3 +241,8 @@ Deno.test("command args", async () => {
     .text();
   assertEquals(result.trim(), input);
 });
+
+Deno.test("command .lines()", async () => {
+  const result = await $`echo 1 && echo 2`.lines();
+  assertEquals(result, ["1", "2"]);
+});

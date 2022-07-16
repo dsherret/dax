@@ -259,6 +259,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return (await this.quiet("stdout")).stdout.replace(/\r?\n$/, "");
   }
 
+  /** Gets the text as an array of lines. */
+  async lines() {
+    const text = await this.text();
+    return text.split(/\r?\n/g);
+  }
+
   /**
    * Sets stdout as quiet, spawns the command, and gets stdout as JSON.
    *
