@@ -98,6 +98,11 @@ Deno.test("stdoutJson", async () => {
   assertEquals(output.stdoutJson === output.stdoutJson, true); // should be memoized
 });
 
+Deno.test("CommandBuilder#json()", async () => {
+  const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`.json();
+  assertEquals(output, { test: 5 });
+});
+
 Deno.test("stderrJson", async () => {
   const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("piped");
   assertEquals(output.stderrJson, { test: 5 });

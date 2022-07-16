@@ -21,29 +21,34 @@ Differences:
 ```ts
 import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
-// runs a command with its output sent to stdout
+// run a command with its output sent to stdout and stderr
 await $`echo 5`;
 
-// getting the stdout of a command
-const result = await $`echo 1`;
-console.log(result.stdout); // 1\n
+// get the stdout of a command (makes stdout "quiet")
+const result = await $`echo 1`.text();
+console.log(result); // 1\n
+
+// get the result of stdout as json (makes stdout "quiet")
+const result = await $`echo '{ "prop": 5 }'`.json();
+console.log(result.prop); // 5
+
+// get the result of stdout as bytes (makes stdout "quiet")
+const result = await $`echo 'test'`.bytes();
+console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
+
+// working with a lower level result that provides more details
+const result = await $`deno eval 'console.error(5);'`;
+console.log(result.code); // 0
+console.log(result.stdout); // empty
+console.log(result.stderr.trim()); // 5
+const output = await $`echo '{ "test": 5 }'`;
+console.log(output.stdoutJson);
 
 // providing stdout of command to other command
 // Note: This will read trim the last newline of the other command's stdout
 const result = await $`echo 1`;
 const result2 = await $`echo ${result}`;
 console.log(result2.stdout); // 1\n
-
-// runs the script showing stdout and stderr
-await $`deno run my_script.ts`;
-
-// get captured stderr
-const result = await $`deno eval 'console.error(5);'`;
-console.log(result.stderr.trim()); // 5
-
-// get output as json
-const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`;
-console.log(output.stdoutJson);
 
 // setting env variables (outputs: 1 2 3 4)
 await $`echo $var1 $var2 $var3 $var4`
@@ -60,8 +65,10 @@ await $`echo $var1 $var2 $var3 $var4`
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
 // makes a command not output anything to stdout and stderr
-// if either are set to "default" or "inherit"
+// if set to "default" or "inherit"
 await $`echo 5`.quiet();
+await $`echo 5`.quiet("stdout"); // or just stdout
+await $`echo 5`.quiet("stderr"); // or just stderr
 
 // similar to console.log, but with potential indentation
 $.log("Hello!");
@@ -87,14 +94,14 @@ await $.sleep(100); // ms
 await $.sleep("1.5s");
 await $.sleep("100ms");
 
-// download a file (this will throw on non-2xx status code)
-const response = await $.download("https://plugins.dprint.dev/info.json");
-console.log(response.code);
-console.log(await response.json());
-// or more shorthand for just getting the body as json
+// download a file as JSON (this will throw on non-2xx status code)
 const data = await $.download("https://plugins.dprint.dev/info.json").json();
 // or text
 const text = await $.download("https://example.com").text();
+// or long form
+const response = await $.download("https://plugins.dprint.dev/info.json");
+console.log(response.code);
+console.log(await response.json());
 
 // get path to an executable
 await $.which("deno"); // path to deno executable

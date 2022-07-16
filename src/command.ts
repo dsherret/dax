@@ -190,6 +190,45 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       }
     }
   }
+
+  /**
+   * Sets stdout as quiet, spawns the command, and gets stdout as a Uint8Array.
+   *
+   * Shorthand for:
+   *
+   * ```json
+   * const data = (await $`command`.quiet("stdout").spawn()).stdoutBytes;
+   * ```
+   */
+  async bytes() {
+    return (await this.quiet("stdout").spawn()).stdoutBytes;
+  }
+
+  /**
+   * Sets stdout as quiet, spawns the command, and gets stdout as a string.
+   *
+   * Shorthand for:
+   *
+   * ```json
+   * const data = (await $`command`.quiet("stdout").spawn()).stdout;
+   * ```
+   */
+  async text() {
+    return (await this.quiet("stdout").spawn()).stdout;
+  }
+
+  /**
+   * Sets stdout as quiet, spawns the command, and gets stdout as JSON.
+   *
+   * Shorthand for:
+   *
+   * ```json
+   * const data = (await $`command`.quiet("stdout").spawn()).stdoutJson;
+   * ```
+   */
+  async json() {
+    return (await this.quiet("stdout").spawn()).stdoutJson;
+  }
 }
 
 export async function parseAndSpawnCommand(state: CommandBuilderState) {
