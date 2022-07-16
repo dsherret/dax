@@ -85,9 +85,20 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the raw command to execute. */
-  command(commandText: string) {
+  command(command: string | string[]) {
     return this.#newWithState(state => {
-      state.command = commandText;
+      if (typeof command === "string") {
+        state.command = command;
+      } else {
+        state.command = command.map(arg => {
+          // very basic for now
+          if (/^[A-Za-z0-9]*$/.test(arg)) {
+            return arg;
+          } else {
+            return `'${arg.replace("'", `'"'"'`)}'`;
+          }
+        }).join(" ");
+      }
     });
   }
 
@@ -228,24 +239,24 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Shorthand for:
    *
    * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdoutBytes;
+   * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
   async bytes() {
-    return (await this.quiet("stdout").spawn()).stdoutBytes;
+    return (await this.quiet("stdout")).stdoutBytes;
   }
 
   /**
-   * Sets stdout as quiet, spawns the command, and gets stdout as a string.
+   * Sets stdout as quiet, spawns the command, and gets stdout as a string without the last newline.
    *
    * Shorthand for:
    *
    * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdout;
+   * const data = (await $`command`.quiet("stdout")).stdout.replace(/\r?\n$/, "");
    * ```
    */
   async text() {
-    return (await this.quiet("stdout").spawn()).stdout;
+    return (await this.quiet("stdout")).stdout.replace(/\r?\n$/, "");
   }
 
   /**
@@ -254,11 +265,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Shorthand for:
    *
    * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdoutJson;
+   * const data = (await $`command`.quiet("stdout")).stdoutJson;
    * ```
    */
   async json<TResult = any>(): Promise<TResult> {
-    return (await this.quiet("stdout").spawn()).stdoutJson;
+    return (await this.quiet("stdout")).stdoutJson;
   }
 }
 

@@ -26,7 +26,7 @@ await $`echo 5`;
 
 // get the stdout of a command (makes stdout "quiet")
 const result = await $`echo 1`.text();
-console.log(result); // 1\n
+console.log(result); // 1
 
 // get the result of stdout as json (makes stdout "quiet")
 const result = await $`echo '{ "prop": 5 }'`.json();
@@ -37,10 +37,10 @@ const result = await $`echo 'test'`.bytes();
 console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
 
 // working with a lower level result that provides more details
-const result = await $`deno eval 'console.error(5);'`;
+const result = await $`deno eval 'console.log(1); console.error(2);'`;
 console.log(result.code); // 0
-console.log(result.stdout); // empty
-console.log(result.stderr.trim()); // 5
+console.log(result.stdout); // 1\n
+console.log(result.stderr); // 5\n
 const output = await $`echo '{ "test": 5 }'`;
 console.log(output.stdoutJson);
 

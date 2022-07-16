@@ -233,3 +233,11 @@ Deno.test("piping to stdin", async () => {
     assertEquals(result, "test");
   }
 });
+
+Deno.test("command args", async () => {
+  const input = "testing   'this   out";
+  const result = await new CommandBuilder()
+    .command(["echo", input])
+    .text();
+  assertEquals(result.trim(), input);
+});
