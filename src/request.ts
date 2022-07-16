@@ -242,6 +242,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 }
 
+/** Result of making a request. */
 export class RequestResult {
   #response: Response;
   #originalUrl: string;

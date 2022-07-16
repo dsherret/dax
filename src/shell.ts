@@ -150,9 +150,7 @@ interface ShellEnvOpts {
 
 class ShellEnv implements Env {
   #cwd: string;
-  #envVars: {
-    [key: string]: string;
-  } = {};
+  #envVars: Record<string, string> = {};
 
   constructor(opts: ShellEnvOpts) {
     this.#cwd = opts.cwd;

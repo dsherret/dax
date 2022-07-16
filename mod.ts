@@ -320,12 +320,7 @@ export function build$(options: Create$Options) {
 }
 
 /**
- * Alternative named export for `$`. Import it how you'd like.
- * @see {@link $Type}
+ * Default `$` where commands may be executed.
  */
 export const $: $Type = build$({});
-/**
- * Main and default `$` where commands may be executed.
- * @see {@link $Type}
- */
 export default $;

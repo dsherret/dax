@@ -26,6 +26,26 @@ interface CommandBuilderState {
 
 const textDecoder = new TextDecoder();
 
+/**
+ * The underlying builder API for executing commands.
+ *
+ * This is what `$` uses to execute commands. Using this provides
+ * a way to provide a raw text command or an array of arguments.
+ *
+ * Command builders are immutable where each method call creates
+ * a new command builder.
+ *
+ * ```ts
+ * const builder = new CommandBuilder()
+ *  .cwd("./src")
+ *  .command("echo $MY_VAR");
+ *
+ * // outputs 5
+ * console.log(await builder.env("MY_VAR", "5").text());
+ * // outputs 6
+ * console.log(await builder.env("MY_VAR", "6").text());
+ * ```
+ */
 export class CommandBuilder implements PromiseLike<CommandResult> {
   #state: Readonly<CommandBuilderState> | undefined;
 
@@ -77,6 +97,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return this.spawn().then(onfulfilled).catch(onrejected);
   }
 
+  /**
+   * Explicit way to spawn a command.
+   *
+   * This is an alias for awaiting the command builder or calling `.then(...)`
+   */
   spawn(): Promise<CommandResult> {
     // store a snapshot of the current command
     // in case someone wants to spawn multiple
@@ -102,9 +127,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** Sets the stdin to use for the command. */
   stdin(reader: ShellPipeReader | string | Uint8Array) {
     return this.#newWithState(state => {
       if (typeof reader === "string") {
+        // todo: support cloning these buffers so that
+        // the state is immutable when creating a new
+        // builder... this is a bug
         state.stdin = new Buffer(new TextEncoder().encode(reader));
       } else if (reader instanceof Uint8Array) {
         state.stdin = new Buffer(reader);
@@ -114,19 +143,23 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind) {
     return this.#newWithState(state => {
       state.stdoutKind = kind;
     });
   }
 
+  /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind) {
     return this.#newWithState(state => {
       state.stderrKind = kind;
     });
   }
 
+  /** Sets multiple environment variables to use at the same time via an object literal. */
   env(items: Record<string, string | undefined>): this;
+  /** Sets a single environment variable to use. */
   env(name: string, value: string | undefined): this;
   env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
     return this.#newWithState(state => {
@@ -151,6 +184,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     }
   }
 
+  /** Sets the current working directory to use when executing this command. */
   cwd(dirPath: string) {
     return this.#newWithState(state => {
       state.cwd = path.resolve(dirPath);
@@ -231,7 +265,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * Shorthand for:
    *
-   * ```json
+   * ```ts
    * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
@@ -244,7 +278,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * Shorthand for:
    *
-   * ```json
+   * ```ts
    * const data = (await $`command`.quiet("stdout")).stdout.replace(/\r?\n$/, "");
    * ```
    */
@@ -263,7 +297,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * Shorthand for:
    *
-   * ```json
+   * ```ts
    * const data = (await $`command`.quiet("stdout")).stdoutJson;
    * ```
    */
@@ -344,6 +378,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 }
 
+/** Result of running a command. */
 export class CommandResult {
   #stdout: BufferStdio;
   #stderr: BufferStdio;
@@ -358,6 +393,7 @@ export class CommandResult {
 
   #memoizedStdout: string | undefined;
 
+  /** Raw decoded stdout text. */
   get stdout() {
     if (!this.#memoizedStdout) {
       this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
@@ -367,6 +403,11 @@ export class CommandResult {
 
   #memoizedStdoutJson: any | undefined;
 
+  /**
+   * Stdout text as JSON.
+   *
+   * @remarks Will throw if it can't be parsed as JSON.
+   */
   get stdoutJson() {
     if (this.#memoizedStdoutJson == null) {
       this.#memoizedStdoutJson = JSON.parse(this.stdout);
@@ -374,6 +415,7 @@ export class CommandResult {
     return this.#memoizedStdoutJson;
   }
 
+  /** Raw stdout bytes. */
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
       throw new Error(`Stdout was not piped (was ${this.#stdout}). By default stdout is piped.`);
@@ -383,6 +425,7 @@ export class CommandResult {
 
   #memoizedStderr: string | undefined;
 
+  /** Raw decoded stdout text. */
   get stderr() {
     if (!this.#memoizedStderr) {
       this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
@@ -392,6 +435,11 @@ export class CommandResult {
 
   #memoizedStderrJson: any | undefined;
 
+  /**
+   * Stderr text as JSON.
+   *
+   * @remarks Will throw if it can't be parsed as JSON.
+   */
   get stderrJson() {
     if (this.#memoizedStderrJson == null) {
       this.#memoizedStderrJson = JSON.parse(this.stderr);
@@ -399,6 +447,7 @@ export class CommandResult {
     return this.#memoizedStderrJson;
   }
 
+  /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
     if (typeof this.#stderr === "string") {
       throw new Error(`Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") on the process.`);
