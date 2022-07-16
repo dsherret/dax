@@ -20,7 +20,9 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v1
 
-      - uses: dprint/check@v2.0
+      - name: Check format
+        if: contains(matrix.os, 'ubuntu')
+        uses: dprint/check@v2.0
 
       - name: test
         run: deno test -A
