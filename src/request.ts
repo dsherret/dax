@@ -1,7 +1,7 @@
 import { filterEmptyRecordValues } from "./common.ts";
 
 interface RequestBuilderState {
-  noThrow: boolean;
+  noThrow: boolean | number[];
   url: string | URL | undefined;
   body: BodyInit | undefined;
   cache: RequestCache | undefined;
@@ -30,7 +30,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return {
       // be explicit here in order to force evaluation
       // of each property on a case by case basis
-      noThrow: state.noThrow,
+      noThrow: typeof state.noThrow === "boolean" ? state.noThrow : [...state.noThrow],
       url: state.url,
       body: state.body,
       cache: state.cache,
@@ -119,9 +119,31 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    * receiving a non-2xx status code. Specify this
    * to have it not throw.
    */
-  noThrow(value = true) {
+  noThrow(value?: boolean): RequestBuilder;
+  /**
+   * Do not throw if a non-2xx status code is received
+   * except for these excluded provided status codes.
+   *
+   * This overload may be especially useful when wanting to ignore
+   * 404 status codes and have it return undefined instead. For example:
+   *
+   * ```ts
+   * const data = await $.request(`https://crates.io/api/v1/crates/${crateName}`)
+   *   .noThrow(404)
+   *   .json<CratesIoMetadata | undefined>();
+   * ```
+   *
+   * Note, use multiple arguments to ignore multiple status codes (ex. `.noThrow(400, 404)`) as
+   * multiple calls to `.noThrow()` will overwrite the previous.
+   */
+  noThrow(exclusionStatusCode: number, ...additional: number[]): RequestBuilder;
+  noThrow(value?: boolean | number, ...additional: number[]) {
     return this.#newWithState(state => {
-      state.noThrow = value;
+      if (typeof value === "boolean" || value == null) {
+        state.noThrow = value ?? true;
+      } else {
+        state.noThrow = [value, ...additional];
+      }
     });
   }
 
@@ -200,7 +222,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
 
   /** Fetches and gets the response as JSON additionally setting
    * a JSON accept header if not set. */
-  async json() {
+  async json<TResult = any>(): Promise<TResult> {
     let builder = this;
     const acceptHeaderName = "ACCEPT";
     if (
@@ -210,7 +232,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
       builder = builder.header(acceptHeaderName, "application/json");
     }
     const response = await builder.fetch();
-    return response.json();
+    return response.json<TResult>();
   }
 
   /** Fetches and gets the response as text. */
@@ -222,8 +244,13 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
 
 export class RequestResult {
   #response: Response;
+  #originalUrl: string;
 
-  constructor(response: Response) {
+  constructor(
+    response: Response,
+    originalUrl: string,
+  ) {
+    this.#originalUrl = originalUrl;
     this.#response = response;
   }
 
@@ -257,23 +284,52 @@ export class RequestResult {
     return this.#response.statusText;
   }
 
+  /** URL of the response. */
+  get url() {
+    return this.#response.url;
+  }
+
+  /**
+   * Throws if the response doesn't have a 2xx code.
+   *
+   * This might be useful if the request was build with `.noThrow()`, but
+   * otherwise this is called automatically for any non-2xx response codes.
+   */
+  throwIfNotOk() {
+    if (!this.ok) {
+      throw new Error(`Error making request to ${this.#originalUrl}: ${this.statusText}`);
+    }
+  }
+
   /** Respose body as an array buffer. */
   arrayBuffer() {
+    if (this.#response.status === 404) {
+      return undefined as any;
+    }
     return this.#response.arrayBuffer();
   }
 
   /** Response body as a blog. */
   blob() {
+    if (this.#response.status === 404) {
+      return undefined as any;
+    }
     return this.#response.blob();
   }
 
   /** Respose body as JSON. */
   json<TResult = any>(): Promise<TResult> {
+    if (this.#response.status === 404) {
+      return undefined as any;
+    }
     return this.#response.json();
   }
 
   /** Respose body as text. */
   text() {
+    if (this.#response.status === 404) {
+      return undefined;
+    }
     return this.#response.text();
   }
 }
@@ -297,10 +353,15 @@ export async function makeRequest(state: RequestBuilderState) {
     signal: timeout?.signal,
   });
   timeout?.clear();
-  if (!response.ok && !state.noThrow) {
-    throw new Error(`Error making request to ${state.url}: ${response.statusText}`);
+  const result = new RequestResult(response, state.url.toString());
+  if (!state.noThrow) {
+    result.throwIfNotOk();
+  } else if (state.noThrow instanceof Array) {
+    if (!state.noThrow.includes(response.status)) {
+      result.throwIfNotOk();
+    }
   }
-  return new RequestResult(response);
+  return result;
 
   function getTimeout() {
     if (state.timeout == null) {
