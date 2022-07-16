@@ -1,0 +1,27 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  deno:
+    name: dax-${{ matrix.os }}
+    if: |
+      github.event_name == 'push' ||
+      !startsWith(github.event.pull_request.head.label, 'dsherret:')
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install deno
+        uses: denoland/setup-deno@v1
+
+      - uses: dprint/check@v2.1
+        if: runner.os == 'Linux'
+
+      - name: test
+        run: deno test -A
