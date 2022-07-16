@@ -257,7 +257,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout").spawn()).stdoutJson;
    * ```
    */
-  async json() {
+  async json<TResult = any>(): Promise<TResult> {
     return (await this.quiet("stdout").spawn()).stdoutJson;
   }
 }

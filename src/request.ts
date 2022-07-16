@@ -268,7 +268,7 @@ export class RequestResult {
   }
 
   /** Respose body as JSON. */
-  json() {
+  json<TResult = any>(): Promise<TResult> {
     return this.#response.json();
   }
 
