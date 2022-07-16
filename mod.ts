@@ -47,17 +47,17 @@ export interface $Type {
   /** Changes the directory of the current process. */
   cd(path: string | URL): void;
   /**
-   * Downloads the provided URL throwing by default if the
+   * Makes a request to the provided URL throwing by default if the
    * response is not successful.
    *
    * ```ts
-   * const data = await $.download("https://plugins.dprint.dev/info.json")
+   * const data = await $.request("https://plugins.dprint.dev/info.json")
    *  .json();
    * ```
    *
    * @see {@link RequestBuilder}
    */
-  download(url: string | URL): RequestBuilder;
+  request(url: string | URL): RequestBuilder;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -253,7 +253,7 @@ export interface Create$Options {
  * await $`deno run my_script.ts`;
  *
  * // similarly, this will have the headers that were set in the request builder
- * const data = await $.download("https://plugins.dprint.dev/info.json").json();
+ * const data = await $.request("https://plugins.dprint.dev/info.json").json();
  * ```
  */
 export function build$(options: Create$Options) {
@@ -281,7 +281,7 @@ export function build$(options: Create$Options) {
     },
     helperObject,
     {
-      download(url: string | URL) {
+      request(url: string | URL) {
         return requestBuilder.url(url);
       },
     },

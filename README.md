@@ -95,11 +95,11 @@ await $.sleep("1.5s");
 await $.sleep("100ms");
 
 // download a file as JSON (this will throw on non-2xx status code)
-const data = await $.download("https://plugins.dprint.dev/info.json").json();
+const data = await $.request("https://plugins.dprint.dev/info.json").json();
 // or text
-const text = await $.download("https://example.com").text();
+const text = await $.request("https://example.com").text();
 // or long form
-const response = await $.download("https://plugins.dprint.dev/info.json");
+const response = await $.request("https://plugins.dprint.dev/info.json");
 console.log(response.code);
 console.log(await response.json());
 
@@ -196,7 +196,7 @@ Currently implemented (though not every option is supported):
 
 ## Builder APIs
 
-The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're immutable so every function call returns a new object (which is the same thing that happens with the objects returned from `$` and `$.download`).
+The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're immutable so every function call returns a new object (which is the same thing that happens with the objects returned from `$` and `$.request`).
 
 ### `CommandBuilder`
 
@@ -228,7 +228,7 @@ const result2 = await otherBuilder
 
 ### `RequestBuilder`
 
-`RequestBuilder` can be used for building up requests similar to `$.download`:
+`RequestBuilder` can be used for building up requests similar to `$.request`:
 
 ```ts
 import {
@@ -267,7 +267,7 @@ const $ = build$({ commandBuilder, requestBuilder });
 // process won't have its environment changed
 await $`deno run my_script.ts`;
 
-const data = await $.download("https://plugins.dprint.dev/info.json").json();
+const data = await $.request("https://plugins.dprint.dev/info.json").json();
 ```
 
 This may be useful also if you want to change the default configuration. Another example:
