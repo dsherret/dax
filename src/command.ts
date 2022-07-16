@@ -98,6 +98,18 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  stdin(reader: ShellPipeReader | string | Uint8Array) {
+    return this.#newWithState(state => {
+      if (typeof reader === "string") {
+        state.stdin = new Buffer(new TextEncoder().encode(reader));
+      } else if (reader instanceof Uint8Array) {
+        state.stdin = new Buffer(reader);
+      } else {
+        state.stdin = reader;
+      }
+    });
+  }
+
   stdout(kind: ShellPipeWriterKind) {
     return this.#newWithState(state => {
       state.stdoutKind = kind;

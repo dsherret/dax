@@ -537,13 +537,16 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     });
     const abortListener = () => p.kill("SIGKILL");
     context.signal.addEventListener("abort", abortListener);
+    const completeController = new AbortController();
+    const completeSignal = completeController.signal;
     try {
-      const writeStdinTask = writeStdin(context.stdin, p);
+      // ignore the result of writing to stdin because it may
+      // have not finished before the process finished
+      const _ignore = writeStdin(context.stdin, p, completeSignal);
       const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
       const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
       const [status] = await Promise.all([
         p.status(),
-        writeStdinTask,
         readStdoutTask,
         readStderrTask,
       ]);
@@ -553,35 +556,46 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
         return resultFromCode(status.code);
       }
     } finally {
+      completeController.abort();
       context.signal.removeEventListener("abort", abortListener);
       p.close();
+      p.stdin?.close();
       p.stdout?.close();
       p.stderr?.close();
     }
   }
 
-  async function writeStdin(stdin: ShellPipeReader, p: Deno.Process) {
+  async function writeStdin(stdin: ShellPipeReader, p: Deno.Process, signal: AbortSignal) {
     if (typeof stdin === "string") {
       return;
     }
-    await pipeReaderToWriter(stdin, p.stdin!);
+    await pipeReaderToWriter(stdin, p.stdin!, signal);
   }
 
   async function readStdOutOrErr(reader: Deno.Reader | null, writer: ShellPipeWriter) {
     if (typeof writer === "string" || reader == null) {
       return;
     }
-    await pipeReaderToWriter(reader, writer);
+    // don't abort... ensure all of stdout/stderr is read in case the process
+    // exits before this finishes
+    await pipeReaderToWriter(reader, writer, new AbortController().signal);
   }
 
-  async function pipeReaderToWriter(reader: Deno.Reader, writer: Deno.Writer) {
-    while (true) {
+  async function pipeReaderToWriter(reader: Deno.Reader, writer: Deno.Writer, signal: AbortSignal) {
+    while (!signal.aborted) {
       const buffer = new Uint8Array(1024);
       const length = await reader.read(buffer);
       if (length === 0 || length == null) {
         break;
       }
-      await writer.write(buffer.subarray(0, length));
+      await writeAll(buffer.subarray(0, length));
+    }
+
+    async function writeAll(arr: Uint8Array) {
+      let nwritten = 0;
+      while (nwritten < arr.length && !signal.aborted) {
+        nwritten += await writer.write(arr.subarray(nwritten));
+      }
     }
   }
 

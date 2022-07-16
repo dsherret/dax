@@ -1,6 +1,6 @@
 import $, { build$, CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
-import { path } from "./src/deps.ts";
+import { Buffer, path } from "./src/deps.ts";
 
 Deno.test("should get stdout by default", async () => {
   const output = await $`echo 5`;
@@ -202,4 +202,34 @@ Deno.test("timeout", async () => {
 
   const result = await command.noThrow();
   assertEquals(result.code, 124);
+});
+
+Deno.test("piping to stdin", async () => {
+  // Deno.Reader
+  {
+    const bytes = new TextEncoder().encode("test\n");
+    const result =
+      await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+        .stdin(new Buffer(bytes))
+        .text();
+    assertEquals(result, "test");
+  }
+
+  // string
+  {
+    const result =
+      await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+        .stdin("test\n")
+        .text();
+    assertEquals(result, "test");
+  }
+
+  // Uint8Array
+  {
+    const result =
+      await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+        .stdin(new TextEncoder().encode("test\n"))
+        .text();
+    assertEquals(result, "test");
+  }
 });

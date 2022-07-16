@@ -50,6 +50,11 @@ const result = await $`echo 1`;
 const result2 = await $`echo ${result}`;
 console.log(result2.stdout); // 1\n
 
+// providing stdin
+await $`command`.stdin("some value");
+await $`command`.stdin(bytes);
+await $`command`.stdin(someReader);
+
 // setting env variables (outputs: 1 2 3 4)
 await $`echo $var1 $var2 $var3 $var4`
   .env("var1", "1")
