@@ -63,12 +63,14 @@ await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 // if either are set to "default" or "inherit"
 await $`echo 5`.quiet();
 
-// console.log alias
+// similar to console.log, but with potential indentation
 $.log("Hello!");
+// similar to console.error, but with potential indentation
+$.logError("Some error message.");
 // log with the first argument as bold green
 $.logTitle("Fetching", "data from server...");
 // log an error with the first argument bold red
-$.logError("Error", "cannot retrieve data");
+$.logTitleError("Error", "cannot retrieve data");
 // log with everything below indented
 await $.logIndent(async () => {
   $.log("This will be indented.");
@@ -81,7 +83,18 @@ await $.logIndent(async () => {
 $.cd("newDir");
 
 // sleep
-await $.sleep(1000);
+await $.sleep(100); // ms
+await $.sleep("1.5s");
+await $.sleep("100ms");
+
+// download a file (this will throw on non-2xx status code)
+const response = await $.download("https://plugins.dprint.dev/info.json");
+console.log(response.code);
+console.log(await response.json());
+// or more shorthand for just getting the body as json
+const data = await $.download("https://plugins.dprint.dev/info.json").json();
+// or text
+const text = await $.download("https://example.com").text();
 
 // get path to an executable
 await $.which("deno"); // path to deno executable
@@ -89,7 +102,7 @@ await $.which("deno"); // path to deno executable
 // attempt doing an action until it succeeds
 await $.withRetries({
   count: 5,
-  delay: 5_000,
+  delay: "5s",
   action: async () => {
     await $`cargo publish`;
   },
@@ -166,8 +179,6 @@ const result = await $`echo $TEST`.env("TEST", "123");
 console.log(result.stdout); // 123
 ```
 
-todo...
-
 ### Custom Cross Platform Shell Commands
 
 Currently implemented (though not every option is supported):
@@ -176,33 +187,85 @@ Currently implemented (though not every option is supported):
   - Note that shells don't export their environment by default.
 - [`echo`](https://man7.org/linux/man-pages/man1/echo.1.html) - Echo command.
 
-## Command Builder
+## Builder APIs
 
-You may wish to create your own `$` function that has a certain setup context (for example, a defined environment variable or cwd). You may do this by using a `CommandBuilder`, which is what the main default exported `$` function uses internally:
+The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're cloneable so you can create snapshots of them.
+
+### `CommandBuilder`
+
+`CommandBuilder` can be used for building up commands similar to what the tagged template `$` does:
 
 ```ts
-import { CommandBuilder } from "https://deno.land/x/dax@{VERSION_GOES_HERE}/mod.ts";
+import {
+  CommandBuilder,
+} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
-const builder = new CommandBuilder()
+const commandBuilder = new CommandBuilder()
+  .cwd("./subDir")
+  .stdout("piped")
+  .noThrow();
+
+const otherBuilder = commandBuilder
+  .clone()
+  .stderr("piped");
+
+const result = await commandBuilder
+  .command("deno run my_script.ts")
+  .spawn();
+```
+
+### `RequestBuilder`
+
+`RequestBuilder` can be used for building up requests similar to `$.download`:
+
+```ts
+import {
+  RequestBuilder,
+} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+
+const requestBuilder = new RequestBuilder()
+  .header("SOME_VALUE", "some value to send in a header");
+
+const result = await requestBuilder
+  .url("https://example.com")
+  .text();
+```
+
+### Custom `$`
+
+You may wish to create your own `$` function that has a certain setup context (for example, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is what the main default exported `$` function uses internally to build itself:
+
+```ts
+import {
+  build$,
+  CommandBuilder,
+  RequestBuilder,
+} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+
+const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
   .env("HTTPS_PROXY", "some_value");
+const requestBuilder = new RequestBuilder()
+  .header("SOME_NAME", "some value");
 
 // creates a $ object with the starting environment as shown above
-const $ = builder.build$();
+const $ = build$({ commandBuilder, requestBuilder });
 
 // this command will use the env described above, but the main
 // process won't have its environment changed
 await $`deno run my_script.ts`;
+
+const data = await $.download("https://plugins.dprint.dev/info.json").json();
 ```
 
-This may be useful also if you want to change the default configuration, for example:
+This may be useful also if you want to change the default configuration. Another example:
 
 ```ts
 const builder = new CommandBuilder()
   .exportEnv()
-  .stdout("inherit");
+  .noThrow();
 
-const $ = builder.build$();
+const $ = build$({ commandBuilder });
 
 // since exportEnv() was set, this will now actually change
 // the directory of the executing process
@@ -211,6 +274,6 @@ await $`cd test && export MY_VALUE=5`;
 await $`echo $MY_VALUE`;
 // will output it's in the test dir
 await $`echo $PWD`;
-// this will now output to stdout instead of piping by default
-await $`echo 'hello'`;
+// won't throw even though this command fails (because of `.noThrow()`)
+await $`deno eval 'Deno.exit(1);'`;
 ```

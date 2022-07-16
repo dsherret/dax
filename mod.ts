@@ -1,12 +1,10 @@
-import { Buffer, colors, fs, path, which, whichSync } from "./src/deps.ts";
-import {
-  CapturingBufferWriter,
-  NullPipeWriter,
-  ShellPipeReader,
-  ShellPipeWriter,
-  ShellPipeWriterKind,
-} from "./src/pipes.ts";
-import { parseArgs, spawn } from "./src/shell.ts";
+import { CommandBuilder, CommandResult } from "./src/command.ts";
+import { Delay, delayToMs } from "./src/common.ts";
+import { colors, fs, path, which, whichSync } from "./src/deps.ts";
+import { RequestBuilder } from "./src/request.ts";
+
+export { CommandBuilder, CommandResult } from "./src/command.ts";
+export { RequestBuilder, RequestResult } from "./src/request.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
@@ -32,337 +30,114 @@ import { parseArgs, spawn } from "./src/shell.ts";
  * @module
  */
 
-const textDecoder = new TextDecoder();
+/** Options for using `$.retry({ ... })` */
+export interface RetryOptions<TReturn> {
+  /** Number of times to retry. */
+  count: number;
+  /** Delay in milliseconds. */
+  delay: Delay;
+  /** Action to retry if it throws. */
+  action: () => Promise<TReturn>;
+  /** Do not log. */
+  quiet?: boolean;
+}
 
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
+  /** Changes the directory of the current process. */
   cd(path: string | URL): void;
+  /**
+   * Downloads the provided URL throwing by default if the
+   * response is not successful.
+   *
+   * ```ts
+   * const data = await $.download("https://plugins.dprint.dev/info.json")
+   *  .json();
+   * ```
+   *
+   * @see {@link RequestBuilder}
+   */
+  download(url: string | URL): RequestBuilder;
+  /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
-  log(...data: any[]): void;
-  logError(boldText: string, ...data: any[]): void;
-  logTitle(title: string, ...data: any[]): void;
-  logIndent<TResult>(action: () => TResult): TResult;
+  /** Re-export of deno_std's `path` module. */
   path: typeof path;
-  sleep(ms: number): Promise<void>;
-  withRetries<TReturn>(params: RetryParams<TReturn>): Promise<TReturn>;
+  /**
+   * Similar to `console.log`, but with potential indentation (`$.logIndent`)
+   * and output of commands or request responses.
+   */
+  log(...data: any[]): void;
+  /**
+   * Similar to `console.error`, but with potential indentation (`$.logIndent`)
+   * and output of commands or request responses.
+   */
+  logError(...data: any[]): void;
+  /**
+   * Similar to `$.log`, but has some text at the start that's bold green.
+   */
+  logTitle(title: string, ...data: any[]): void;
+  /**
+   * Similar to `$.logError`, but has some text at the start that's bold red.
+   */
+  logTitleError(title: string, ...data: any[]): void;
+  /**
+   * Causes all `$.log` and like functions to be logged with indentation.
+   *
+   * ```ts
+   * await $.logIndent(async () => {
+   * $.log("This will be indented.");
+   *   await $.logIndent(async () => {
+   *     $.log("This will indented even more.");
+   *   });
+   * });
+   * ```
+   */
+  logIndent<TResult>(action: () => TResult): TResult;
+  /**
+   * Sleep for the provided delay.
+   *
+   * ```ts
+   * await $.sleep(1000); // ms
+   * await $.sleep("1.5s");
+   * await $.sleep("100ms");
+   * ```
+   */
+  sleep(delay: Delay): Promise<void>;
+  /**
+   * Does the provided action until it succeeds (does not throw)
+   * or the specified number of retries (`count`) is hit.
+   */
+  withRetries<TReturn>(params: RetryOptions<TReturn>): Promise<TReturn>;
+  /** Re-export of `deno_which` for getting the path to an executable. */
   which: typeof which;
+  /** Similar to `which`, but synchronously. */
   whichSync: typeof whichSync;
 }
 
-type BufferStdio = "inherit" | "null" | Buffer;
-
-interface CommandBuilderState {
-  command: string | undefined;
-  stdin: ShellPipeReader;
-  stdoutKind: ShellPipeWriterKind;
-  stderrKind: ShellPipeWriterKind;
-  noThrow: boolean;
-  env: Record<string, string>;
-  cwd: string;
-  exportEnv: boolean;
-}
-
-export class CommandBuilder implements PromiseLike<CommandResult> {
-  #state: CommandBuilderState | undefined;
-
-  #getState() {
-    if (this.#state == null) {
-      this.#state = {
-        command: undefined,
-        stdin: "inherit",
-        stdoutKind: "default",
-        stderrKind: "default",
-        noThrow: false,
-        env: Deno.env.toObject(),
-        cwd: Deno.cwd(),
-        exportEnv: false,
-      };
-    }
-    return this.#state;
-  }
-
-  clone() {
-    const builder = new CommandBuilder();
-    if (this.#state != null) {
-      // be explicit here in order to evaluate each property on a case by case basis
-      builder.#state = {
-        command: this.#state.command,
-        stdin: this.#state.stdin,
-        stdoutKind: this.#state.stdoutKind,
-        stderrKind: this.#state.stderrKind,
-        noThrow: this.#state.noThrow,
-        env: { ...this.#state.env },
-        cwd: this.#state.cwd,
-        exportEnv: this.#state.exportEnv,
-      };
-    }
-    return builder;
-  }
-
-  then<TResult1 = CommandResult, TResult2 = never>(
-    onfulfilled?: ((value: CommandResult) => TResult1 | PromiseLike<TResult1>) | null | undefined,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
-  ): PromiseLike<TResult1 | TResult2> {
-    return this.spawn().then(onfulfilled).catch(onrejected);
-  }
-
-  build$(): $Type {
-    return create$(this.clone());
-  }
-
-  spawn(): Promise<CommandResult> {
-    const currentState = this.#getState();
-    // store a snapshot of the current command
-    // in case someone wants to spawn multiple
-    // commands with different state
-    return parseAndSpawnCommand({
-      command: currentState.command,
-      stdin: currentState.stdin,
-      stdoutKind: currentState.stdoutKind,
-      stderrKind: currentState.stderrKind,
-      noThrow: currentState.noThrow,
-      env: { ...currentState.env },
-      cwd: currentState.cwd,
-      exportEnv: currentState.exportEnv,
-    });
-  }
-
-  /** Sets the raw command to execute. */
-  command(commandText: string) {
-    this.#getState().command = commandText;
-    return this;
-  }
-
-  noThrow(): this {
-    this.#getState().noThrow = true;
-    return this;
-  }
-
-  stdout(kind: ShellPipeWriterKind) {
-    this.#getState().stdoutKind = kind;
-    return this;
-  }
-
-  stderr(kind: ShellPipeWriterKind) {
-    this.#getState().stderrKind = kind;
-    return this;
-  }
-
-  env(items: Record<string, string | undefined>): this;
-  env(name: string, value: string | undefined): this;
-  env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    if (typeof nameOrItems === "string") {
-      this.#setEnv(nameOrItems, value);
-    } else {
-      for (const [key, value] of Object.entries(nameOrItems)) {
-        this.#setEnv(key, value);
-      }
-    }
-    return this;
-  }
-
-  #setEnv(key: string, value: string | undefined) {
-    if (Deno.build.os === "windows") {
-      key = key.toUpperCase();
-    }
-    if (value == null) {
-      delete this.#getState().env[key];
-    } else {
-      this.#getState().env[key] = value;
-    }
-  }
-
-  cwd(dirPath: string) {
-    this.#getState().cwd = path.resolve(dirPath);
-  }
-
-  /**
-   * Exports the environment of the command to the executing process.
-   *
-   * So for example, changing the directory in a command or exporting
-   * an environment variable will actually change the environment
-   * of the executing process.
-   *
-   * ```ts
-   * await $`cd src && export SOME_VALUE=5`;
-   * console.log(Deno.env.get("SOME_VALUE")); // 5
-   * console.log(Deno.cwd()); // will be in the src directory
-   * ```
-   */
-  exportEnv(value = true) {
-    this.#getState().exportEnv = value;
-    return this;
-  }
-
-  /** Ensures stdout and stderr are piped if they have the default behaviour or are inherited. */
-  quiet() {
-    const state = this.#getState();
-    state.stdoutKind = getQuietKind(state.stdoutKind);
-    state.stderrKind = getQuietKind(state.stderrKind);
-    return this;
-
-    function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
-      switch (kind) {
-        case "default":
-        case "inherit":
-          return "piped";
-        case "null":
-        case "piped":
-          return kind;
-        default:
-          const _assertNever: never = kind;
-          throw new Error(`Unhandled kind ${kind}.`);
-      }
-    }
-  }
-}
-
-async function parseAndSpawnCommand(state: CommandBuilderState) {
-  if (state.command == null) {
-    throw new Error("A command must be set before it can be spawned.");
-  }
-
-  const stdoutBuffer = state.stdoutKind === "default"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stdoutKind === "null"
-    ? "null"
-    : state.stdoutKind === "inherit"
-    ? "inherit"
-    : new Buffer();
-  const stdout = new ShellPipeWriter(
-    state.stdoutKind,
-    stdoutBuffer === "null"
-      ? new NullPipeWriter()
-      : stdoutBuffer === "inherit"
-      ? Deno.stdout
-      : stdoutBuffer,
-  );
-  const stderrBuffer = state.stderrKind === "default"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stderrKind === "null"
-    ? "null"
-    : state.stderrKind === "inherit"
-    ? "inherit"
-    : new Buffer();
-  const stderr = new ShellPipeWriter(
-    state.stderrKind,
-    stderrBuffer === "null"
-      ? new NullPipeWriter()
-      : stderrBuffer === "inherit"
-      ? Deno.stderr
-      : stderrBuffer,
-  );
-
-  const list = await parseArgs(state.command);
-  const code = await spawn(list, {
-    stdin: state.stdin,
-    stdout,
-    stderr,
-    env: state.env,
-    cwd: state.cwd,
-    exportEnv: state.exportEnv,
-  });
-  if (code !== 0 && !state.noThrow) {
-    throw new Error(`Exited with error code: ${code}`);
-  }
-  return new CommandResult(
-    code,
-    stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
-    stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
-  );
-}
-
-export class CommandResult {
-  #stdout: BufferStdio;
-  #stderr: BufferStdio;
-  /** The exit code. */
-  readonly code: number;
-
-  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio) {
-    this.code = code;
-    this.#stdout = stdout;
-    this.#stderr = stderr;
-  }
-
-  #memoizedStdout: string | undefined;
-
-  get stdout() {
-    if (!this.#memoizedStdout) {
-      this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
-    }
-    return this.#memoizedStdout;
-  }
-
-  #memoizedStdoutJson: any | undefined;
-
-  get stdoutJson() {
-    if (this.#memoizedStdoutJson == null) {
-      this.#memoizedStdoutJson = JSON.parse(this.stdout);
-    }
-    return this.#memoizedStdoutJson;
-  }
-
-  get stdoutBytes(): Uint8Array {
-    if (typeof this.#stdout === "string") {
-      throw new Error(`Stdout was not piped (was ${this.#stdout}). By default stdout is piped.`);
-    }
-    return this.#stdout.bytes();
-  }
-
-  #memoizedStderr: string | undefined;
-
-  get stderr() {
-    if (!this.#memoizedStderr) {
-      this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
-    }
-    return this.#memoizedStderr;
-  }
-
-  #memoizedStderrJson: any | undefined;
-
-  get stderrJson() {
-    if (this.#memoizedStderrJson == null) {
-      this.#memoizedStderrJson = JSON.parse(this.stderr);
-    }
-    return this.#memoizedStderrJson;
-  }
-
-  get stderrBytes(): Uint8Array {
-    if (typeof this.#stderr === "string") {
-      throw new Error(`Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") on the process.`);
-    }
-    return this.#stderr.bytes();
-  }
-}
-
-function sleep(ms: number) {
+function sleep(delay: Delay) {
+  const ms = delayToMs(delay);
   return new Promise<void>(resolve => setTimeout(resolve, ms));
 }
 
-export interface RetryParams<TReturn> {
-  count: number;
-  /** Delay in milliseconds. */
-  delay: number;
-  action: () => Promise<TReturn>;
-}
-
-async function withRetries<TReturn>(params: RetryParams<TReturn>) {
-  for (let i = 0; i < params.count; i++) {
+async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
+  for (let i = 0; i < opts.count; i++) {
     if (i > 0) {
-      console.error(
-        `Failed. Trying again in ${params.delay} seconds...`,
-      );
-      await sleep(params.delay);
-      console.error(`Attempt ${i + 1}/${params.count}...`);
+      if (!opts.quiet) {
+        $.logError("Failed", `trying again in ${opts.delay} seconds...`);
+      }
+      await sleep(opts.delay);
+      if (!opts.quiet) {
+        $.logTitle("Retrying", `attempt ${i + 1}/${opts.count}...`);
+      }
     }
     try {
-      return await params.action();
+      return await opts.action();
     } catch (err) {
-      console.error(err);
+      $.logError(err);
     }
   }
 
-  throw new Error(`Failed after ${params.count} attempts.`);
+  throw new Error(`Failed after ${opts.count} attempts.`);
 }
 
 function cd(path: string | URL) {
@@ -372,8 +147,19 @@ function cd(path: string | URL) {
 // this is global because it then allows functions to easily call
 // other functions and those should be indented underneath
 let indentLevel = 0;
-function getIndentText() {
-  return "  ".repeat(indentLevel);
+
+function getLogText(data: any[]) {
+  // this should be smarter to better emulate how console.log/error work
+  const combinedText = data.join(" ");
+  if (indentLevel === 0) {
+    return combinedText;
+  } else {
+    const indentText = "  ".repeat(indentLevel);
+    return combinedText
+      .split(/\n/) // keep \r on line
+      .map(l => `${indentText}${l}`)
+      .join("\n");
+  }
 }
 
 const helperObject = {
@@ -381,17 +167,22 @@ const helperObject = {
   path,
   cd,
   log(...data: any[]) {
-    if (data.length === 0) {
-      return;
-    }
-    const firstArg = `${getIndentText()}${data[0]}`;
-    console.log(firstArg, ...data.slice(1));
+    console.log(getLogText(data));
   },
-  logError(boldText: string, ...data: any[]) {
-    console.error(getIndentText() + colors.bold(colors.red(boldText)), ...data);
+  logError(...data: any[]) {
+    console.error(getLogText(data));
   },
   logTitle(title: string, ...data: any[]) {
-    console.log(getIndentText() + colors.bold(colors.green(title)), ...data);
+    console.log(getLogText([
+      colors.bold(colors.green(title)),
+      ...data,
+    ]));
+  },
+  logTitleError(title: string, ...data: any[]) {
+    console.error(getLogText([
+      colors.bold(colors.red(title)),
+      ...data,
+    ]));
   },
   logIndent<TResult>(action: () => TResult): TResult {
     indentLevel++;
@@ -430,27 +221,82 @@ const helperObject = {
   },
 };
 
-function create$(ownedStartingBuilder: CommandBuilder) {
-  return Object.assign((strings: TemplateStringsArray, ...exprs: any[]) => {
-    // don't bother escaping for now... work on that later
-    let result = "";
-    for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-      if (strings.length > i) {
-        result += strings[i];
-      }
-      if (exprs.length > i) {
-        const expr = exprs[i];
-        if (expr instanceof CommandResult) {
-          // remove last newline
-          result += expr.stdout.replace(/\r?\n$/, "");
-        } else {
-          result += `${exprs[i]}`;
-        }
-      }
-    }
-    return ownedStartingBuilder.clone().command(result);
-  }, helperObject);
+/** Options for creating a custom `$`. */
+export interface Create$Options {
+  /** Uses the state of this command builder as a starting point. */
+  commandBuilder?: CommandBuilder;
+  /** Uses the state of this request builder as a starting point. */
+  requestBuilder?: RequestBuilder;
 }
 
-export const $: $Type = create$(new CommandBuilder());
+/**
+ * Builds a new `$` which will use the state of the provided
+ * builders as the default.
+ *
+ * This can be useful if you want different default settings.
+ *
+ * Example:
+ *
+ * ```ts
+ * import { build$ } from "https://deno.land/x/dax/mod.ts";
+ *
+ * const commandBuilder = new CommandBuilder()
+ *   .cwd("./subDir")
+ *   .env("HTTPS_PROXY", "some_value");
+ * const requestBuilder = new RequestBuilder()
+ *   .header("SOME_VALUE", "value");
+ *
+ * const $ = build$({ commandBuilder, requestBuilder });
+ *
+ * // this command will use the env described above, but the main
+ * // process and default `$` won't have its environment changed
+ * await $`deno run my_script.ts`;
+ *
+ * // similarly, this will have the headers that were set in the request builder
+ * const data = await $.download("https://plugins.dprint.dev/info.json").json();
+ * ```
+ */
+export function build$(options: Create$Options) {
+  const commandBuilder = options.commandBuilder?.clone() ?? new CommandBuilder();
+  const requestBuilder = options.requestBuilder?.clone() ?? new RequestBuilder();
+  return Object.assign(
+    (strings: TemplateStringsArray, ...exprs: any[]) => {
+      // don't bother escaping for now... work on that later
+      let result = "";
+      for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+        if (strings.length > i) {
+          result += strings[i];
+        }
+        if (exprs.length > i) {
+          const expr = exprs[i];
+          if (expr instanceof CommandResult) {
+            // remove last newline
+            result += expr.stdout.replace(/\r?\n$/, "");
+          } else {
+            result += `${exprs[i]}`;
+          }
+        }
+      }
+      return commandBuilder.clone().command(result);
+    },
+    helperObject,
+    {
+      download(url: string | URL) {
+        return requestBuilder
+          .clone()
+          .url(url);
+      },
+    },
+  );
+}
+
+/**
+ * Alternative named export for `$`. Import it how you'd like.
+ * @see {@link $Type}
+ */
+export const $: $Type = build$({});
+/**
+ * Main and default `$` where commands may be executed.
+ * @see {@link $Type}
+ */
 export default $;
