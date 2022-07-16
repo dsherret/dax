@@ -91,7 +91,9 @@ $.logTitle("Fetching data from server...");
 // or force multiple words to be bold green by using two arguments
 $.logTitle("Setting up", "local directory...");
 // log an error with the first word bold red
-$.logTitleError("Error cannot retrieve data");
+$.logErrorTitle("Error cannot retrieve data");
+// logs out text in gray (alternative stderr version is $.logErrorLight)
+$.logLight("Some unimportant message.");
 // log with everything below indented
 await $.logIndent(async () => {
   $.log("This will be indented.");

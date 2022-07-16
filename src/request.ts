@@ -302,23 +302,35 @@ export class RequestResult {
     }
   }
 
-  /** Respose body as an array buffer. */
+  /**
+   * Respose body as an array buffer.
+   *
+   * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
+   */
   arrayBuffer() {
     if (this.#response.status === 404) {
-      return undefined as any;
+      return undefined!;
     }
     return this.#response.arrayBuffer();
   }
 
-  /** Response body as a blog. */
+  /**
+   * Response body as a blog.
+   *
+   * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
+   */
   blob() {
     if (this.#response.status === 404) {
-      return undefined as any;
+      return undefined!;
     }
     return this.#response.blob();
   }
 
-  /** Respose body as JSON. */
+  /**
+   * Respose body as JSON.
+   *
+   * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
+   */
   json<TResult = any>(): Promise<TResult> {
     if (this.#response.status === 404) {
       return undefined as any;
@@ -326,10 +338,17 @@ export class RequestResult {
     return this.#response.json();
   }
 
-  /** Respose body as text. */
+  /**
+   * Respose body as text.
+   *
+   * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
+   */
   text() {
     if (this.#response.status === 404) {
-      return undefined;
+      // most people don't need to bother with this and if they do, they will
+      // need to opt-in with `noThrow()`. So just assert non-nullable
+      // to make it easier to work with and highlight this behaviour in the jsdocs.
+      return undefined!;
     }
     return this.#response.text();
   }

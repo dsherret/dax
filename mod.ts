@@ -102,20 +102,30 @@ export interface $Type {
    */
   log(...data: any[]): void;
   /**
-   * Similar to `console.error`, but with potential indentation (`$.logIndent`)
-   * and output of commands or request responses.
+   * Similar to `$.log`, but logs out the text lighter than usual. This
+   * might be useful for logging out something that's unimportant.
    */
-  logError(...data: any[]): void;
+  logLight(...data: any[]): void;
   /**
    * Similar to `$.log`, but will bold the first word if one argument or
    * first argument if multiple arguments.
    */
   logTitle(firstArg: string, ...data: any[]): void;
   /**
+   * Similar to `console.error`, but with potential indentation (`$.logIndent`)
+   * and output of commands or request responses.
+   */
+  logError(...data: any[]): void;
+  /**
+   * Similar to `$.logError`, but logs out the text lighter than usual. This
+   * might be useful for logging out something that's unimportant.
+   */
+  logErrorLight(...data: any[]): void;
+  /**
    * Similar to `$.logError`, but will bold the first word if one argument or
    * first argument if multiple arguments.
    */
-  logTitleError(firstArg: string, ...data: any[]): void;
+  logErrorTitle(firstArg: string, ...data: any[]): void;
   /**
    * Causes all `$.log` and like functions to be logged with indentation.
    *
@@ -215,8 +225,8 @@ const helperObject = {
   log(...data: any[]) {
     console.log(getLogText(data));
   },
-  logError(...data: any[]) {
-    console.error(getLogText(data));
+  logLight(...data: any[]) {
+    console.log(colors.gray(getLogText(data)));
   },
   logTitle(firstArg: string, ...data: any[]) {
     if (data.length === 0) {
@@ -229,7 +239,13 @@ const helperObject = {
     }
     console.log(getLogText([firstArg, ...data]));
   },
-  logTitleError(firstArg: string, ...data: any[]) {
+  logError(...data: any[]) {
+    console.error(getLogText(data));
+  },
+  logErrorLight(...data: any[]) {
+    console.error(colors.gray(getLogText(data)));
+  },
+  logErrorTitle(firstArg: string, ...data: any[]) {
     if (data.length === 0) {
       // emphasize the first word only
       const parts = firstArg.split(" ");
