@@ -158,9 +158,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets multiple environment variables to use at the same time via an object literal. */
-  env(items: Record<string, string | undefined>): this;
+  env(items: Record<string, string | undefined>): CommandBuilder;
   /** Sets a single environment variable to use. */
-  env(name: string, value: string | undefined): this;
+  env(name: string, value: string | undefined): CommandBuilder;
   env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
     return this.#newWithState(state => {
       if (typeof nameOrItems === "string") {

@@ -92,9 +92,9 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** Sets multiple headers at the same time via an object literal. */
-  header(items: Record<string, string | undefined>): this;
+  header(items: Record<string, string | undefined>): RequestBuilder;
   /** Sets a header to send with the request. */
-  header(name: string, value: string | undefined): this;
+  header(name: string, value: string | undefined): RequestBuilder;
   header(nameOrItems: string | Record<string, string | undefined>, value?: string) {
     return this.#newWithState(state => {
       if (typeof nameOrItems === "string") {
@@ -223,7 +223,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   /** Fetches and gets the response as JSON additionally setting
    * a JSON accept header if not set. */
   async json<TResult = any>(): Promise<TResult> {
-    let builder = this;
+    let builder: RequestBuilder = this;
     const acceptHeaderName = "ACCEPT";
     if (
       builder.#state == null
