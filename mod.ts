@@ -58,6 +58,17 @@ export interface $Type {
    * @see {@link RequestBuilder}
    */
   request(url: string | URL): RequestBuilder;
+  /**
+   * Gets if the provided path exists asynchronously.
+   *
+   * Although there is a potential for a race condition between the
+   * time this check is made and the time some code is used, it may
+   * not be a big deal to use this in some scenarios and simplify
+   * the code a lot.
+   */
+  exists(path: string): Promise<boolean>;
+  /** Gets if the provided path exists synchronously. */
+  existsSync(path: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -169,6 +180,12 @@ const helperObject = {
   fs,
   path,
   cd,
+  existsSync(path: string) {
+    return fs.existsSync(path);
+  },
+  exists(path: string) {
+    return fs.exists(path);
+  },
   log(...data: any[]) {
     console.log(getLogText(data));
   },

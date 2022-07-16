@@ -97,6 +97,11 @@ await $.logIndent(async () => {
 // change directory
 $.cd("newDir");
 
+// if the path exists
+// Note: beware of "time of check to time of use" race conditions when using this
+await $.exists("./file.txt");
+$.existsSync("./file.txt");
+
 // sleep
 await $.sleep(100); // ms
 await $.sleep("1.5s");
