@@ -20,8 +20,7 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v1
 
-      - name: format
-        run: dprint fmt --check
+      - uses: dprint/check@v2.0
 
       - name: test
         run: deno test -A
