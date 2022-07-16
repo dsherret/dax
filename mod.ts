@@ -257,8 +257,8 @@ export interface Create$Options {
  * ```
  */
 export function build$(options: Create$Options) {
-  const commandBuilder = options.commandBuilder?.clone() ?? new CommandBuilder();
-  const requestBuilder = options.requestBuilder?.clone() ?? new RequestBuilder();
+  const commandBuilder = options.commandBuilder ?? new CommandBuilder();
+  const requestBuilder = options.requestBuilder ?? new RequestBuilder();
   return Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
       // don't bother escaping for now... work on that later
@@ -277,14 +277,12 @@ export function build$(options: Create$Options) {
           }
         }
       }
-      return commandBuilder.clone().command(result);
+      return commandBuilder.command(result);
     },
     helperObject,
     {
       download(url: string | URL) {
-        return requestBuilder
-          .clone()
-          .url(url);
+        return requestBuilder.url(url);
       },
     },
   );

@@ -189,7 +189,7 @@ Currently implemented (though not every option is supported):
 
 ## Builder APIs
 
-The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're cloneable so you can create snapshots of them.
+The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're immutable so every function call returns a new object (which is the same thing that happens with the objects returned from `$` and `$.download`).
 
 ### `CommandBuilder`
 
@@ -206,10 +206,15 @@ const commandBuilder = new CommandBuilder()
   .noThrow();
 
 const otherBuilder = commandBuilder
-  .clone()
-  .stderr("piped");
+  .stderr("null");
 
 const result = await commandBuilder
+  // won't have a null stderr
+  .command("deno run my_script.ts")
+  .spawn();
+
+const result2 = await otherBuilder
+  // will have a null stderr
   .command("deno run my_script.ts")
   .spawn();
 ```

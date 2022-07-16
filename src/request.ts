@@ -20,31 +20,13 @@ interface RequestBuilderState {
  * Builder API for downloading files.
  */
 export class RequestBuilder implements PromiseLike<RequestResult> {
-  #state: RequestBuilderState | undefined = undefined;
+  #state: Readonly<RequestBuilderState> | undefined = undefined;
 
-  #getState() {
-    if (this.#state == null) {
-      this.#state = {
-        noThrow: false,
-        url: undefined,
-        body: undefined,
-        cache: undefined,
-        headers: {},
-        integrity: undefined,
-        keepalive: undefined,
-        method: undefined,
-        mode: undefined,
-        redirect: undefined,
-        referrer: undefined,
-        referrerPolicy: undefined,
-        timeout: undefined,
-      };
+  #getClonedState(): RequestBuilderState {
+    const state = this.#state;
+    if (state == null) {
+      return this.#getDefaultState();
     }
-    return this.#state;
-  }
-
-  #getStateCloned(): RequestBuilderState {
-    const state = this.#getState();
     return {
       // be explicit here in order to force evaluation
       // of each property on a case by case basis
@@ -64,6 +46,32 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     };
   }
 
+  #getDefaultState(): RequestBuilderState {
+    return {
+      noThrow: false,
+      url: undefined,
+      body: undefined,
+      cache: undefined,
+      headers: {},
+      integrity: undefined,
+      keepalive: undefined,
+      method: undefined,
+      mode: undefined,
+      redirect: undefined,
+      referrer: undefined,
+      referrerPolicy: undefined,
+      timeout: undefined,
+    };
+  }
+
+  #newWithState(action: (state: RequestBuilderState) => void): RequestBuilder {
+    const builder = new RequestBuilder();
+    const state = this.#getClonedState();
+    action(state);
+    builder.#state = state;
+    return builder;
+  }
+
   then<TResult1 = RequestResult, TResult2 = never>(
     onfulfilled?: ((value: RequestResult) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
@@ -71,24 +79,16 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return this.fetch().then(onfulfilled).catch(onrejected);
   }
 
-  /** Clone the request builder. */
-  clone() {
-    const builder = new RequestBuilder();
-    if (this.#state != null) {
-      builder.#state = this.#getStateCloned();
-    }
-    return builder;
-  }
-
   /** Fetches and gets the response. */
   fetch() {
-    return makeRequest(this.#getStateCloned());
+    return makeRequest(this.#getClonedState());
   }
 
   /** Specifies the URL to send the request to. */
   url(value: string | URL | undefined) {
-    this.#getState().url = value;
-    return this;
+    return this.#newWithState(state => {
+      state.url = value;
+    });
   }
 
   /** Sets multiple headers at the same time via an object literal. */
@@ -96,19 +96,20 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   /** Sets a header to send with the request. */
   header(name: string, value: string | undefined): this;
   header(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    if (typeof nameOrItems === "string") {
-      this.#setHeader(nameOrItems, value);
-    } else {
-      for (const [name, value] of Object.entries(nameOrItems)) {
-        this.#setHeader(name, value);
+    return this.#newWithState(state => {
+      if (typeof nameOrItems === "string") {
+        setHeader(state, nameOrItems, value);
+      } else {
+        for (const [name, value] of Object.entries(nameOrItems)) {
+          setHeader(state, name, value);
+        }
       }
-    }
-    return this;
-  }
+    });
 
-  #setHeader(name: string, value: string | undefined) {
-    name = name.toUpperCase(); // case insensitive
-    this.#getState().headers[name] = value;
+    function setHeader(state: RequestBuilderState, name: string, value: string | undefined) {
+      name = name.toUpperCase(); // case insensitive
+      state.headers[name] = value;
+    }
   }
 
   /**
@@ -119,59 +120,70 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    * to have it not throw.
    */
   noThrow(value = true) {
-    this.#getState().noThrow = value;
-    return this;
+    return this.#newWithState(state => {
+      state.noThrow = value;
+    });
   }
 
   body(value: BodyInit | undefined) {
-    this.#getState().body = value;
-    return this;
+    return this.#newWithState(state => {
+      state.body = value;
+    });
   }
 
   cache(value: RequestCache | undefined) {
-    this.#getState().cache = value;
-    return this;
+    return this.#newWithState(state => {
+      state.cache = value;
+    });
   }
 
   integrity(value: string | undefined) {
-    this.#getState().integrity = value;
-    return this;
+    return this.#newWithState(state => {
+      state.integrity = value;
+    });
   }
 
   keepalive(value: boolean) {
-    this.#getState().keepalive = value;
-    return this;
+    return this.#newWithState(state => {
+      state.keepalive = value;
+    });
   }
 
   method(value: string) {
-    this.#getState().method = value;
-    return this;
+    return this.#newWithState(state => {
+      state.method = value;
+    });
   }
 
   mode(value: RequestMode) {
-    this.#getState().mode = value;
-    return this;
+    return this.#newWithState(state => {
+      state.mode = value;
+    });
   }
 
   redirect(value: RequestRedirect) {
-    this.#getState().redirect = value;
-    return this;
+    return this.#newWithState(state => {
+      state.redirect = value;
+    });
   }
 
   referrer(value: string | undefined) {
-    this.#getState().referrer = value;
-    return this;
+    return this.#newWithState(state => {
+      state.referrer = value;
+    });
   }
 
   referrerPolicy(value: ReferrerPolicy | undefined) {
-    this.#getState().referrerPolicy = value;
-    return this;
+    return this.#newWithState(state => {
+      state.referrerPolicy = value;
+    });
   }
 
   /** Timeout the request after the specified number of milliseconds */
   timeout(ms: number | undefined) {
-    this.#getState().timeout = ms;
-    return this;
+    return this.#newWithState(state => {
+      state.timeout = ms;
+    });
   }
 
   /** Fetches and gets the response as an array buffer. */
@@ -190,8 +202,12 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    * a JSON accept header if not set. */
   async json() {
     let builder = this;
-    if (!Object.hasOwn(builder.#getState().headers, "ACCEPT")) {
-      builder = builder.header("ACCEPT", "application/json");
+    const acceptHeaderName = "ACCEPT";
+    if (
+      builder.#state == null
+      || !Object.hasOwn(builder.#state.headers, acceptHeaderName)
+    ) {
+      builder = builder.header(acceptHeaderName, "application/json");
     }
     const response = await builder.fetch();
     return response.json();

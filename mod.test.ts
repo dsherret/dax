@@ -116,7 +116,8 @@ Deno.test("command builder should build", async () => {
   {
     const $ = build$({ commandBuilder });
     // after creating a $, the environment should be set in stone, so changing
-    // this environment variable should have no effect here
+    // this environment variable should have no effect here. Additionally,
+    // command builders are immutable and return a new builder each time
     commandBuilder.env("TEST", "456");
     const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`;
     assertEquals(output.code, 0);
@@ -124,11 +125,11 @@ Deno.test("command builder should build", async () => {
   }
 
   {
-    // but this one should be
+    // this one additionally won't be affected because command builders are immutable
     const $ = build$({ commandBuilder });
     const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`;
     assertEquals(output.code, 0);
-    assertEquals(output.stdout, "456\n");
+    assertEquals(output.stdout, "123\n");
   }
 });
 

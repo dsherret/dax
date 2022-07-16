@@ -24,26 +24,13 @@ interface CommandBuilderState {
 const textDecoder = new TextDecoder();
 
 export class CommandBuilder implements PromiseLike<CommandResult> {
-  #state: CommandBuilderState | undefined;
+  #state: Readonly<CommandBuilderState> | undefined;
 
-  #getState() {
-    if (this.#state == null) {
-      this.#state = {
-        command: undefined,
-        stdin: "inherit",
-        stdoutKind: "default",
-        stderrKind: "default",
-        noThrow: false,
-        env: Deno.env.toObject(),
-        cwd: Deno.cwd(),
-        exportEnv: false,
-      };
+  #getClonedState(): CommandBuilderState {
+    const state = this.#state;
+    if (state == null) {
+      return this.#getDefaultState();
     }
-    return this.#state;
-  }
-
-  #getStateCloned(): CommandBuilderState {
-    const state = this.#getState();
     return {
       // be explicit here in order to evaluate each property on a case by case basis
       command: state.command,
@@ -57,16 +44,24 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     };
   }
 
-  /**
-   * Clones the builder.
-   *
-   * Mutations to the clone will not affect the original object.
-   */
-  clone() {
+  #getDefaultState(): CommandBuilderState {
+    return {
+      command: undefined,
+      stdin: "inherit",
+      stdoutKind: "default",
+      stderrKind: "default",
+      noThrow: false,
+      env: Deno.env.toObject(),
+      cwd: Deno.cwd(),
+      exportEnv: false,
+    };
+  }
+
+  #newWithState(action: (state: CommandBuilderState) => void): CommandBuilder {
     const builder = new CommandBuilder();
-    if (this.#state != null) {
-      builder.#state = this.#getStateCloned();
-    }
+    const state = this.#getClonedState();
+    action(state);
+    builder.#state = state;
     return builder;
   }
 
@@ -81,56 +76,63 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     // store a snapshot of the current command
     // in case someone wants to spawn multiple
     // commands with different state
-    return parseAndSpawnCommand(this.#getStateCloned());
+    return parseAndSpawnCommand(this.#getClonedState());
   }
 
   /** Sets the raw command to execute. */
   command(commandText: string) {
-    this.#getState().command = commandText;
-    return this;
+    return this.#newWithState(state => {
+      state.command = commandText;
+    });
   }
 
-  noThrow(value = true): this {
-    this.#getState().noThrow = value;
-    return this;
+  noThrow(value = true) {
+    return this.#newWithState(state => {
+      state.noThrow = value;
+    });
   }
 
   stdout(kind: ShellPipeWriterKind) {
-    this.#getState().stdoutKind = kind;
-    return this;
+    return this.#newWithState(state => {
+      state.stdoutKind = kind;
+    });
   }
 
   stderr(kind: ShellPipeWriterKind) {
-    this.#getState().stderrKind = kind;
-    return this;
+    return this.#newWithState(state => {
+      state.stderrKind = kind;
+    });
   }
 
   env(items: Record<string, string | undefined>): this;
   env(name: string, value: string | undefined): this;
   env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    if (typeof nameOrItems === "string") {
-      this.#setEnv(nameOrItems, value);
-    } else {
-      for (const [key, value] of Object.entries(nameOrItems)) {
-        this.#setEnv(key, value);
+    return this.#newWithState(state => {
+      if (typeof nameOrItems === "string") {
+        setEnv(state, nameOrItems, value);
+      } else {
+        for (const [key, value] of Object.entries(nameOrItems)) {
+          setEnv(state, key, value);
+        }
       }
-    }
-    return this;
-  }
+    });
 
-  #setEnv(key: string, value: string | undefined) {
-    if (Deno.build.os === "windows") {
-      key = key.toUpperCase();
-    }
-    if (value == null) {
-      delete this.#getState().env[key];
-    } else {
-      this.#getState().env[key] = value;
+    function setEnv(state: CommandBuilderState, key: string, value: string | undefined) {
+      if (Deno.build.os === "windows") {
+        key = key.toUpperCase();
+      }
+      if (value == null) {
+        delete state.env[key];
+      } else {
+        state.env[key] = value;
+      }
     }
   }
 
   cwd(dirPath: string) {
-    this.#getState().cwd = path.resolve(dirPath);
+    return this.#newWithState(state => {
+      state.cwd = path.resolve(dirPath);
+    });
   }
 
   /**
@@ -147,16 +149,17 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   exportEnv(value = true) {
-    this.#getState().exportEnv = value;
-    return this;
+    return this.#newWithState(state => {
+      state.exportEnv = value;
+    });
   }
 
   /** Ensures stdout and stderr are piped if they have the default behaviour or are inherited. */
   quiet() {
-    const state = this.#getState();
-    state.stdoutKind = getQuietKind(state.stdoutKind);
-    state.stderrKind = getQuietKind(state.stderrKind);
-    return this;
+    return this.#newWithState(state => {
+      state.stdoutKind = getQuietKind(state.stdoutKind);
+      state.stderrKind = getQuietKind(state.stderrKind);
+    });
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
       switch (kind) {
