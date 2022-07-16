@@ -112,6 +112,7 @@ await $.which("deno"); // path to deno executable
 // attempt doing an action until it succeeds
 await $.withRetries({
   count: 5,
+  // you may also specify an iterator here which is useful for exponential backoff
   delay: "5s",
   action: async () => {
     await $`cargo publish`;

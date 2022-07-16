@@ -1,5 +1,5 @@
 import { CommandBuilder, CommandResult } from "./src/command.ts";
-import { Delay, delayToMs } from "./src/common.ts";
+import { Delay, DelayIterator, delayToIterator, delayToMs, formatMillis } from "./src/common.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
@@ -35,7 +35,7 @@ export interface RetryOptions<TReturn> {
   /** Number of times to retry. */
   count: number;
   /** Delay in milliseconds. */
-  delay: Delay;
+  delay: Delay | DelayIterator;
   /** Action to retry if it throws. */
   action: () => Promise<TReturn>;
   /** Do not log. */
@@ -120,12 +120,14 @@ function sleep(delay: Delay) {
 }
 
 async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
+  const delayIterator = delayToIterator(opts.delay);
   for (let i = 0; i < opts.count; i++) {
     if (i > 0) {
+      const nextDelay = delayIterator.next();
       if (!opts.quiet) {
-        $.logError("Failed", `trying again in ${opts.delay} seconds...`);
+        $.logError("Failed", `trying again in ${formatMillis(nextDelay)}...`);
       }
-      await sleep(opts.delay);
+      await sleep(nextDelay);
       if (!opts.quiet) {
         $.logTitle("Retrying", `attempt ${i + 1}/${opts.count}...`);
       }

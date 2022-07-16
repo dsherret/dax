@@ -5,6 +5,32 @@
  */
 export type Delay = number | `${number}ms` | `${number}s`;
 
+/** An iterator that returns a new delay each time. */
+export interface DelayIterator {
+  next(): number;
+}
+
+export function formatMillis(ms: number) {
+  if (ms < 1000) {
+    return `${ms} millisecond${ms === 1 ? "" : "s"}`;
+  } else {
+    const s = ms / 1000;
+    return `${s} second${s === 1 ? "" : "s"}`;
+  }
+}
+
+export function delayToIterator(delay: Delay | DelayIterator): DelayIterator {
+  if (typeof delay !== "number" && typeof delay !== "string") {
+    return delay;
+  }
+  const ms = delayToMs(delay);
+  return {
+    next() {
+      return ms;
+    },
+  };
+}
+
 export function delayToMs(delay: Delay) {
   if (typeof delay === "number") {
     return delay;

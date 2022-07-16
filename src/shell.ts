@@ -343,7 +343,7 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
   let finalChanges = [];
   for (const item of list.items) {
     if (item.isAsync) {
-      throw new Error("Async commands are not implemented.");
+      throw new Error("Async commands are not supported. Run a command concurrently in the JS code instead.");
     }
     const result = await executeSequence(item.sequence, context);
     switch (result.kind) {
@@ -494,7 +494,7 @@ function executePipelineInner(inner: PipelineInner, context: Context): Promise<E
 
 function executeCommand(command: Command, context: Context): Promise<ExecuteResult> {
   if (command.redirect != null) {
-    throw new Error("Redirects are not implemented.");
+    throw new Error("Redirects are not supported. Pipe in the JS code instead using the methods on commands.");
   }
   return executeCommandInner(command.inner, context);
 }
