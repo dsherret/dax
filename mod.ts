@@ -1,4 +1,4 @@
-import { CommandBuilder, CommandResult } from "./src/command.ts";
+import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
 import { Delay, DelayIterator, delayToIterator, delayToMs, formatMillis } from "./src/common.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
@@ -44,8 +44,6 @@ export interface RetryOptions<TReturn> {
 
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
-  /** Changes the directory of the current process. */
-  cd(path: string | URL): void;
   /**
    * Makes a request to the provided URL throwing by default if the
    * response is not successful.
@@ -58,6 +56,8 @@ export interface $Type {
    * @see {@link RequestBuilder}
    */
   request(url: string | URL): RequestBuilder;
+  /** Changes the directory of the current process. */
+  cd(path: string | URL): void;
   /**
    * Gets if the provided path exists asynchronously.
    *
@@ -281,7 +281,6 @@ export function build$(options: Create$Options) {
   const requestBuilder = options.requestBuilder ?? new RequestBuilder();
   return Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      // don't bother escaping for now... work on that later
       let result = "";
       for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
         if (strings.length > i) {
@@ -291,9 +290,9 @@ export function build$(options: Create$Options) {
           const expr = exprs[i];
           if (expr instanceof CommandResult) {
             // remove last newline
-            result += expr.stdout.replace(/\r?\n$/, "");
+            result += escapeArg(expr.stdout.replace(/\r?\n$/, ""));
           } else {
-            result += `${exprs[i]}`;
+            result += escapeArg(`${exprs[i]}`);
           }
         }
       }

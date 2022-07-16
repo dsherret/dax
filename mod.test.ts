@@ -8,6 +8,11 @@ Deno.test("should get stdout by default", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
+Deno.test("should escape arguments", async () => {
+  const text = await $`echo ${"testing 'this $TEST \`out"}`.text();
+  assertEquals(text, "testing 'this $TEST `out");
+});
+
 Deno.test("should not get stdout when inherited", async () => {
   const output = await $`echo "should output"`.stdout("inherit");
   assertEquals(output.code, 0);
@@ -237,9 +242,10 @@ Deno.test("piping to stdin", async () => {
 Deno.test("command args", async () => {
   const input = "testing   'this   out";
   const result = await new CommandBuilder()
-    .command(["echo", input])
-    .text();
-  assertEquals(result.trim(), input);
+    .command(["echo", input]);
+  assertEquals(result.stdout.trim(), input);
+  // should be properly escaped here too
+  assertEquals(await $`echo ${result}`.text(), input);
 });
 
 Deno.test("command .lines()", async () => {

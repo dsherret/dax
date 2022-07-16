@@ -90,14 +90,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       if (typeof command === "string") {
         state.command = command;
       } else {
-        state.command = command.map(arg => {
-          // very basic for now
-          if (/^[A-Za-z0-9]*$/.test(arg)) {
-            return arg;
-          } else {
-            return `'${arg.replace("'", `'"'"'`)}'`;
-          }
-        }).join(" ");
+        state.command = command.map(escapeArg).join(" ");
       }
     });
   }
@@ -411,5 +404,14 @@ export class CommandResult {
       throw new Error(`Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") on the process.`);
     }
     return this.#stderr.bytes();
+  }
+}
+
+export function escapeArg(arg: string) {
+  // very basic for now
+  if (/^[A-Za-z0-9]*$/.test(arg)) {
+    return arg;
+  } else {
+    return `'${arg.replace("'", `'"'"'`)}'`;
   }
 }
