@@ -36,13 +36,14 @@ console.log(result.prop); // 5
 const result = await $`echo 'test'`.bytes();
 console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
 
-// get the result of stdout as a list of lines
+// get the result of stdout as a list of lines (makes stdout "quiet")
 const result = await $`echo 1 && echo 2`.lines();
 console.log(result); // ["1", "2"]
 
 // working with a lower level result that provides more details
 const result = await $`deno eval 'console.log(1); console.error(2);'`;
 console.log(result.code); // 0
+console.log(result.stdoutBytes); // Uint8Array(2) [ 49, 10 ]
 console.log(result.stdout); // 1\n
 console.log(result.stderr); // 5\n
 const output = await $`echo '{ "test": 5 }'`;
@@ -67,8 +68,7 @@ await $`echo $var1 $var2 $var3 $var4`
   .env({
     var3: "3",
     var4: "4",
-  })
-  .stdout("inherit");
+  });
 
 // setting cwd for command
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
@@ -147,9 +147,9 @@ for await (const file of $.fs.expandGlob("**/*.ts")) {
 // export the environment of a command to the executing process
 await $`cd src && export MY_VALUE=5`.exportEnv();
 // will output "5"
-await $`echo $MY_VALUE`.stdout("inherit");
+await $`echo $MY_VALUE`;
 // will output it's in the src dir
-await $`echo $PWD`.stdout("inherit");
+await $`echo $PWD`;
 // this will also output it's in the src dir
 console.log(Deno.cwd());
 ```
