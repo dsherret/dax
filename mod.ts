@@ -118,6 +118,10 @@ export interface $Type {
    */
   logError(firstArg: string, ...data: any[]): void;
   /**
+   * Similar to `$.logStep`, but will use bold yellow.
+   */
+  logWarn(firstArg: string, ...data: any[]): void;
+  /**
    * Causes all `$.log` and like functions to be logged with indentation.
    *
    * ```ts
@@ -162,11 +166,11 @@ async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
     if (i > 0) {
       const nextDelay = delayIterator.next();
       if (!opts.quiet) {
-        $.logError("Failed", `trying again in ${formatMillis(nextDelay)}...`);
+        $.logWarn(`Failed trying again in ${formatMillis(nextDelay)}...`);
       }
       await sleep(nextDelay);
       if (!opts.quiet) {
-        $.logStep("Retrying", `attempt ${i + 1}/${opts.count}...`);
+        $.logStep(`Retrying attempt ${i + 1}/${opts.count}...`);
       }
     }
     try {
@@ -202,6 +206,18 @@ function getLogText(data: any[]) {
   }
 }
 
+function logStep(firstArg: string, data: any[], colourize: (text: string) => string) {
+  if (data.length === 0) {
+    // emphasize the first word only
+    const parts = firstArg.split(" ");
+    parts[0] = colourize(parts[0]);
+    firstArg = parts.join(" ");
+  } else {
+    firstArg = colourize(firstArg);
+  }
+  console.error(getLogText([firstArg, ...data]));
+}
+
 const helperObject = {
   fs,
   path,
@@ -221,26 +237,13 @@ const helperObject = {
     console.error(colors.gray(getLogText(data)));
   },
   logStep(firstArg: string, ...data: any[]) {
-    if (data.length === 0) {
-      // emphasize the first word only
-      const parts = firstArg.split(" ");
-      parts[0] = colors.bold(colors.green(parts[0]));
-      firstArg = parts.join(" ");
-    } else {
-      firstArg = colors.bold(colors.green(firstArg));
-    }
-    console.error(getLogText([firstArg, ...data]));
+    logStep(firstArg, data, (t) => colors.bold(colors.green(t)));
   },
   logError(firstArg: string, ...data: any[]) {
-    if (data.length === 0) {
-      // emphasize the first word only
-      const parts = firstArg.split(" ");
-      parts[0] = colors.bold(colors.red(parts[0]));
-      firstArg = parts.join(" ");
-    } else {
-      firstArg = colors.bold(colors.red(firstArg));
-    }
-    console.error(getLogText([firstArg, ...data]));
+    logStep(firstArg, data, (t) => colors.bold(colors.red(t)));
+  },
+  logWarn(firstArg: string, ...data: any[]) {
+    logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)));
   },
   logIndent<TResult>(action: () => TResult): TResult {
     indentLevel++;

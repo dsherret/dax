@@ -91,6 +91,8 @@ $.logStep("Fetching data from server...");
 $.logStep("Setting up", "local directory...");
 // similar to $.logStep, but with bold red
 $.logError("Error Some error message.");
+// similar to $.logStep, but with bold yellow
+$.logWarn("Error Some error message.");
 // logs out text in gray
 $.logLight("Some unimportant message.");
 // log with everything below indented
