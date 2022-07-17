@@ -95,11 +95,13 @@ $.logError("Error Some error message.");
 $.logWarn("Warning Some warning message.");
 // logs out text in gray
 $.logLight("Some unimportant message.");
-// log with everything below indented
+
+// log indented within
 await $.logIndent(async () => {
   $.log("This will be indented.");
   await $.logIndent(async () => {
     $.log("This will indented even more.");
+    await $`some_command`;
   });
 });
 

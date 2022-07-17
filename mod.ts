@@ -208,10 +208,17 @@ function getLogText(data: any[]) {
 
 function logStep(firstArg: string, data: any[], colourize: (text: string) => string) {
   if (data.length === 0) {
+    let i = 0;
+    // skip over any leading whitespace
+    while (i < firstArg.length && firstArg[i] === " ") {
+      i++;
+    }
+    // skip over any non whitespace
+    while (i < firstArg.length && firstArg[i] !== " ") {
+      i++;
+    }
     // emphasize the first word only
-    const parts = firstArg.split(" ");
-    parts[0] = colourize(parts[0]);
-    firstArg = parts.join(" ");
+    firstArg = colourize(firstArg.substring(0, i)) + firstArg.substring(i);
   } else {
     firstArg = colourize(firstArg);
   }
