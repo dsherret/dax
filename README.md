@@ -87,12 +87,12 @@ await $`some_command`.timeout("1s");
 $.log("Hello!");
 // log with the first word as bold green
 $.logStep("Fetching data from server...");
-// or force multiple words to be bold green by using two arguments
+// or force multiple words to be green by using two arguments
 $.logStep("Setting up", "local directory...");
-// similar to $.logStep, but with bold red
+// similar to $.logStep, but with red
 $.logError("Error Some error message.");
-// similar to $.logStep, but with bold yellow
-$.logWarn("Error Some error message.");
+// similar to $.logStep, but with yellow
+$.logWarn("Warning Some warning message.");
 // logs out text in gray
 $.logLight("Some unimportant message.");
 // log with everything below indented
