@@ -214,6 +214,7 @@ Currently implemented (though not every option is supported):
 - [`cd`](https://man7.org/linux/man-pages/man1/cd.1p.html) - Change directory command.
   - Note that shells don't export their environment by default.
 - [`echo`](https://man7.org/linux/man-pages/man1/echo.1.html) - Echo command.
+- [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
 
 ## Builder APIs
 

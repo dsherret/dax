@@ -168,6 +168,14 @@ Deno.test("should handle boolean list 'and'", async () => {
   }
 });
 
+Deno.test("sleep command", async () => {
+  const start = performance.now();
+  const result = await $`sleep 0.2 && echo 1`.text();
+  const end = performance.now();
+  assertEquals(result, "1");
+  assertEquals(end - start > 190, true);
+});
+
 Deno.test("should provide result from one command to another", async () => {
   const result = await $`echo 1`;
   const result2 = await $`echo ${result}`;
