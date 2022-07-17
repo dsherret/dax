@@ -82,17 +82,16 @@ await $`echo 5`.quiet("stderr"); // or just stderr
 // timeout a command after a specified time
 await $`some_command`.timeout("1s");
 
-// similar to console.log, but with potential indentation
+// logs with potential indentation
+// Note: everything is logged over stderr
 $.log("Hello!");
-// similar to console.error, but with potential indentation
-$.logError("Some error message.");
 // log with the first word as bold green
-$.logTitle("Fetching data from server...");
+$.logStep("Fetching data from server...");
 // or force multiple words to be bold green by using two arguments
-$.logTitle("Setting up", "local directory...");
-// log an error with the first word bold red
-$.logErrorTitle("Error cannot retrieve data");
-// logs out text in gray (alternative stderr version is $.logErrorLight)
+$.logStep("Setting up", "local directory...");
+// similar to $.logStep, but with bold red
+$.logError("Error Some error message.");
+// logs out text in gray
 $.logLight("Some unimportant message.");
 // log with everything below indented
 await $.logIndent(async () => {

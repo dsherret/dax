@@ -97,8 +97,10 @@ export interface $Type {
   /** Re-export of deno_std's `path` module. */
   path: typeof path;
   /**
-   * Similar to `console.log`, but with potential indentation (`$.logIndent`)
+   * Logs with potential indentation (`$.logIndent`)
    * and output of commands or request responses.
+   *
+   * Note: Everything is logged over stderr.
    */
   log(...data: any[]): void;
   /**
@@ -107,25 +109,14 @@ export interface $Type {
    */
   logLight(...data: any[]): void;
   /**
-   * Similar to `$.log`, but will bold the first word if one argument or
+   * Similar to `$.log`, but will bold red the first word if one argument or
    * first argument if multiple arguments.
    */
-  logTitle(firstArg: string, ...data: any[]): void;
+  logStep(firstArg: string, ...data: any[]): void;
   /**
-   * Similar to `console.error`, but with potential indentation (`$.logIndent`)
-   * and output of commands or request responses.
+   * Similar to `$.logStep`, but will use bold red.
    */
-  logError(...data: any[]): void;
-  /**
-   * Similar to `$.logError`, but logs out the text lighter than usual. This
-   * might be useful for logging out something that's unimportant.
-   */
-  logErrorLight(...data: any[]): void;
-  /**
-   * Similar to `$.logError`, but will bold the first word if one argument or
-   * first argument if multiple arguments.
-   */
-  logErrorTitle(firstArg: string, ...data: any[]): void;
+  logError(firstArg: string, ...data: any[]): void;
   /**
    * Causes all `$.log` and like functions to be logged with indentation.
    *
@@ -175,7 +166,7 @@ async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
       }
       await sleep(nextDelay);
       if (!opts.quiet) {
-        $.logTitle("Retrying", `attempt ${i + 1}/${opts.count}...`);
+        $.logStep("Retrying", `attempt ${i + 1}/${opts.count}...`);
       }
     }
     try {
@@ -223,12 +214,13 @@ const helperObject = {
     return fs.exists(path);
   },
   log(...data: any[]) {
-    console.log(getLogText(data));
+    // all logging is done over stderr
+    console.error(getLogText(data));
   },
   logLight(...data: any[]) {
-    console.log(colors.gray(getLogText(data)));
+    console.error(colors.gray(getLogText(data)));
   },
-  logTitle(firstArg: string, ...data: any[]) {
+  logStep(firstArg: string, ...data: any[]) {
     if (data.length === 0) {
       // emphasize the first word only
       const parts = firstArg.split(" ");
@@ -237,15 +229,9 @@ const helperObject = {
     } else {
       firstArg = colors.bold(colors.green(firstArg));
     }
-    console.log(getLogText([firstArg, ...data]));
+    console.error(getLogText([firstArg, ...data]));
   },
-  logError(...data: any[]) {
-    console.error(getLogText(data));
-  },
-  logErrorLight(...data: any[]) {
-    console.error(colors.gray(getLogText(data)));
-  },
-  logErrorTitle(firstArg: string, ...data: any[]) {
+  logError(firstArg: string, ...data: any[]) {
     if (data.length === 0) {
       // emphasize the first word only
       const parts = firstArg.split(" ");
