@@ -24,6 +24,10 @@ import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 // run a command with its output sent to stdout and stderr
 await $`echo 5`;
 
+// expressions provided to the template literal are escaped if necessary
+const dirName = "Dir with spaces";
+await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
+
 // get the stdout of a command (makes stdout "quiet")
 const result = await $`echo 1`.text();
 console.log(result); // 1
@@ -101,7 +105,7 @@ await $.logIndent(async () => {
   $.log("This will be indented.");
   await $.logIndent(async () => {
     $.log("This will indented even more.");
-    await $`some_command`;
+    // do maybe async stuff here
   });
 });
 
@@ -219,6 +223,7 @@ Currently implemented (though not every option is supported):
   - Note that shells don't export their environment by default.
 - [`echo`](https://man7.org/linux/man-pages/man1/echo.1.html) - Echo command.
 - [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
+- More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 ## Builder APIs
 
