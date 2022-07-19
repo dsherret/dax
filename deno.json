@@ -1,5 +1,5 @@
 {
   "tasks": {
-    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.8.3/main.ts"
+    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.8.4/main.ts"
   }
 }

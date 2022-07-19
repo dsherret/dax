@@ -304,7 +304,7 @@ const data = await $.request("https://plugins.dprint.dev/info.json").json();
 This may be useful also if you want to change the default configuration. Another example:
 
 ```ts
-const builder = new CommandBuilder()
+const commandBuilder = new CommandBuilder()
   .exportEnv()
   .noThrow();
 
