@@ -49,5 +49,5 @@ Deno.test("should resolve absolute and relative paths", () => {
   assertEquals(
     resolvePath("/some/path", "/some/other/path"),
     path.resolve("/some/other/path"),
-  )
+  );
 });
