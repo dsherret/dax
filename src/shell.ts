@@ -3,6 +3,7 @@ import { cdCommand } from "./commands/cd.ts";
 import { echoCommand } from "./commands/echo.ts";
 import { exportCommand } from "./commands/export.ts";
 import { sleepCommand } from "./commands/sleep.ts";
+import { testCommand } from "./commands/test.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
@@ -526,6 +527,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     return await exportCommand(commandArgs.slice(1));
   } else if (commandArgs[0] === "sleep") {
     return await sleepCommand(commandArgs.slice(1), context.stderr);
+  } else if (commandArgs[0] === "test") {
+    return await testCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
   } else {
     const commandPath = await resolveCommand(commandArgs[0], context);
     const p = Deno.run({

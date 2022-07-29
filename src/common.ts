@@ -1,3 +1,5 @@
+import { path } from "./deps.ts";
+
 /**
  * Delay used for certain actions.
  *
@@ -56,4 +58,9 @@ export function filterEmptyRecordValues<TValue>(record: Record<string, TValue | 
     }
   }
   return result;
+}
+
+// TODO remove this once https://github.com/dsherret/dax/pull/5 is merged
+export function resolvePath(cwd: string, arg: string) {
+  return path.resolve(path.isAbsolute(arg) ? arg : path.join(cwd, arg));
 }

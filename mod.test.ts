@@ -1,6 +1,7 @@
+import { assertExists } from "https://deno.land/std@0.147.0/testing/asserts.ts";
 import $, { build$, CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
-import { Buffer, path } from "./src/deps.ts";
+import { Buffer, fs, path, which } from "./src/deps.ts";
 
 Deno.test("should get stdout by default", async () => {
   const output = await $`echo 5`;
@@ -174,6 +175,58 @@ Deno.test("sleep command", async () => {
   const end = performance.now();
   assertEquals(result, "1");
   assertEquals(end - start > 190, true);
+});
+
+Deno.test("test command", async (t) => {
+  await Deno.writeFile('zero.dat', new Uint8Array());
+  await Deno.writeFile('non-zero.dat', new Uint8Array([242]));
+  //await Deno.symlink('zero.dat', 'linked.dat');
+  
+  await t.step("test -e", async () => {
+    const result = await $`test -e zero.dat`.noThrow();
+    assertEquals(result.code, 0);
+  });
+  await t.step("test -f", async () => {
+    const result = await $`test -f zero.dat`.noThrow();
+    assertEquals(result.code, 0, "should be a file");
+  });
+  await t.step("test -f on non-file", async () => {
+    const result = await $`test -f ${Deno.cwd()}`.noThrow();
+    assertEquals(result.code, 1, "should not be a file");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -d", async() => {
+    const result = await $`test -d ${Deno.cwd()}`.noThrow();
+    assertEquals(result.code, 0, `${Deno.cwd()} should be a directory`);
+  });
+  await t.step("test -d on non-directory", async() => {
+    const result = await $`test -d zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should not be a directory");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -s", async () => {
+    const result = await $`test -s non-zero.dat`.noThrow();
+    assertEquals(result.code, 0, "should be > 0");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -s on zero-length file", async () => {
+    const result = await $`test -s zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should fail as file is zero-sized");
+    assertEquals(result.stderr, "");
+  });
+  // await t.step("test -L", async () => {
+  //   const result = await $`test -L linked.dat`.noThrow();
+  //   assertEquals(result.code, 0, "should be a symlink");
+  // });
+  // await t.step("test -L on a non-symlink", async () => {
+  //   const result = await $`test -L zero.dat`.noThrow();
+  //   assertEquals(result.code, 1, "should fail as not a symlink");
+  //   assertEquals(result.stderr, "");    
+  // });
+  
+  // await Deno.remove('linked.dat');
+  await Deno.remove('zero.dat');
+  await Deno.remove('non-zero.dat');
 });
 
 Deno.test("should provide result from one command to another", async () => {
