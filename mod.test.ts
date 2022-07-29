@@ -176,7 +176,7 @@ Deno.test("sleep command", async () => {
   assertEquals(end - start > 190, true);
 });
 
-Deno.test("should support custom command handlers", async (t) => {
+Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
     .handle('zardoz-speaks', async (context, args) => {
       if (args.length != 1) {
