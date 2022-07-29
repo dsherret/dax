@@ -1,4 +1,3 @@
-import { assert } from "https://deno.land/std@0.147.0/testing/asserts.ts";
 import $, { build$, CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, path } from "./src/deps.ts";
