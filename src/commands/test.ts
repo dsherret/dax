@@ -8,28 +8,28 @@ export async function testCommand(cwd: string, args: string[], stderr: ShellPipe
     const [testFlag, testPath] = parseArgs(cwd, args);
     let result;
     switch (testFlag) {
-      case '-f':
+      case "-f":
         result = stat(testPath, info => info.isFile);
         break;
 
-      case '-d':
+      case "-d":
         result = stat(testPath, info => info.isDirectory);
         break;
 
-      case '-e':
+      case "-e":
         result = fs.exists(testPath);
         break;
 
-      case '-s':
+      case "-s":
         result = stat(testPath, info => info.size > 0);
         break;
 
-      case '-L':
+      case "-L":
         result = stat(testPath, info => info.isSymlink);
         break;
 
       default:
-        throw new Error('unsupported test type');
+        throw new Error("unsupported test type");
     }
     return resultFromCode(await result ? 0 : 1);
   } catch (err) {
@@ -44,8 +44,8 @@ function parseArgs(cwd: string, args: string[]) {
     throw new Error("expected 2 arguments");
   }
 
-  if (args[0] == null || !args[0].startsWith('-')) {
-    throw new Error('missing test type flag');
+  if (args[0] == null || !args[0].startsWith("-")) {
+    throw new Error("missing test type flag");
   }
 
   return [args[0], resolvePath(cwd, args[1])];

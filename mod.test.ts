@@ -223,6 +223,21 @@ Deno.test("test command", async (t) => {
   //   assertEquals(result.code, 1, "should fail as not a symlink");
   //   assertEquals(result.stderr, "");    
   // });
+  await t.step("should error on unsupported test type", async () => {
+    const result = await $`test -z zero.dat`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: unsupported test type\n");
+  });
+  await t.step("should error with not enough arguments", async() => {
+    const result = await $`test`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: expected 2 arguments\n");
+  });
+  await t.step("should error with too many arguments", async() => {
+    const result = await $`test -f a b c`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: expected 2 arguments\n");
+  });
   
   // await Deno.remove('linked.dat');
   await Deno.remove('zero.dat');
