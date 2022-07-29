@@ -8,7 +8,7 @@ import {
   ShellPipeWriter,
   ShellPipeWriterKind,
 } from "./pipes.ts";
-import { parseArgs, spawn } from "./shell.ts";
+import { CustomCommandHandler, isBuiltIn, parseArgs, spawn } from "./shell.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -19,6 +19,7 @@ interface CommandBuilderState {
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
   env: Record<string, string>;
+  customCommands: Record<string, CustomCommandHandler>;
   cwd: string;
   exportEnv: boolean;
   timeout: number | undefined;
@@ -63,6 +64,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
+      customCommands: { ...state.customCommands },
       exportEnv: state.exportEnv,
       timeout: state.timeout,
     };
@@ -77,6 +79,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: false,
       env: Deno.env.toObject(),
       cwd: Deno.cwd(),
+      customCommands: {},
       exportEnv: false,
       timeout: undefined,
     };
@@ -107,6 +110,21 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     // in case someone wants to spawn multiple
     // commands with different state
     return parseAndSpawnCommand(this.#getClonedState());
+  }
+
+  /**
+   * Adds support for handling custom commands.
+   *
+   * Custom commands must be uniquely named, and cannot override any built-ins.
+   */
+  handle(command: string, handleFn: CustomCommandHandler) {
+    return this.#newWithState(state => {
+      if (isBuiltIn(command)) throw new Error("Custom commands cannot override built-ins");
+      if (state.customCommands[command] != null) {
+        throw new Error("Custom commands must be uniquely named");
+      }
+      state.customCommands[command] = handleFn;
+    });
   }
 
   /** Sets the raw command to execute. */
@@ -355,6 +373,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       stdout,
       stderr,
       env: state.env,
+      customCommands: state.customCommands,
       cwd: state.cwd,
       exportEnv: state.exportEnv,
       signal: abortController.signal,

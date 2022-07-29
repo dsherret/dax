@@ -176,6 +176,63 @@ Deno.test("sleep command", async () => {
   assertEquals(end - start > 190, true);
 });
 
+Deno.test("should support custom command handlers", async (t) => {
+  const builder = new CommandBuilder()
+    .handle('zardoz-speaks', async (context, args) => {
+      if (args.length != 1) {
+        await context.stderr.writeLine("zardoz-speaks: expected 1 argument");
+        return {
+          kind: "continue",
+          code: 1,
+        };
+      }
+      await context.stdout.writeLine(`zardoz speaks to ${args[0]}`);
+      return {
+        kind: "continue",
+        code: 0,
+      };
+    });
+
+  {
+    const result = await builder.command("zardoz-speaks").noThrow();
+    assertEquals(result.code, 1);
+    assertEquals(result.stderr, "zardoz-speaks: expected 1 argument\n");
+  }
+  {
+    const result = await builder.command("zardoz-speaks to you").noThrow();
+    assertEquals(result.code, 1);
+    assertEquals(result.stderr, "zardoz-speaks: expected 1 argument\n");
+  }
+  {
+    const result = await builder.command("zardoz-speaks you").noThrow();
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "zardoz speaks to you\n");
+  }
+});
+
+Deno.test("should not allow override of built-in commands", async () => {
+  await assertRejects(
+    async () => await new CommandBuilder()
+      .handle("cd", () => Promise.resolve({ kind: 'exit', code: 31337 }))
+      .command('cd somewhere')
+    ,
+    Error,
+    "Custom commands cannot override built-ins"
+  );
+});
+
+Deno.test("should not allow defining the same command twice", async () => {
+  await assertRejects(
+    async () => await new CommandBuilder()
+      .handle("zoinks", () => Promise.resolve({ kind: 'exit', code: 31337 }))
+      .handle("zoinks", () => Promise.resolve({ kind: 'exit', code: 31337 }))
+      .command("zoinks --demon-shark=true")
+    ,
+    Error,
+    "Custom commands must be uniquely named"
+  );
+});
+
 Deno.test("should provide result from one command to another", async () => {
   const result = await $`echo 1`;
   const result2 = await $`echo ${result}`;

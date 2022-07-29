@@ -7,6 +7,8 @@ import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
+export type CustomCommandHandler = (context: Context, args: string[]) => Promise<ExecuteResult>;
+
 export interface SequentialList {
   items: SequentialListItem[];
 }
@@ -206,6 +208,7 @@ class Context {
   stderr: ShellPipeWriter;
   #env: Env;
   #shellVars: Record<string, string>;
+  #commands: Record<string, CustomCommandHandler>;
   #signal: AbortSignal;
 
   constructor(opts: {
@@ -213,6 +216,7 @@ class Context {
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
     env: Env;
+    commands: Record<string, CustomCommandHandler>;
     shellVars: Record<string, string>;
     signal: AbortSignal;
   }) {
@@ -220,6 +224,7 @@ class Context {
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.#env = opts.env;
+    this.#commands =  opts.commands;
     this.#shellVars = opts.shellVars;
     this.#signal = opts.signal;
   }
@@ -297,12 +302,17 @@ class Context {
     return this.#env.getEnvVar(key) ?? this.#shellVars[key];
   }
 
+  getCommand(command: string) {
+    return this.#commands[command] ?? null;
+  }
+
   clone() {
     return new Context({
       stdin: this.stdin,
       stdout: this.stdout,
       stderr: this.stderr,
       env: this.#env.clone(),
+      commands: { ...this.#commands },
       shellVars: { ...this.#shellVars },
       signal: this.#signal,
     });
@@ -319,6 +329,7 @@ export interface SpawnOpts {
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   env: Record<string, string>;
+  customCommands: Record<string, CustomCommandHandler>;
   cwd: string;
   exportEnv: boolean;
   signal: AbortSignal;
@@ -327,6 +338,7 @@ export interface SpawnOpts {
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const context = new Context({
     env: opts.exportEnv ? new RealEnv() : new ShellEnv(opts),
+    commands: opts.customCommands,
     stdin: opts.stdin,
     stdout: opts.stdout,
     stderr: opts.stderr,
@@ -517,6 +529,15 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
   return await executeCommandArgs(commandArgs, context);
 }
 
+export function isBuiltIn(command: string) {
+  const cmd = command.toLowerCase();
+  return (cmd === "cd"
+    || cmd === "echo"
+    || cmd === "export"
+    || cmd === "sleep"
+    || cmd === "deno");
+}
+
 async function executeCommandArgs(commandArgs: string[], context: Context) {
   if (commandArgs[0] === "cd") {
     return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
@@ -527,6 +548,13 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   } else if (commandArgs[0] === "sleep") {
     return await sleepCommand(commandArgs.slice(1), context.stderr);
   } else {
+    // look for a user-defined command first
+    const customCommand = context.getCommand(commandArgs[0]);
+    if (customCommand != null) {
+      return await customCommand(context, commandArgs.slice(1));
+    }
+
+    // fall back to trying to resolve the command on the fs
     const commandPath = await resolveCommand(commandArgs[0], context);
     const p = Deno.run({
       cmd: [commandPath, ...commandArgs.slice(1)],
