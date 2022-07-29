@@ -1,3 +1,4 @@
+import { assert } from "https://deno.land/std@0.147.0/testing/asserts.ts";
 import $, { build$, CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, path } from "./src/deps.ts";
@@ -174,6 +175,43 @@ Deno.test("sleep command", async () => {
   const end = performance.now();
   assertEquals(result, "1");
   assertEquals(end - start > 190, true);
+});
+
+Deno.test("exit command", async() => {
+  {
+    const result = await $`exit`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit 0`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 255`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit 256`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 257`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit -1`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit zardoz`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: numeric argument required.\n");
+  }
+  {
+    const result = await $`exit 1 1`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: too many arguments\n");  
+  }
 });
 
 Deno.test("should provide result from one command to another", async () => {
