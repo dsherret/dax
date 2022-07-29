@@ -220,12 +220,12 @@ Deno.test("test command", async (t) => {
       const result = await $`test -L linked.dat`.noThrow();
       assertEquals(result.code, 0, "should be a symlink");
     });
-    await t.step("test -L on a non-symlink", async () => {
-      const result = await $`test -L zero.dat`.noThrow();
-      assertEquals(result.code, 1, "should fail as not a symlink");
-      assertEquals(result.stderr, "");    
-    });
   }
+  await t.step("test -L on a non-symlink", async () => {
+    const result = await $`test -L zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should fail as not a symlink");
+    assertEquals(result.stderr, "");    
+  });
   await t.step("should error on unsupported test type", async () => {
     const result = await $`test -z zero.dat`.noThrow();
     assertEquals(result.code, 2, "should have exit code 2");
