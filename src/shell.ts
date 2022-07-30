@@ -1,6 +1,7 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
 import { cdCommand } from "./commands/cd.ts";
 import { echoCommand } from "./commands/echo.ts";
+import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
@@ -522,6 +523,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
   } else if (commandArgs[0] === "echo") {
     return await echoCommand(commandArgs.slice(1), context.stdout);
+  } else if (commandArgs[0] === 'exit') {
+    return await exitCommand(commandArgs.slice(1), context.stderr);
   } else if (commandArgs[0] === "export") {
     return await exportCommand(commandArgs.slice(1));
   } else if (commandArgs[0] === "sleep") {

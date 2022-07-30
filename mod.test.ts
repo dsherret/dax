@@ -176,6 +176,43 @@ Deno.test("sleep command", async () => {
   assertEquals(end - start > 190, true);
 });
 
+Deno.test("exit command", async() => {
+  {
+    const result = await $`exit`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit 0`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 255`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit 256`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 257`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit -1`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit zardoz`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: numeric argument required.\n");
+  }
+  {
+    const result = await $`exit 1 1`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: too many arguments\n");  
+  }
+});
+
 Deno.test("should provide result from one command to another", async () => {
   const result = await $`echo 1`;
   const result2 = await $`echo ${result}`;
