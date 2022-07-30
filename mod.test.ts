@@ -241,7 +241,7 @@ Deno.test("should not allow invalid command names", async () => {
 });
 
 Deno.test("should unregister commands", async () => {
-  const builder = new CommandBuilder().unregisterCommand('cd');
+  const builder = new CommandBuilder().unregisterCommand('cd').noThrow();
   await assertRejects(
     async () => await builder.command('cd somewhere'),
     Error,
