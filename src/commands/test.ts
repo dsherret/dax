@@ -53,7 +53,7 @@ function parseArgs(cwd: string, args: string[]) {
 
 async function stat(path: string, test: (info: Deno.FileInfo) => boolean) {
   try {
-    const info = await Deno.stat(path);
+    const info = await Deno.lstat(path);
     return test(info);
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
