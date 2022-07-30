@@ -1,13 +1,13 @@
-import { ShellPipeWriter } from "../pipes.ts";
+import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
-export async function sleepCommand(args: string[], stderr: ShellPipeWriter): Promise<ExecuteResult> {
+export async function sleepCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const ms = parseArgs(args);
+    const ms = parseArgs(context.args);
     await new Promise(resolve => setTimeout(resolve, ms));
     return resultFromCode(0);
   } catch (err) {
-    await stderr.writeLine(`sleep: ${err?.message ?? err}`);
+    await context.stderr.writeLine(`sleep: ${err?.message ?? err}`);
     return resultFromCode(1);
   }
 }

@@ -1,12 +1,12 @@
+import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { fs } from "../deps.ts";
-import { ShellPipeWriter } from "../pipes.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
-export async function testCommand(cwd: string, args: string[], stderr: ShellPipeWriter): Promise<ExecuteResult> {
+export async function testCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const [testFlag, testPath] = parseArgs(cwd, args);
-    let result;
+    const [testFlag, testPath] = parseArgs(context.cwd, context.args);
+    let result: Promise<boolean>;
     switch (testFlag) {
       case "-f":
         result = stat(testPath, info => info.isFile);
@@ -33,7 +33,7 @@ export async function testCommand(cwd: string, args: string[], stderr: ShellPipe
     }
     return resultFromCode(await result ? 0 : 1);
   } catch (err) {
-    await stderr.writeLine(`test: ${err?.message ?? err}`);
+    await context.stderr.writeLine(`test: ${err?.message ?? err}`);
     // bash test returns 2 on error, e.g. -bash: test: -8: unary operator expected
     return resultFromCode(2);
   }

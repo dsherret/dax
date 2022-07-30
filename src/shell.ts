@@ -1,10 +1,5 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
-import { cdCommand } from "./commands/cd.ts";
-import { echoCommand } from "./commands/echo.ts";
-import { exitCommand } from "./commands/exit.ts";
-import { exportCommand } from "./commands/export.ts";
-import { sleepCommand } from "./commands/sleep.ts";
-import { testCommand } from "./commands/test.ts";
+import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
@@ -202,12 +197,13 @@ class ShellEnv implements Env {
   }
 }
 
-class Context {
+export class Context {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   #env: Env;
   #shellVars: Record<string, string>;
+  #commands: Record<string, CommandHandler>;
   #signal: AbortSignal;
 
   constructor(opts: {
@@ -215,6 +211,7 @@ class Context {
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
     env: Env;
+    commands: Record<string, CommandHandler>;
     shellVars: Record<string, string>;
     signal: AbortSignal;
   }) {
@@ -222,6 +219,7 @@ class Context {
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.#env = opts.env;
+    this.#commands = opts.commands;
     this.#shellVars = opts.shellVars;
     this.#signal = opts.signal;
   }
@@ -299,12 +297,38 @@ class Context {
     return this.#env.getEnvVar(key) ?? this.#shellVars[key];
   }
 
+  getCommand(command: string) {
+    return this.#commands[command] ?? null;
+  }
+
+  asCommandContext(args: string[]): CommandContext {
+    const context = this;
+    return {
+      get args() {
+        return args;
+      },
+      get cwd() {
+        return context.getCwd();
+      },
+      get stdin() {
+        return context.stdin;
+      },
+      get stdout() {
+        return context.stdout;
+      },
+      get stderr() {
+        return context.stderr;
+      },
+    };
+  }
+
   clone() {
     return new Context({
       stdin: this.stdin,
       stdout: this.stdout,
       stderr: this.stderr,
       env: this.#env.clone(),
+      commands: { ...this.#commands },
       shellVars: { ...this.#shellVars },
       signal: this.#signal,
     });
@@ -321,6 +345,7 @@ export interface SpawnOpts {
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   env: Record<string, string>;
+  commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
   signal: AbortSignal;
@@ -329,6 +354,7 @@ export interface SpawnOpts {
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const context = new Context({
     env: opts.exportEnv ? new RealEnv() : new ShellEnv(opts),
+    commands: opts.commands,
     stdin: opts.stdin,
     stdout: opts.stdout,
     stderr: opts.stderr,
@@ -520,55 +546,48 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
 }
 
 async function executeCommandArgs(commandArgs: string[], context: Context) {
-  if (commandArgs[0] === "cd") {
-    return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
-  } else if (commandArgs[0] === "echo") {
-    return await echoCommand(commandArgs.slice(1), context.stdout);
-  } else if (commandArgs[0] === 'exit') {
-    return await exitCommand(commandArgs.slice(1), context.stderr);
-  } else if (commandArgs[0] === "export") {
-    return await exportCommand(commandArgs.slice(1));
-  } else if (commandArgs[0] === "sleep") {
-    return await sleepCommand(commandArgs.slice(1), context.stderr);
-  } else if (commandArgs[0] === "test") {
-    return await testCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
-  } else {
-    const commandPath = await resolveCommand(commandArgs[0], context);
-    const p = Deno.run({
-      cmd: [commandPath, ...commandArgs.slice(1)],
-      cwd: context.getCwd(),
-      env: context.getEnvVars(),
-      stdin: getStdioStringValue(context.stdin),
-      stdout: getStdioStringValue(context.stdout.kind),
-      stderr: getStdioStringValue(context.stderr.kind),
-    });
-    const abortListener = () => p.kill("SIGKILL");
-    context.signal.addEventListener("abort", abortListener);
-    const completeController = new AbortController();
-    const completeSignal = completeController.signal;
-    try {
-      // ignore the result of writing to stdin because it may
-      // have not finished before the process finished
-      const _ignore = writeStdin(context.stdin, p, completeSignal);
-      const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
-      const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
-      const [status] = await Promise.all([
-        p.status(),
-        readStdoutTask,
-        readStderrTask,
-      ]);
-      if (context.signal.aborted) {
-        return getAbortedResult();
-      } else {
-        return resultFromCode(status.code);
-      }
-    } finally {
-      completeController.abort();
-      context.signal.removeEventListener("abort", abortListener);
-      p.close();
-      p.stdout?.close();
-      p.stderr?.close();
+  // look for a registered command first
+  const command = context.getCommand(commandArgs[0]);
+  if (command != null) {
+    return command(context.asCommandContext(commandArgs.slice(1)));
+  }
+
+  // fall back to trying to resolve the command on the fs
+  const commandPath = await resolveCommand(commandArgs[0], context);
+  const p = Deno.run({
+    cmd: [commandPath, ...commandArgs.slice(1)],
+    cwd: context.getCwd(),
+    env: context.getEnvVars(),
+    stdin: getStdioStringValue(context.stdin),
+    stdout: getStdioStringValue(context.stdout.kind),
+    stderr: getStdioStringValue(context.stderr.kind),
+  });
+  const abortListener = () => p.kill("SIGKILL");
+  context.signal.addEventListener("abort", abortListener);
+  const completeController = new AbortController();
+  const completeSignal = completeController.signal;
+  try {
+    // ignore the result of writing to stdin because it may
+    // have not finished before the process finished
+    const _ignore = writeStdin(context.stdin, p, completeSignal);
+    const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
+    const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
+    const [status] = await Promise.all([
+      p.status(),
+      readStdoutTask,
+      readStderrTask,
+    ]);
+    if (context.signal.aborted) {
+      return getAbortedResult();
+    } else {
+      return resultFromCode(status.code);
     }
+  } finally {
+    completeController.abort();
+    context.signal.removeEventListener("abort", abortListener);
+    p.close();
+    p.stdout?.close();
+    p.stderr?.close();
   }
 
   async function writeStdin(stdin: ShellPipeReader, p: Deno.Process, signal: AbortSignal) {
