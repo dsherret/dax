@@ -265,7 +265,10 @@ You can also register your own custom commands using the `registerCommand` or `r
 
 ```ts
 const commandBuilder = new CommandBuilder()
-  .registerCommand("true" => () => { kind: "continue", code: 0 });
+  .registerCommand(
+    "true",
+    () => Promise.resolve({ kind: "continue", code: 0 }),
+  );
 
 const result = await commandBuilder
   // now includes the 'true' command

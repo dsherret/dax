@@ -1,9 +1,9 @@
+import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { Context } from "../shell.ts";
 
-export async function sleepCommand(context: Context, args: string[]): Promise<ExecuteResult> {
+export async function sleepCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const ms = parseArgs(args);
+    const ms = parseArgs(context.args);
     await new Promise(resolve => setTimeout(resolve, ms));
     return resultFromCode(0);
   } catch (err) {

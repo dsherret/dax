@@ -1,11 +1,10 @@
+import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { Context } from "../shell.ts";
 
-export async function cdCommand(context: Context, args: string[]): Promise<ExecuteResult> {
-  const cwd = context.getCwd();
+export async function cdCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const dir = await executeCd(cwd, args);
+    const dir = await executeCd(context.cwd, context.args);
     return {
       code: 0,
       kind: "continue",

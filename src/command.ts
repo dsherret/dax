@@ -1,3 +1,4 @@
+import { CommandHandler } from "./command_handler.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { echoCommand } from "./commands/echo.ts";
 import { exitCommand } from "./commands/exit.ts";
@@ -14,7 +15,7 @@ import {
   ShellPipeWriter,
   ShellPipeWriterKind,
 } from "./pipes.ts";
-import { CommandHandler, parseArgs, spawn } from "./shell.ts";
+import { parseArgs, spawn } from "./shell.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -141,13 +142,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Register multilple commands.
    */
   registerCommands(commands: Record<string, CommandHandler>) {
-    const names = Object.keys(commands);
-    for (let n = 0; n < names.length; n += 1) {
-      validateCommandName(names[n]);
+    let command: CommandBuilder = this;
+    for (const [key, value] of Object.entries(commands)) {
+      command = command.registerCommand(key, value);
     }
-    return this.#newWithState(state => {
-      Object.assign(state.commands, commands);
-    });
+    return command;
   }
 
   /**
@@ -156,7 +155,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   unregisterCommand(command: string) {
     return this.#newWithState(state => {
       delete state.commands[command];
-    })
+    });
   }
 
   /** Sets the raw command to execute. */

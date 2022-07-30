@@ -4,7 +4,17 @@ import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
+export type { CommandContext, CommandHandler, CommandPipeWriter } from "./src/command_handler.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
+export type {
+  CdChange,
+  ContinueExecuteResult,
+  EnvChange,
+  ExecuteResult,
+  ExitExecuteResult,
+  SetEnvVarChange,
+  SetShellVarChange,
+} from "./src/result.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).

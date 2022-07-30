@@ -1,12 +1,12 @@
+import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { fs } from "../deps.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { Context } from "../shell.ts";
 
-export async function testCommand(context: Context, args: string[]): Promise<ExecuteResult> {
+export async function testCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const [testFlag, testPath] = parseArgs(context.getCwd(), args);
-    let result;
+    const [testFlag, testPath] = parseArgs(context.cwd, context.args);
+    let result: Promise<boolean>;
     switch (testFlag) {
       case "-f":
         result = stat(testPath, info => info.isFile);

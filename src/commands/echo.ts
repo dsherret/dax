@@ -1,7 +1,7 @@
+import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { Context } from "../shell.ts";
 
-export async function echoCommand(context: Context, args: string[]): Promise<ExecuteResult> {
-  await context.stdout.writeLine(args.join(" "));
+export async function echoCommand(context: CommandContext): Promise<ExecuteResult> {
+  await context.stdout.writeLine(context.args.join(" "));
   return resultFromCode(0);
 }

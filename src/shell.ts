@@ -1,9 +1,8 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
+import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
-
-export type CommandHandler = (context: Context, args: string[]) => Promise<ExecuteResult>;
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -220,7 +219,7 @@ export class Context {
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.#env = opts.env;
-    this.#commands =  opts.commands;
+    this.#commands = opts.commands;
     this.#shellVars = opts.shellVars;
     this.#signal = opts.signal;
   }
@@ -300,6 +299,27 @@ export class Context {
 
   getCommand(command: string) {
     return this.#commands[command] ?? null;
+  }
+
+  asCommandContext(args: string[]): CommandContext {
+    const context = this;
+    return {
+      get args() {
+        return args;
+      },
+      get cwd() {
+        return context.getCwd();
+      },
+      get stdin() {
+        return context.stdin;
+      },
+      get stdout() {
+        return context.stdout;
+      },
+      get stderr() {
+        return context.stderr;
+      },
+    };
   }
 
   clone() {
@@ -529,7 +549,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   // look for a registered command first
   const command = context.getCommand(commandArgs[0]);
   if (command != null) {
-    return command(context, commandArgs.slice(1));
+    return command(context.asCommandContext(commandArgs.slice(1)));
   }
 
   // fall back to trying to resolve the command on the fs
