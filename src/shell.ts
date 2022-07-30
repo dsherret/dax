@@ -1,8 +1,10 @@
 import { instantiate } from "../lib/rs_lib.generated.js";
 import { cdCommand } from "./commands/cd.ts";
 import { echoCommand } from "./commands/echo.ts";
+import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { sleepCommand } from "./commands/sleep.ts";
+import { testCommand } from "./commands/test.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
@@ -543,10 +545,14 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
   } else if (commandArgs[0] === "echo") {
     return await echoCommand(commandArgs.slice(1), context.stdout);
+  } else if (commandArgs[0] === 'exit') {
+    return await exitCommand(commandArgs.slice(1), context.stderr);
   } else if (commandArgs[0] === "export") {
     return await exportCommand(commandArgs.slice(1));
   } else if (commandArgs[0] === "sleep") {
     return await sleepCommand(commandArgs.slice(1), context.stderr);
+  } else if (commandArgs[0] === "test") {
+    return await testCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
   } else {
     // look for a user-defined command first
     const customCommand = context.getCommand(commandArgs[0]);
@@ -588,7 +594,6 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       completeController.abort();
       context.signal.removeEventListener("abort", abortListener);
       p.close();
-      p.stdin?.close();
       p.stdout?.close();
       p.stderr?.close();
     }
@@ -599,6 +604,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       return;
     }
     await pipeReaderToWriter(stdin, p.stdin!, signal);
+    p.stdin!.close();
   }
 
   async function readStdOutOrErr(reader: Deno.Reader | null, writer: ShellPipeWriter) {

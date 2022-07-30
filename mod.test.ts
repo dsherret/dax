@@ -168,14 +168,6 @@ Deno.test("should handle boolean list 'and'", async () => {
   }
 });
 
-Deno.test("sleep command", async () => {
-  const start = performance.now();
-  const result = await $`sleep 0.2 && echo 1`.text();
-  const end = performance.now();
-  assertEquals(result, "1");
-  assertEquals(end - start > 190, true);
-});
-
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
     .handle('zardoz-speaks', async (context, args) => {
@@ -210,27 +202,142 @@ Deno.test("should support custom command handlers", async () => {
   }
 });
 
-Deno.test("should not allow override of built-in commands", async () => {
-  await assertRejects(
-    async () => await new CommandBuilder()
-      .handle("cd", () => Promise.resolve({ kind: 'exit', code: 31337 }))
-      .command('cd somewhere')
-    ,
-    Error,
-    "Custom commands cannot override built-ins"
-  );
+Deno.test("sleep command", async () => {
+  const start = performance.now();
+  const result = await $`sleep 0.2 && echo 1`.text();
+  const end = performance.now();
+  assertEquals(result, "1");
+  assertEquals(end - start > 190, true);
 });
 
-Deno.test("should not allow defining the same command twice", async () => {
-  await assertRejects(
-    async () => await new CommandBuilder()
-      .handle("zoinks", () => Promise.resolve({ kind: 'exit', code: 31337 }))
-      .handle("zoinks", () => Promise.resolve({ kind: 'exit', code: 31337 }))
-      .command("zoinks --demon-shark=true")
-    ,
-    Error,
-    "Custom commands must be uniquely named"
-  );
+Deno.test("test command", async (t) => {
+  await Deno.writeFile('zero.dat', new Uint8Array());
+  await Deno.writeFile('non-zero.dat', new Uint8Array([242]));
+  if (Deno.build.os !== 'windows') {
+    await Deno.symlink('zero.dat', 'linked.dat');
+  }
+  
+  await t.step("test -e", async () => {
+    const result = await $`test -e zero.dat`.noThrow();
+    assertEquals(result.code, 0);
+  });
+  await t.step("test -f", async () => {
+    const result = await $`test -f zero.dat`.noThrow();
+    assertEquals(result.code, 0, "should be a file");
+  });
+  await t.step("test -f on non-file", async () => {
+    const result = await $`test -f ${Deno.cwd()}`.noThrow();
+    assertEquals(result.code, 1, "should not be a file");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -d", async() => {
+    const result = await $`test -d ${Deno.cwd()}`.noThrow();
+    assertEquals(result.code, 0, `${Deno.cwd()} should be a directory`);
+  });
+  await t.step("test -d on non-directory", async() => {
+    const result = await $`test -d zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should not be a directory");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -s", async () => {
+    const result = await $`test -s non-zero.dat`.noThrow();
+    assertEquals(result.code, 0, "should be > 0");
+    assertEquals(result.stderr, "");
+  });
+  await t.step("test -s on zero-length file", async () => {
+    const result = await $`test -s zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should fail as file is zero-sized");
+    assertEquals(result.stderr, "");
+  });
+  if (Deno.build.os !== 'windows') {
+    await t.step("test -L", async () => {
+      const result = await $`test -L linked.dat`.noThrow();
+      assertEquals(result.code, 0, "should be a symlink");
+    });
+  }
+  await t.step("test -L on a non-symlink", async () => {
+    const result = await $`test -L zero.dat`.noThrow();
+    assertEquals(result.code, 1, "should fail as not a symlink");
+    assertEquals(result.stderr, "");    
+  });
+  await t.step("should error on unsupported test type", async () => {
+    const result = await $`test -z zero.dat`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: unsupported test type\n");
+  });
+  await t.step("should error with not enough arguments", async() => {
+    const result = await $`test`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: expected 2 arguments\n");
+  });
+  await t.step("should error with too many arguments", async() => {
+    const result = await $`test -f a b c`.noThrow();
+    assertEquals(result.code, 2, "should have exit code 2");
+    assertEquals(result.stderr, "test: expected 2 arguments\n");
+  });
+  await t.step("should work with boolean: pass && ..", async () => {
+    const result = await $`test -f zero.dat && echo yup`.noThrow();
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "yup\n");
+  });
+  await t.step("should work with boolean: fail && ..", async () => {
+    const result = await $`test -f ${Deno.cwd()} && echo nope`.noThrow();
+    assertEquals(result.code, 1), "should have exit code 1";
+    assertEquals(result.stdout, "");
+  });
+  await t.step("should work with boolean: pass || ..", async () => {
+    const result = await $`test -f zero.dat || echo nope`.noThrow();
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "");
+  });
+  await t.step("should work with boolean: fail || ..", async () => {
+    const result = await $`test -f ${Deno.cwd()} || echo yup`.noThrow();
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "yup\n");
+  });
+
+  if (Deno.build.os !== 'windows') {
+    await Deno.remove('linked.dat');
+  }
+  await Deno.remove('zero.dat');
+  await Deno.remove('non-zero.dat');
+});
+
+Deno.test("exit command", async() => {
+  {
+    const result = await $`exit`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit 0`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 255`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit 256`.noThrow();
+    assertEquals(result.code, 0);
+  }
+  {
+    const result = await $`exit 257`.noThrow();
+    assertEquals(result.code, 1);
+  }
+  {
+    const result = await $`exit -1`.noThrow();
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit zardoz`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: numeric argument required.\n");
+  }
+  {
+    const result = await $`exit 1 1`.noThrow();
+    assertEquals(result.code, 2);
+    assertEquals(result.stderr, "exit: too many arguments\n");  
+  }
 });
 
 Deno.test("should provide result from one command to another", async () => {
