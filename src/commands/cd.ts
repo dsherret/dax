@@ -1,4 +1,4 @@
-import { path } from "../deps.ts";
+import { resolvePath } from "../common.ts";
 import { ShellPipeWriter } from "../pipes.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
@@ -21,7 +21,7 @@ export async function cdCommand(cwd: string, args: string[], stderr: ShellPipeWr
 
 async function executeCd(cwd: string, args: string[]) {
   const arg = parseArgs(args);
-  const result = path.resolve(path.join(cwd, arg));
+  const result = resolvePath(cwd, arg);
   if (!await isDirectory(result)) {
     throw new Error(`${result}: Not a directory`);
   }
