@@ -1,6 +1,8 @@
+import { assert } from "https://deno.land/std@0.147.0/_util/assert.ts";
 import $, { build$, CommandBuilder } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, path } from "./src/deps.ts";
+import { CommandHandler, Context } from "./src/shell.ts";
 
 Deno.test("should get stdout by default", async () => {
   const output = await $`echo 5`;
@@ -170,7 +172,7 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .handle('zardoz-speaks', async (context, args) => {
+    .registerCommand('zardoz-speaks', async (context, args) => {
       if (args.length != 1) {
         await context.stderr.writeLine("zardoz-speaks: expected 1 argument");
         return {
@@ -183,6 +185,10 @@ Deno.test("should support custom command handlers", async () => {
         kind: "continue",
         code: 0,
       };
+    })
+    .registerCommands({
+      'true': () => Promise.resolve({ kind: 'continue', code: 0 }),
+      'false': () => Promise.resolve({ kind: 'continue', code: 1 }),
     });
 
   {
@@ -200,6 +206,47 @@ Deno.test("should support custom command handlers", async () => {
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "zardoz speaks to you\n");
   }
+  {
+    const result = await builder.command("true && echo yup").noThrow();
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "yup\n");
+  }
+  {
+    const result = await builder.command("false && echo nope").noThrow();
+    assertEquals(result.code, 1);
+    assertEquals(result.stdout, "");
+  }
+});
+
+Deno.test("should not allow invalid command names", async () => {
+  const builder = new CommandBuilder();
+  const hax: CommandHandler = async (context: Context, _: string[]) => {
+    context.stdout.writeLine('h4x!1!');
+    return {
+      kind: "continue",
+      code: 0,
+    };
+  }
+
+  assertThrows(
+    () => builder.registerCommand("/dev/null", hax),
+    Error,
+    "Invalid command name"
+  );
+  assertThrows(
+    () => builder.registerCommand("*", hax),
+    Error,
+    "Invalid command name"
+  );
+});
+
+Deno.test("should unregister commands", async () => {
+  const builder = new CommandBuilder().unregisterCommand('cd');
+  await assertRejects(
+    async () => await builder.command('cd somewhere'),
+    Error,
+    "Command not found: cd"
+  );
 });
 
 Deno.test("sleep command", async () => {

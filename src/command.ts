@@ -1,3 +1,9 @@
+import { cdCommand } from "./commands/cd.ts";
+import { echoCommand } from "./commands/echo.ts";
+import { exitCommand } from "./commands/exit.ts";
+import { exportCommand } from "./commands/export.ts";
+import { sleepCommand } from "./commands/sleep.ts";
+import { testCommand } from "./commands/test.ts";
 import { delayToMs } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, path } from "./deps.ts";
@@ -8,7 +14,7 @@ import {
   ShellPipeWriter,
   ShellPipeWriterKind,
 } from "./pipes.ts";
-import { CustomCommandHandler, isBuiltIn, parseArgs, spawn } from "./shell.ts";
+import { CommandHandler, parseArgs, spawn } from "./shell.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -19,13 +25,22 @@ interface CommandBuilderState {
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
   env: Record<string, string>;
-  customCommands: Record<string, CustomCommandHandler>;
+  commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
   timeout: number | undefined;
 }
 
 const textDecoder = new TextDecoder();
+
+const builtInCommands = {
+  cd: cdCommand,
+  echo: echoCommand,
+  exit: exitCommand,
+  export: exportCommand,
+  sleep: sleepCommand,
+  test: testCommand,
+};
 
 /**
  * The underlying builder API for executing commands.
@@ -64,7 +79,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
-      customCommands: { ...state.customCommands },
+      commands: { ...state.commands },
       exportEnv: state.exportEnv,
       timeout: state.timeout,
     };
@@ -79,7 +94,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: false,
       env: Deno.env.toObject(),
       cwd: Deno.cwd(),
-      customCommands: {},
+      commands: { ...builtInCommands },
       exportEnv: false,
       timeout: undefined,
     };
@@ -113,18 +128,35 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
-   * Adds support for handling custom commands.
-   *
-   * Custom commands must be uniquely named, and cannot override any built-ins.
+   * Register a command.
    */
-  handle(command: string, handleFn: CustomCommandHandler) {
+  registerCommand(command: string, handleFn: CommandHandler) {
+    validateCommandName(command);
     return this.#newWithState(state => {
-      if (isBuiltIn(command)) throw new Error("Custom commands cannot override built-ins");
-      if (state.customCommands[command] != null) {
-        throw new Error("Custom commands must be uniquely named");
-      }
-      state.customCommands[command] = handleFn;
+      state.commands[command] = handleFn;
     });
+  }
+
+  /**
+   * Register multilple commands.
+   */
+  registerCommands(commands: Record<string, CommandHandler>) {
+    const names = Object.keys(commands);
+    for (let n = 0; n < names.length; n += 1) {
+      validateCommandName(names[n]);
+    }
+    return this.#newWithState(state => {
+      Object.assign(state.commands, commands);
+    });
+  }
+
+  /**
+   * Unregister a command.
+   */
+  unregisterCommand(command: string) {
+    return this.#newWithState(state => {
+      delete state.commands[command];
+    })
   }
 
   /** Sets the raw command to execute. */
@@ -373,7 +405,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       stdout,
       stderr,
       env: state.env,
-      customCommands: state.customCommands,
+      commands: state.commands,
       cwd: state.cwd,
       exportEnv: state.exportEnv,
       signal: abortController.signal,
@@ -481,5 +513,11 @@ export function escapeArg(arg: string) {
     return arg;
   } else {
     return `'${arg.replace("'", `'"'"'`)}'`;
+  }
+}
+
+function validateCommandName(command: string) {
+  if (command.match(/^[a-zA-Z0-9-_]+$/) == null) {
+    throw new Error("Invalid command name");
   }
 }

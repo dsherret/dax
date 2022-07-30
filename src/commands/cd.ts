@@ -1,8 +1,9 @@
 import { resolvePath } from "../common.ts";
-import { ShellPipeWriter } from "../pipes.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
+import { Context } from "../shell.ts";
 
-export async function cdCommand(cwd: string, args: string[], stderr: ShellPipeWriter): Promise<ExecuteResult> {
+export async function cdCommand(context: Context, args: string[]): Promise<ExecuteResult> {
+  const cwd = context.getCwd();
   try {
     const dir = await executeCd(cwd, args);
     return {
@@ -14,7 +15,7 @@ export async function cdCommand(cwd: string, args: string[], stderr: ShellPipeWr
       }],
     };
   } catch (err) {
-    await stderr.writeLine(`cd: ${err?.message ?? err}`);
+    await context.stderr.writeLine(`cd: ${err?.message ?? err}`);
     return resultFromCode(1);
   }
 }

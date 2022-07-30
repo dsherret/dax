@@ -1,6 +1,7 @@
 import { EnvChange, ExecuteResult } from "../result.ts";
+import { Context } from "../shell.ts";
 
-export async function exportCommand(args: string[]): Promise<ExecuteResult> {
+export async function exportCommand(_: Context, args: string[]): Promise<ExecuteResult> {
   const changes: EnvChange[] = [];
   for (const arg of args) {
     let equalsIndex = arg.indexOf("=");
