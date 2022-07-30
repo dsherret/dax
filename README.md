@@ -227,6 +227,8 @@ Currently implemented (though not every option is supported):
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
+You can also register your own commands with the shell parser (see below).
+
 ## Builder APIs
 
 The builder APIs are what the library uses internally and they're useful for scenarios where you want to re-use some setup state. They're immutable so every function call returns a new object (which is the same thing that happens with the objects returned from `$` and `$.request`).
@@ -259,6 +261,18 @@ const result2 = await otherBuilder
   .spawn();
 ```
 
+You can also register your own custom commands using the `registerCommand` or `registerCommands` methods:
+
+```ts
+const commandBuilder = new CommandBuilder()
+  .registerCommand("true" => () => { kind: "continue", code: 0 });
+
+const result = await commandBuilder
+  // now includes the 'true' command
+  .command("true && echo yay")
+  .spawn();
+```
+
 ### `RequestBuilder`
 
 `RequestBuilder` can be used for building up requests similar to `$.request`:
@@ -278,7 +292,7 @@ const result = await requestBuilder
 
 ### Custom `$`
 
-You may wish to create your own `$` function that has a certain setup context (for example, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is what the main default exported `$` function uses internally to build itself:
+You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is what the main default exported `$` function uses internally to build itself:
 
 ```ts
 import {
