@@ -566,7 +566,6 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       completeController.abort();
       context.signal.removeEventListener("abort", abortListener);
       p.close();
-      p.stdin?.close();
       p.stdout?.close();
       p.stderr?.close();
     }
@@ -577,6 +576,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       return;
     }
     await pipeReaderToWriter(stdin, p.stdin!, signal);
+    p.stdin!.close();
   }
 
   async function readStdOutOrErr(reader: Deno.Reader | null, writer: ShellPipeWriter) {
