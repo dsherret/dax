@@ -7,7 +7,7 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { delayToMs } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, path } from "./deps.ts";
+import { Buffer, colors, path } from "./deps.ts";
 import {
   CapturingBufferWriter,
   NullPipeWriter,
@@ -29,6 +29,7 @@ interface CommandBuilderState {
   commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
+  printCommand: boolean;
   timeout: number | undefined;
 }
 
@@ -82,6 +83,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       cwd: state.cwd,
       commands: { ...state.commands },
       exportEnv: state.exportEnv,
+      printCommand: state.printCommand,
       timeout: state.timeout,
     };
   }
@@ -97,6 +99,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       cwd: Deno.cwd(),
       commands: { ...builtInCommands },
       exportEnv: false,
+      printCommand: false,
       timeout: undefined,
     };
   }
@@ -260,6 +263,29 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Prints the command text before executing the command.
+   *
+   * For example:
+   *
+   * ```ts
+   * const text = "example";
+   * await $`echo ${text}`.printCommand();
+   * ```
+   *
+   * Outputs:
+   *
+   * ```
+   * > echo example
+   * example
+   * ```
+   */
+  printCommand(value = true) {
+    return this.#newWithState(state => {
+      state.printCommand = value;
+    });
+  }
+
+  /**
    * Ensures stdout and stderr are piped if they have the default behaviour or are inherited.
    *
    * ```ts
@@ -358,6 +384,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 export async function parseAndSpawnCommand(state: CommandBuilderState) {
   if (state.command == null) {
     throw new Error("A command must be set before it can be spawned.");
+  }
+
+  if (state.printCommand) {
+    console.log(colors.white(">"), colors.blue(state.command));
   }
 
   const stdoutBuffer = state.stdoutKind === "default"

@@ -83,6 +83,13 @@ await $`echo 5`.quiet();
 await $`echo 5`.quiet("stdout"); // or just stdout
 await $`echo 5`.quiet("stderr"); // or just stderr
 
+// output the command before executing it
+const text = "example";
+await $`echo ${text}`.printCommand();
+// outputs:
+// > echo example
+// example
+
 // timeout a command after a specified time
 await $`some_command`.timeout("1s");
 

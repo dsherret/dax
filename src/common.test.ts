@@ -1,6 +1,6 @@
 import { delayToIterator, delayToMs, formatMillis, resolvePath } from "./common.ts";
-import { path } from "./deps.ts";
 import { assertEquals } from "./deps.test.ts";
+import { path } from "./deps.ts";
 
 Deno.test("should get delay value", () => {
   assertEquals(delayToMs(10), 10);
