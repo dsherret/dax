@@ -176,7 +176,7 @@ async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
     if (i > 0) {
       const nextDelay = delayIterator.next();
       if (!opts.quiet) {
-        $.logWarn(`Failed trying again in ${formatMillis(nextDelay)}...`);
+        $.logWarn(`Failed. Trying again in ${formatMillis(nextDelay)}...`);
       }
       await sleep(nextDelay);
       if (!opts.quiet) {
