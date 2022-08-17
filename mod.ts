@@ -119,7 +119,7 @@ export interface $Type {
    */
   logLight(...data: any[]): void;
   /**
-   * Similar to `$.log`, but will bold red the first word if one argument or
+   * Similar to `$.log`, but will bold green the first word if one argument or
    * first argument if multiple arguments.
    */
   logStep(firstArg: string, ...data: any[]): void;
