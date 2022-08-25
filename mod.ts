@@ -135,15 +135,63 @@ export interface $Type {
    * Causes all `$.log` and like functions to be logged with indentation.
    *
    * ```ts
-   * await $.logIndent(async () => {
-   * $.log("This will be indented.");
-   *   await $.logIndent(async () => {
+   * $.logGroup(() => {
+   *   $.log("This will be indented.");
+   *   $.logGroup(() => {
    *     $.log("This will indented even more.");
    *   });
    * });
+   *
+   * const result = await $.logGroup(async () => {
+   *   $.log("This will be indented.");
+   *   const value = await someAsyncWork();
+   *   return value * 5;
+   * });
    * ```
+   * @param action - Action to run and potentially get the result for.
    */
-  logIndent<TResult>(action: () => TResult): TResult;
+  logGroup<TResult>(action: () => TResult): TResult;
+  /**
+   * Causes all `$.log` and like functions to be logged with indentation and a label.
+   *
+   * ```ts
+   * $.logGroup("Some label", () => {
+   *   $.log("This will be indented.");
+   * });
+   * ```
+   * @param label Title message to log for this level.
+   * @param action Action to run and potentially get the result for.
+   */
+  logGroup<TResult>(label: string, action: () => TResult): TResult;
+  /**
+   * Causes all `$.log` and like functions to be logged with indentation.
+   *
+   * ```ts
+   * $.logGroup();
+   * $.log("This will be indented.");
+   * $.logGroup("Level 2");
+   * $.log("This will be indented even more.");
+   * $.logGroupEnd();
+   * $.logGroupEnd();
+   * ```
+   *
+   * Note: You must call `$.logGroupEnd()` when using this.
+   *
+   * It is recommended to use `$.logGroup(() => { ... })` over this one
+   * as it will internally call `$.logGroupEnd()` even when exceptions
+   * are thrown.
+   *
+   * @param label Optional title message to log for this level.
+   */
+  logGroup(label?: string): void;
+  /**
+   * Ends a logging level.
+   *
+   * Meant to be used with `$.logGroup();` when not providing a function..
+   */
+  logGroupEnd(): void;
+  /** Gets or sets the current log depth (0-indexed). */
+  logDepth: number;
   /**
    * Sleep for the provided delay.
    *
@@ -198,8 +246,9 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
-// this is global because it then allows functions to easily call
-// other functions and those should be indented underneath
+// this is global because logging is a global property and it
+// then allows functions to easily call other functions and
+// those should be indented underneath
 let indentLevel = 0;
 
 function getLogText(data: any[]) {
@@ -262,24 +311,49 @@ const helperObject = {
   logWarn(firstArg: string, ...data: any[]) {
     logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)));
   },
-  logIndent<TResult>(action: () => TResult): TResult {
+  logGroup<TResult>(labelOrAction?: string | (() => TResult), maybeAction?: () => TResult): TResult | void {
+    const label = typeof labelOrAction === "string" ? labelOrAction : undefined;
+    if (label) {
+      console.error(getLogText([label]));
+    }
     indentLevel++;
-    let wasPromise = false;
-    try {
-      const result = action();
-      if (result instanceof Promise) {
-        wasPromise = true;
-        return result.finally(() => {
-          indentLevel--;
-        }) as any;
-      } else {
-        return result;
-      }
-    } finally {
-      if (!wasPromise) {
-        indentLevel--;
+    const action = label != null ? maybeAction : labelOrAction as (() => TResult);
+    if (action != null) {
+      let wasPromise = false;
+      try {
+        const result = action();
+        if (result instanceof Promise) {
+          wasPromise = true;
+          return result.finally(() => {
+            if (indentLevel > 0) {
+              indentLevel--;
+            }
+          }) as any;
+        } else {
+          return result;
+        }
+      } finally {
+        if (!wasPromise) {
+          if (indentLevel > 0) {
+            indentLevel--;
+          }
+        }
       }
     }
+  },
+  logGroupEnd() {
+    if (indentLevel > 0) {
+      indentLevel--;
+    }
+  },
+  get logDepth() {
+    return indentLevel;
+  },
+  set logDepth(value: number) {
+    if (value < 0 || value % 1 !== 0) {
+      throw new Error("Expected a positive integer.");
+    }
+    indentLevel = value;
   },
   sleep,
   withRetries,
@@ -337,7 +411,7 @@ export interface Create$Options {
 export function build$(options: Create$Options) {
   const commandBuilder = options.commandBuilder ?? new CommandBuilder();
   const requestBuilder = options.requestBuilder ?? new RequestBuilder();
-  return Object.assign(
+  const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
       let result = "";
       for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
@@ -363,6 +437,10 @@ export function build$(options: Create$Options) {
       },
     },
   );
+  // copy over the get/set accessors for logDepth
+  const keyName: keyof typeof helperObject = "logDepth";
+  Object.defineProperty(result, keyName, Object.getOwnPropertyDescriptor(helperObject, keyName)!);
+  return result;
 }
 
 /**

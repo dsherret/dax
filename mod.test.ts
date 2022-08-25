@@ -469,3 +469,60 @@ Deno.test("command .lines()", async () => {
   const result = await $`echo 1 && echo 2`.lines();
   assertEquals(result, ["1", "2"]);
 });
+
+Deno.test("basic logging test to ensure no errors", async () => {
+  assertEquals($.logDepth, 0);
+  $.logGroup();
+  assertEquals($.logDepth, 1);
+  $.logGroupEnd();
+  assertEquals($.logDepth, 0);
+  $.logGroupEnd(); // should not error
+  assertEquals($.logDepth, 0);
+  $.logGroup("Label1");
+  let setCount = 0;
+  assertEquals($.logDepth, 1);
+  $.logGroup("Label2", () => {
+    assertEquals($.logDepth, 2);
+    setCount++;
+  });
+  assertEquals(setCount, 1);
+  await $.logGroup("Label3", async () => {
+    assertEquals($.logDepth, 2);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    setCount++;
+    $.log("Test");
+    await $.logGroup(async () => {
+      assertEquals($.logDepth, 3);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      setCount++;
+      $.log("Test");
+    });
+    assertEquals($.logDepth, 2);
+  });
+  assertEquals($.logDepth, 1);
+  $.log("Test");
+  assertEquals(setCount, 3);
+  $.logGroupEnd();
+  assertEquals($.logDepth, 0);
+
+  await $.logGroup("Label3", async () => {
+    assertEquals($.logDepth, 1);
+    $.logGroupEnd();
+    assertEquals($.logDepth, 0);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+  assertEquals($.logDepth, 0);
+
+  $.logGroup("Label3", () => {
+    assertEquals($.logDepth, 1);
+    $.logGroupEnd();
+    assertEquals($.logDepth, 0);
+  });
+  assertEquals($.logDepth, 0);
+
+  $.logDepth = 5;
+  assertEquals($.logDepth, 5);
+  $.log("Test");
+  $.logGroupEnd();
+  assertEquals($.logDepth, 4);
+});

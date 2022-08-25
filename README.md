@@ -107,14 +107,22 @@ $.logWarn("Warning Some warning message.");
 // logs out text in gray
 $.logLight("Some unimportant message.");
 
-// log indented within
-await $.logIndent(async () => {
+// log indented within (handles de-indenting when an error is thrown)
+await $.logGroup(async () => {
   $.log("This will be indented.");
-  await $.logIndent(async () => {
+  await $.logGroup(async () => {
     $.log("This will indented even more.");
     // do maybe async stuff here
   });
 });
+
+// or use $.logGroup with $.logGroupEnd
+$.logGroup();
+$.log("Indented 1");
+$.logGroup("Level 2");
+$.log("Indented 2");
+$.logGroupEnd();
+$.logGroupEnd();
 
 // change directory
 $.cd("newDir");
