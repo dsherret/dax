@@ -85,7 +85,7 @@ await $`echo $var1 $var2 $var3 $var4`
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
 // makes a command not output anything to stdout and stderr
-// if set to "inherit" or "captured"
+// if set to "inherit" or "inheritPiped"
 await $`echo 5`.quiet();
 await $`echo 5`.quiet("stdout"); // or just stdout
 await $`echo 5`.quiet("stderr"); // or just stderr
@@ -264,7 +264,7 @@ import {
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
-  .stdout("captured") // output to stdout and pipe to a buffer
+  .stdout("inheritPiped") // output to stdout and pipe to a buffer
   .noThrow();
 
 const otherBuilder = commandBuilder

@@ -8,9 +8,9 @@ export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
  * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).
  * @value "null" - Does not pipe or redirect the pipe.
  * @value "piped" - Captures the pipe without outputting.
- * @value "captured" - Captures the pipe with outputting.
+ * @value "inheritPiped" - Captures the pipe with outputting.
  */
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "captured";
+export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped";
 
 export class NullPipeWriter implements Deno.Writer {
   write(p: Uint8Array): Promise<number> {

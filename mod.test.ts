@@ -31,8 +31,8 @@ Deno.test("should capture stdout when piped", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
-Deno.test("should capture stdout when captured", async () => {
-  const output = await $`deno eval 'console.log(5);'`.stdout("captured");
+Deno.test("should capture stdout when inherited and piped", async () => {
+  const output = await $`deno eval 'console.log(5);'`.stdout("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stdout, "5\n");
 });
@@ -63,8 +63,8 @@ Deno.test("should capture stderr when piped", async () => {
   assertEquals(output.stderr, "5\n");
 });
 
-Deno.test("should capture stderr when captured", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("captured");
+Deno.test("should capture stderr when inherited and piped", async () => {
+  const output = await $`deno eval 'console.error(5);'`.stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });

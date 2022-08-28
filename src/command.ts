@@ -309,7 +309,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
       switch (kind) {
-        case "captured":
+        case "inheritPiped":
         case "inherit":
           return "piped";
         case "null":
@@ -392,7 +392,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
 
   const stdoutBuffer = state.stdoutKind === "inherit"
     ? "inherit"
-    : state.stdoutKind === "captured"
+    : state.stdoutKind === "inheritPiped"
     ? new CapturingBufferWriter(Deno.stderr, new Buffer())
     : state.stdoutKind === "null"
     ? "null"
@@ -407,7 +407,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   );
   const stderrBuffer = state.stderrKind === "inherit"
     ? "inherit"
-    : state.stderrKind === "captured"
+    : state.stderrKind === "inheritPiped"
     ? new CapturingBufferWriter(Deno.stderr, new Buffer())
     : state.stderrKind === "null"
     ? "null"
