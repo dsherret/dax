@@ -45,18 +45,25 @@ const result = await $`echo 1 && echo 2`.lines();
 console.log(result); // ["1", "2"]
 
 // working with a lower level result that provides more details
-const result = await $`deno eval 'console.log(1); console.error(2);'`;
+const result = await $`deno eval 'console.log(1); console.error(2);'`
+  .stdout("piped")
+  .stderr("piped");
 console.log(result.code); // 0
 console.log(result.stdoutBytes); // Uint8Array(2) [ 49, 10 ]
 console.log(result.stdout); // 1\n
 console.log(result.stderr); // 5\n
-const output = await $`echo '{ "test": 5 }'`;
+const output = await $`echo '{ "test": 5 }'`.stdout("piped");
 console.log(output.stdoutJson);
 
 // providing stdout of command to other command
 // Note: This will read trim the last newline of the other command's stdout
-const result = await $`echo 1`;
-const result2 = await $`echo ${result}`;
+const result = await $`echo 1`.stdout("piped"); // need to set stdout as piped for this to work
+const result2 = await $`echo ${result}`.stdout("piped");
+console.log(result2.stdout); // 1\n
+
+// alternatively though, calling `.text()` like so is probably easier
+const result = await $`echo 1`.text();
+const result2 = await $`echo ${result}`.text();
 console.log(result2.stdout); // 1\n
 
 // providing stdin
@@ -78,7 +85,7 @@ await $`echo $var1 $var2 $var3 $var4`
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
 // makes a command not output anything to stdout and stderr
-// if set to "default" or "inherit"
+// if set to "inherit" or "captured"
 await $`echo 5`.quiet();
 await $`echo 5`.quiet("stdout"); // or just stdout
 await $`echo 5`.quiet("stderr"); // or just stderr
@@ -210,8 +217,7 @@ Shell variables (these aren't exported):
 ```ts
 // the 'test' variable WON'T be exported to the sub processes, so
 // that will print a blank line, but it will be used in the final echo command
-const result =
-  await $`test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
+await $`test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
 ```
 
 Env variables (these are exported):
@@ -219,15 +225,14 @@ Env variables (these are exported):
 ```ts
 // the 'test' variable WILL be exported to the sub processes and
 // it will be used in the final echo command
-const result =
-  await $`export test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
+await $`export test=123 && deno eval 'console.log(Deno.env.get('test'))' && echo $test`;
 ```
 
 Variable substitution:
 
 ```ts
-const result = await $`echo $TEST`.env("TEST", "123");
-console.log(result.stdout); // 123
+const result = await $`echo $TEST`.env("TEST", "123").text();
+console.log(result); // 123
 ```
 
 ### Custom Cross Platform Shell Commands
@@ -259,7 +264,7 @@ import {
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
-  .stdout("piped")
+  .stdout("captured") // output to stdout and pipe to a buffer
   .noThrow();
 
 const otherBuilder = commandBuilder

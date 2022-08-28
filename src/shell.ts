@@ -626,7 +626,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   }
 
   function getStdioStringValue(value: ShellPipeReader | ShellPipeWriterKind) {
-    if (value === "default") {
+    if (value === "captured") {
       return "piped";
     } else if (value === "inherit" || value === "null" || value === "piped") {
       return value;

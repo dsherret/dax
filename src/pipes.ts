@@ -3,7 +3,14 @@ import { Buffer, writeAll } from "./deps.ts";
 const encoder = new TextEncoder();
 
 export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "default";
+/**
+ * The behaviour to use for a shell pipe.
+ * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).
+ * @value "null" - Does not pipe or redirect the pipe.
+ * @value "piped" - Captures the pipe without outputting.
+ * @value "captured" - Captures the pipe with outputting.
+ */
+export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "captured";
 
 export class NullPipeWriter implements Deno.Writer {
   write(p: Uint8Array): Promise<number> {

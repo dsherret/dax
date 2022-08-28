@@ -92,8 +92,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return {
       command: undefined,
       stdin: "inherit",
-      stdoutKind: "default",
-      stderrKind: "default",
+      stdoutKind: "inherit",
+      stderrKind: "inherit",
       noThrow: false,
       env: Deno.env.toObject(),
       cwd: Deno.cwd(),
@@ -309,7 +309,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
       switch (kind) {
-        case "default":
+        case "captured":
         case "inherit":
           return "piped";
         case "null":
@@ -390,12 +390,12 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     console.log(colors.white(">"), colors.blue(state.command));
   }
 
-  const stdoutBuffer = state.stdoutKind === "default"
+  const stdoutBuffer = state.stdoutKind === "inherit"
+    ? "inherit"
+    : state.stdoutKind === "captured"
     ? new CapturingBufferWriter(Deno.stderr, new Buffer())
     : state.stdoutKind === "null"
     ? "null"
-    : state.stdoutKind === "inherit"
-    ? "inherit"
     : new Buffer();
   const stdout = new ShellPipeWriter(
     state.stdoutKind,
@@ -405,12 +405,12 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       ? Deno.stdout
       : stdoutBuffer,
   );
-  const stderrBuffer = state.stderrKind === "default"
+  const stderrBuffer = state.stderrKind === "inherit"
+    ? "inherit"
+    : state.stderrKind === "captured"
     ? new CapturingBufferWriter(Deno.stderr, new Buffer())
     : state.stderrKind === "null"
     ? "null"
-    : state.stderrKind === "inherit"
-    ? "inherit"
     : new Buffer();
   const stderr = new ShellPipeWriter(
     state.stderrKind,
@@ -498,7 +498,9 @@ export class CommandResult {
   /** Raw stdout bytes. */
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
-      throw new Error(`Stdout was not piped (was ${this.#stdout}). By default stdout is piped.`);
+      throw new Error(
+        `Stdout was not piped (was ${this.#stdout}). Call .stdout("pipe") or .stdout("capture") on the process.`,
+      );
     }
     return this.#stdout.bytes();
   }
@@ -530,7 +532,9 @@ export class CommandResult {
   /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
     if (typeof this.#stderr === "string") {
-      throw new Error(`Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") on the process.`);
+      throw new Error(
+        `Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") or .stderr("capture") on the process.`,
+      );
     }
     return this.#stderr.bytes();
   }
