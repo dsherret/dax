@@ -2,8 +2,6 @@
 
 [![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
 
-**Note:** This is very early stages. Just started working on it.
-
 Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
 
 Differences:
