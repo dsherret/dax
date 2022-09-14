@@ -604,7 +604,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     }
     // don't abort... ensure all of stdout/stderr is read in case the process
     // exits before this finishes
-    await pipeReaderToWriter(reader, writer, new AbortController().signal);
+    await pipeReaderToWriterSync(reader, writer, new AbortController().signal);
   }
 
   async function pipeReaderToWriter(reader: Deno.Reader, writer: Deno.Writer, signal: AbortSignal) {
@@ -621,6 +621,24 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       let nwritten = 0;
       while (nwritten < arr.length && !signal.aborted) {
         nwritten += await writer.write(arr.subarray(nwritten));
+      }
+    }
+  }
+
+  async function pipeReaderToWriterSync(reader: Deno.Reader, writer: Deno.WriterSync, signal: AbortSignal) {
+    while (!signal.aborted) {
+      const buffer = new Uint8Array(1024);
+      const length = await reader.read(buffer);
+      if (length === 0 || length == null) {
+        break;
+      }
+      writeAll(buffer.subarray(0, length));
+    }
+
+    function writeAll(arr: Uint8Array) {
+      let nwritten = 0;
+      while (nwritten < arr.length && !signal.aborted) {
+        nwritten += writer.writeSync(arr.subarray(nwritten));
       }
     }
   }

@@ -2,10 +2,10 @@ import { ExecuteResult } from "./result.ts";
 
 export type CommandPipeReader = "inherit" | "null" | Deno.Reader;
 
-export interface CommandPipeWriter extends Deno.Writer {
-  write(p: Uint8Array): Promise<number>;
-  writeText(text: string): Promise<void>;
-  writeLine(text: string): Promise<void>;
+export interface CommandPipeWriter extends Deno.WriterSync {
+  writeSync(p: Uint8Array): number;
+  writeText(text: string): void;
+  writeLine(text: string): void;
 }
 
 export interface CommandContext {
