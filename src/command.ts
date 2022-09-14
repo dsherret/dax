@@ -390,13 +390,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     console.log(colors.white(">"), colors.blue(state.command));
   }
 
-  const stdoutBuffer = state.stdoutKind === "inherit"
-    ? "inherit"
-    : state.stdoutKind === "inheritPiped"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stdoutKind === "null"
-    ? "null"
-    : new Buffer();
+  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
   const stdout = new ShellPipeWriter(
     state.stdoutKind,
     stdoutBuffer === "null"
@@ -405,13 +399,6 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       ? Deno.stdout
       : stdoutBuffer,
   );
-  const stderrBuffer = state.stderrKind === "inherit"
-    ? "inherit"
-    : state.stderrKind === "inheritPiped"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stderrKind === "null"
-    ? "null"
-    : new Buffer();
   const stderr = new ShellPipeWriter(
     state.stderrKind,
     stderrBuffer === "null"
@@ -450,11 +437,39 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       code,
       stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
       stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
+      combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
     );
   } finally {
     if (timeoutId != null) {
       clearTimeout(timeoutId);
     }
+  }
+
+  function getBuffers() {
+    const stdoutBuffer = state.stdoutKind === "inherit"
+      ? "inherit"
+      : state.stdoutKind === "inheritPiped"
+      ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+      : state.stdoutKind === "null"
+      ? "null"
+      : new Buffer();
+    const stderrBuffer = state.stderrKind === "inherit"
+      ? "inherit"
+      : state.stderrKind === "inheritPiped"
+      ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+      : state.stderrKind === "null"
+      ? "null"
+      : new Buffer();
+    if (typeof stdoutBuffer !== "string" && typeof stderrBuffer !== "string") {
+      // if both are piped then create a capturing buffer writer for both
+      const combinedBuffer = new Buffer();
+      return [
+        new CapturingBufferWriter(stdoutBuffer, combinedBuffer),
+        new CapturingBufferWriter(stderrBuffer, combinedBuffer),
+        combinedBuffer,
+      ] as const;
+    }
+    return [stdoutBuffer, stderrBuffer, undefined] as const;
   }
 }
 
@@ -462,13 +477,16 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
 export class CommandResult {
   #stdout: BufferStdio;
   #stderr: BufferStdio;
+  #combined: Buffer | undefined;
+
   /** The exit code. */
   readonly code: number;
 
-  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio) {
+  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio, combined: Buffer | undefined) {
     this.code = code;
     this.#stdout = stdout;
     this.#stderr = stderr;
+    this.#combined = combined;
   }
 
   #memoizedStdout: string | undefined;
@@ -537,6 +555,28 @@ export class CommandResult {
       );
     }
     return this.#stderr.bytes();
+  }
+
+  #memoizedCombined: string | undefined;
+
+  /** Raw combined stdout and stderr text. */
+  get combined() {
+    if (!this.#memoizedCombined) {
+      this.#memoizedCombined = textDecoder.decode(this.combinedBytes);
+    }
+    return this.#memoizedCombined;
+  }
+
+  /** Raw combined stdout and stderr bytes. */
+  get combinedBytes(): Uint8Array {
+    if (this.#combined == null) {
+      // one of these won't be piped, and accessing
+      // them will throw the appropriate exception
+      this.stdoutBytes;
+      this.stderrBytes;
+      throw new Error("unreachable");
+    }
+    return this.#combined.bytes();
   }
 }
 
