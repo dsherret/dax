@@ -237,9 +237,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the current working directory to use when executing this command. */
-  cwd(dirPath: string) {
+  cwd(dirPath: string | URL) {
     return this.#newWithState(state => {
-      state.cwd = path.resolve(dirPath);
+      state.cwd = dirPath instanceof URL ? path.fromFileUrl(dirPath) : path.resolve(dirPath);
     });
   }
 
