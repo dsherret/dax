@@ -517,7 +517,7 @@ export class CommandResult {
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
       throw new Error(
-        `Stdout was not piped (was ${this.#stdout}). Call .stdout("pipe") or .stdout("capture") on the process.`,
+        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") on the process.`,
       );
     }
     return this.#stdout.bytes();
@@ -551,7 +551,7 @@ export class CommandResult {
   get stderrBytes(): Uint8Array {
     if (typeof this.#stderr === "string") {
       throw new Error(
-        `Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") or .stderr("capture") on the process.`,
+        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") on the process.`,
       );
     }
     return this.#stderr.bytes();

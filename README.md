@@ -28,6 +28,10 @@ await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
 const dirNames = ["some_dir", "other dir"];
 await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
 
+// or use $.raw to not do any escaping
+const args = "arg1   arg2   arg3";
+await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
+
 // get the stdout of a command (makes stdout "quiet")
 const result = await $`echo 1`.text();
 console.log(result); // 1

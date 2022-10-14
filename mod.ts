@@ -203,6 +203,23 @@ export interface $Type {
    */
   sleep(delay: Delay): Promise<void>;
   /**
+   * Executes the command as raw text without escaping expressions.
+   *
+   * ```ts
+   * const expr = "some   text   to   echo";
+   * $.raw`echo {expr}`; // outputs: some text to echo
+   * ```
+   *
+   * @remarks Most likely you will want to escape arguments or provide
+   * an array of arguments to the main `$` tagged template. For example:
+   *
+   * ```ts
+   * const exprs = ["arg1", "arg two", "arg three"];
+   * await $`command ${exprs}`;
+   * ```
+   */
+  raw(strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
+  /**
    * Does the provided action until it succeeds (does not throw)
    * or the specified number of retries (`count`) is hit.
    */
@@ -419,7 +436,7 @@ export function build$(options: Create$Options) {
           result += strings[i];
         }
         if (exprs.length > i) {
-          result += templateLiteralExprToString(exprs[i]);
+          result += templateLiteralExprToString(exprs[i], escapeArg);
         }
       }
       return commandBuilder.command(result);
@@ -429,6 +446,18 @@ export function build$(options: Create$Options) {
       request(url: string | URL) {
         return requestBuilder.url(url);
       },
+      raw(strings: TemplateStringsArray, ...exprs: any[]) {
+        let result = "";
+        for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+          if (strings.length > i) {
+            result += strings[i];
+          }
+          if (exprs.length > i) {
+            result += templateLiteralExprToString(exprs[i]);
+          }
+        }
+        return commandBuilder.command(result);
+      },
     },
   );
   // copy over the get/set accessors for logDepth
@@ -437,15 +466,17 @@ export function build$(options: Create$Options) {
   return result;
 }
 
-function templateLiteralExprToString(expr: any): string {
+function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
+  let result: string;
   if (expr instanceof Array) {
-    return expr.map(e => templateLiteralExprToString(e)).join(" ");
+    return expr.map(e => templateLiteralExprToString(e, escape)).join(" ");
   } else if (expr instanceof CommandResult) {
     // remove last newline
-    return escapeArg(expr.stdout.replace(/\r?\n$/, ""));
+    result = expr.stdout.replace(/\r?\n$/, "");
   } else {
-    return escapeArg(`${expr}`);
+    result = `${expr}`;
   }
+  return escape ? escape(result) : result;
 }
 
 /**

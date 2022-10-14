@@ -43,7 +43,7 @@ Deno.test("should not get stderr when inherited only (default)", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was inherit). Call .stderr("pipe") or .stderr("capture") on the process.`,
+    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") on the process.`,
   );
 });
 
@@ -53,7 +53,7 @@ Deno.test("should not get stderr when null", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was null). Call .stderr("pipe") or .stderr("capture") on the process.`,
+    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("capture") on the process.`,
   );
 });
 
@@ -81,7 +81,7 @@ Deno.test("should not get combined stdout and stderr when stdout is inherited (d
   assertThrows(
     () => output.combined,
     Error,
-    `Stdout was not piped (was inherit). Call .stdout("pipe") or .stdout("capture") on the process.`,
+    `Stdout was not piped (was inherit). Call .stdout("piped") or .stdout("capture") on the process.`,
   );
 });
 
@@ -91,7 +91,7 @@ Deno.test("should not get combined stdout and stderr when stderr is inherited", 
   assertThrows(
     () => output.combined,
     Error,
-    `Stderr was not piped (was inherit). Call .stderr("pipe") or .stderr("capture") on the process.`,
+    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") on the process.`,
   );
 });
 
@@ -171,6 +171,23 @@ Deno.test("should handle providing array of arguments", async () => {
   const args = [1, "2", "test   test"];
   const text = await $`deno eval 'console.log(Deno.args)' ${args}`.text();
   assertEquals(text, `[ "1", "2", "test   test" ]`);
+});
+
+Deno.test("raw should handle providing array of arguments", async () => {
+  const args = [1, "2", "test   test"];
+  const text = await $.raw`deno eval 'console.log(Deno.args)' ${args}`.text();
+  assertEquals(text, `[ "1", "2", "test", "test" ]`);
+});
+
+Deno.test("raw should handle text provided", async () => {
+  const text = await $.raw`deno eval 'console.log(Deno.args)' ${"testing this   out"}`.text();
+  assertEquals(text, `[ "testing", "this", "out" ]`);
+});
+
+Deno.test("raw should handle command result", async () => {
+  const result = await $`echo '1   2   3'`.stdout("piped");
+  const text = await $.raw`deno eval 'console.log(Deno.args)' ${result}`.text();
+  assertEquals(text, `[ "1", "2", "3" ]`);
 });
 
 Deno.test("command builder should build", async () => {
