@@ -19,18 +19,8 @@ Differences:
 ```ts
 import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
-// run a command with its output sent to stdout and stderr
-await $`echo 5`;
-
-// expressions provided to the template literal are escaped if necessary
-const dirName = "Dir with spaces";
-await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
-const dirNames = ["some_dir", "other dir"];
-await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
-
-// or use $.raw to not do any escaping
-const args = "arg1   arg2   arg3";
-await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
+// run a command
+await $`echo 5`; // outputs: 5
 
 // get the stdout of a command (makes stdout "quiet")
 const result = await $`echo 1`.text();
@@ -58,6 +48,16 @@ console.log(result.stdout); // 1\n
 console.log(result.stderr); // 5\n
 const output = await $`echo '{ "test": 5 }'`.stdout("piped");
 console.log(output.stdoutJson);
+
+// expressions provided to the template literal are escaped if necessary
+const dirName = "Dir with spaces";
+await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
+const dirNames = ["some_dir", "other dir"];
+await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
+
+// or use $.raw to not do any escaping
+const args = "arg1   arg2   arg3";
+await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
 
 // providing stdout of command to other command
 // Note: This will read trim the last newline of the other command's stdout
