@@ -167,6 +167,12 @@ Deno.test("should handle interpolation", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
+Deno.test("should handle providing array of arguments", async () => {
+  const args = [1, "2", "test   test"];
+  const text = await $`deno eval 'console.log(Deno.args)' ${args}`.text();
+  assertEquals(text, `[ "1", "2", "test   test" ]`);
+});
+
 Deno.test("command builder should build", async () => {
   const commandBuilder = new CommandBuilder()
     .env("TEST", "123");

@@ -25,6 +25,8 @@ await $`echo 5`;
 // expressions provided to the template literal are escaped if necessary
 const dirName = "Dir with spaces";
 await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
+const dirNames = ["some_dir", "other dir"];
+await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
 
 // get the stdout of a command (makes stdout "quiet")
 const result = await $`echo 1`.text();

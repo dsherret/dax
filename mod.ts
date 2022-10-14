@@ -419,13 +419,7 @@ export function build$(options: Create$Options) {
           result += strings[i];
         }
         if (exprs.length > i) {
-          const expr = exprs[i];
-          if (expr instanceof CommandResult) {
-            // remove last newline
-            result += escapeArg(expr.stdout.replace(/\r?\n$/, ""));
-          } else {
-            result += escapeArg(`${exprs[i]}`);
-          }
+          result += templateLiteralExprToString(exprs[i]);
         }
       }
       return commandBuilder.command(result);
@@ -441,6 +435,17 @@ export function build$(options: Create$Options) {
   const keyName: keyof typeof helperObject = "logDepth";
   Object.defineProperty(result, keyName, Object.getOwnPropertyDescriptor(helperObject, keyName)!);
   return result;
+}
+
+function templateLiteralExprToString(expr: any): string {
+  if (expr instanceof Array) {
+    return expr.map(e => templateLiteralExprToString(e)).join(" ");
+  } else if (expr instanceof CommandResult) {
+    // remove last newline
+    return escapeArg(expr.stdout.replace(/\r?\n$/, ""));
+  } else {
+    return escapeArg(`${expr}`);
+  }
 }
 
 /**
