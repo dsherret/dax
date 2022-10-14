@@ -66,6 +66,36 @@ export interface $Type {
    * @see {@link RequestBuilder}
    */
   request(url: string | URL): RequestBuilder;
+  /**
+   * Builds a new `$` which will use the state of the provided
+   * builders as the default and inherits settings from the `$` the
+   * new `$` was built from.
+   *
+   * This can be useful if you want different default settings or want
+   * to change loggers for only a subset of code.
+   *
+   * Example:
+   *
+   * ```ts
+   * import dax from "https://deno.land/x/dax/mod.ts";
+   *
+   * const commandBuilder = new CommandBuilder()
+   *   .cwd("./subDir")
+   *   .env("HTTPS_PROXY", "some_value");
+   * const requestBuilder = new RequestBuilder()
+   *   .header("SOME_VALUE", "value");
+   *
+   * const $ = dax.build$({ commandBuilder, requestBuilder });
+   *
+   * // this command will use the env described above, but the main
+   * // process and default `$` won't have its environment changed
+   * await $`deno run my_script.ts`;
+   *
+   * // similarly, this will have the headers that were set in the request builder
+   * const data = await $.request("https://plugins.dprint.dev/info.json").json();
+   * ```
+   */
+  build$(options?: Create$Options): $Type;
   /** Changes the directory of the current process. */
   cd(path: string | URL): void;
   /**
@@ -193,6 +223,21 @@ export interface $Type {
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
   /**
+   * Sets the logger used for info logging.
+   * @default console.error
+   */
+  setInfoLogger(logger: (args: any[]) => void): void;
+  /**
+   * Sets the logger used for warn logging.
+   * @default console.error
+   */
+  setWarnLogger(logger: (args: any[]) => void): void;
+  /**
+   * Sets the logger used for error logging.
+   * @default console.error
+   */
+  setErrorLogger(logger: (args: any[]) => void): void;
+  /**
    * Sleep for the provided delay.
    *
    * ```ts
@@ -223,7 +268,7 @@ export interface $Type {
    * Does the provided action until it succeeds (does not throw)
    * or the specified number of retries (`count`) is hit.
    */
-  withRetries<TReturn>(params: RetryOptions<TReturn>): Promise<TReturn>;
+  withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn>;
   /** Re-export of `deno_which` for getting the path to an executable. */
   which: typeof which;
   /** Similar to `which`, but synchronously. */
@@ -235,24 +280,28 @@ function sleep(delay: Delay) {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
 }
 
-async function withRetries<TReturn>(opts: RetryOptions<TReturn>) {
+async function withRetries<TReturn>(
+  $local: $Type,
+  errorLogger: (...args: any[]) => void,
+  opts: RetryOptions<TReturn>,
+) {
   const delayIterator = delayToIterator(opts.delay);
   for (let i = 0; i < opts.count; i++) {
     if (i > 0) {
       const nextDelay = delayIterator.next();
       if (!opts.quiet) {
-        $.logWarn(`Failed. Trying again in ${formatMillis(nextDelay)}...`);
+        $local.logWarn(`Failed. Trying again in ${formatMillis(nextDelay)}...`);
       }
       await sleep(nextDelay);
       if (!opts.quiet) {
-        $.logStep(`Retrying attempt ${i + 1}/${opts.count}...`);
+        $local.logStep(`Retrying attempt ${i + 1}/${opts.count}...`);
       }
     }
     try {
       return await opts.action();
     } catch (err) {
       // don't bother with indentation here
-      console.error(err);
+      errorLogger(err);
     }
   }
 
@@ -263,42 +312,31 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
-// this is global because logging is a global property and it
-// then allows functions to easily call other functions and
-// those should be indented underneath
-let indentLevel = 0;
-
-function getLogText(data: any[]) {
-  // this should be smarter to better emulate how console.log/error work
-  const combinedText = data.join(" ");
-  if (indentLevel === 0) {
-    return combinedText;
-  } else {
-    const indentText = "  ".repeat(indentLevel);
-    return combinedText
-      .split(/\n/) // keep \r on line
-      .map(l => `${indentText}${l}`)
-      .join("\n");
+class Box<T> {
+  constructor(public value: T) {
   }
 }
 
-function logStep(firstArg: string, data: any[], colourize: (text: string) => string) {
-  if (data.length === 0) {
-    let i = 0;
-    // skip over any leading whitespace
-    while (i < firstArg.length && firstArg[i] === " ") {
-      i++;
-    }
-    // skip over any non whitespace
-    while (i < firstArg.length && firstArg[i] !== " ") {
-      i++;
-    }
-    // emphasize the first word only
-    firstArg = colourize(firstArg.substring(0, i)) + firstArg.substring(i);
-  } else {
-    firstArg = colourize(firstArg);
-  }
-  console.error(getLogText([firstArg, ...data]));
+interface $State {
+  isGlobal: boolean;
+  commandBuilder: CommandBuilder;
+  requestBuilder: RequestBuilder;
+  infoLogger: Box<(...args: any[]) => void>;
+  warnLogger: Box<(...args: any[]) => void>;
+  errorLogger: Box<(...args: any[]) => void>;
+  indentLevel: Box<number>;
+}
+
+function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $State {
+  return {
+    isGlobal: opts.isGlobal,
+    commandBuilder: opts.commandBuilder ?? new CommandBuilder(),
+    requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
+    infoLogger: new Box(console.error),
+    warnLogger: new Box(console.error),
+    errorLogger: new Box(console.error),
+    indentLevel: new Box(0),
+  };
 }
 
 const helperObject = {
@@ -312,68 +350,7 @@ const helperObject = {
   exists(path: string) {
     return fs.exists(path);
   },
-  log(...data: any[]) {
-    // all logging is done over stderr
-    console.error(getLogText(data));
-  },
-  logLight(...data: any[]) {
-    console.error(colors.gray(getLogText(data)));
-  },
-  logStep(firstArg: string, ...data: any[]) {
-    logStep(firstArg, data, (t) => colors.bold(colors.green(t)));
-  },
-  logError(firstArg: string, ...data: any[]) {
-    logStep(firstArg, data, (t) => colors.bold(colors.red(t)));
-  },
-  logWarn(firstArg: string, ...data: any[]) {
-    logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)));
-  },
-  logGroup<TResult>(labelOrAction?: string | (() => TResult), maybeAction?: () => TResult): TResult | void {
-    const label = typeof labelOrAction === "string" ? labelOrAction : undefined;
-    if (label) {
-      console.error(getLogText([label]));
-    }
-    indentLevel++;
-    const action = label != null ? maybeAction : labelOrAction as (() => TResult);
-    if (action != null) {
-      let wasPromise = false;
-      try {
-        const result = action();
-        if (result instanceof Promise) {
-          wasPromise = true;
-          return result.finally(() => {
-            if (indentLevel > 0) {
-              indentLevel--;
-            }
-          }) as any;
-        } else {
-          return result;
-        }
-      } finally {
-        if (!wasPromise) {
-          if (indentLevel > 0) {
-            indentLevel--;
-          }
-        }
-      }
-    }
-  },
-  logGroupEnd() {
-    if (indentLevel > 0) {
-      indentLevel--;
-    }
-  },
-  get logDepth() {
-    return indentLevel;
-  },
-  set logDepth(value: number) {
-    if (value < 0 || value % 1 !== 0) {
-      throw new Error("Expected a positive integer.");
-    }
-    indentLevel = value;
-  },
   sleep,
-  withRetries,
   which(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
       return Promise.resolve(Deno.execPath());
@@ -396,6 +373,180 @@ export interface Create$Options {
   commandBuilder?: CommandBuilder;
   /** Uses the state of this request builder as a starting point. */
   requestBuilder?: RequestBuilder;
+}
+
+function build$FromState(state: $State) {
+  const logDepthObj = {
+    get logDepth() {
+      return state.indentLevel.value;
+    },
+    set logDepth(value: number) {
+      if (value < 0 || value % 1 !== 0) {
+        throw new Error("Expected a positive integer.");
+      }
+      state.indentLevel.value = value;
+    },
+  };
+  const result = Object.assign(
+    (strings: TemplateStringsArray, ...exprs: any[]) => {
+      let result = "";
+      for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+        if (strings.length > i) {
+          result += strings[i];
+        }
+        if (exprs.length > i) {
+          result += templateLiteralExprToString(exprs[i], escapeArg);
+        }
+      }
+      return state.commandBuilder.command(result);
+    },
+    helperObject,
+    logDepthObj,
+    {
+      build$(opts: Create$Options = {}) {
+        return build$FromState({
+          isGlobal: false,
+          commandBuilder: opts.commandBuilder ?? state.commandBuilder,
+          requestBuilder: opts.requestBuilder ?? state.requestBuilder,
+          errorLogger: state.errorLogger,
+          infoLogger: state.infoLogger,
+          warnLogger: state.warnLogger,
+          indentLevel: state.indentLevel,
+        });
+      },
+      log(...data: any[]) {
+        state.infoLogger.value(getLogText(data));
+      },
+      logLight(...data: any[]) {
+        state.infoLogger.value(colors.gray(getLogText(data)));
+      },
+      logStep(firstArg: string, ...data: any[]) {
+        logStep(firstArg, data, (t) => colors.bold(colors.green(t)), state.infoLogger.value);
+      },
+      logError(firstArg: string, ...data: any[]) {
+        logStep(firstArg, data, (t) => colors.bold(colors.red(t)), state.errorLogger.value);
+      },
+      logWarn(firstArg: string, ...data: any[]) {
+        logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)), state.warnLogger.value);
+      },
+      logGroup<TResult>(labelOrAction?: string | (() => TResult), maybeAction?: () => TResult): TResult | void {
+        const label = typeof labelOrAction === "string" ? labelOrAction : undefined;
+        if (label) {
+          state.infoLogger.value(getLogText([label]));
+        }
+        state.indentLevel.value++;
+        const action = label != null ? maybeAction : labelOrAction as (() => TResult);
+        if (action != null) {
+          let wasPromise = false;
+          try {
+            const result = action();
+            if (result instanceof Promise) {
+              wasPromise = true;
+              return result.finally(() => {
+                if (state.indentLevel.value > 0) {
+                  state.indentLevel.value--;
+                }
+              }) as any;
+            } else {
+              return result;
+            }
+          } finally {
+            if (!wasPromise) {
+              if (state.indentLevel.value > 0) {
+                state.indentLevel.value--;
+              }
+            }
+          }
+        }
+      },
+      logGroupEnd() {
+        if (state.indentLevel.value > 0) {
+          state.indentLevel.value--;
+        }
+      },
+      setInfoLogger(logger: (args: any[]) => void) {
+        if (state.isGlobal) {
+          state.infoLogger.value = logger;
+        } else {
+          state.infoLogger = new Box(logger);
+        }
+      },
+      setWarnLogger(logger: (args: any[]) => void) {
+        if (state.isGlobal) {
+          state.warnLogger.value = logger;
+        } else {
+          state.warnLogger = new Box(logger);
+        }
+      },
+      setErrorLogger(logger: (args: any[]) => void) {
+        if (state.isGlobal) {
+          state.errorLogger.value = logger;
+        } else {
+          state.errorLogger = new Box(logger);
+        }
+      },
+      request(url: string | URL) {
+        return state.requestBuilder.url(url);
+      },
+      raw(strings: TemplateStringsArray, ...exprs: any[]) {
+        let result = "";
+        for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+          if (strings.length > i) {
+            result += strings[i];
+          }
+          if (exprs.length > i) {
+            result += templateLiteralExprToString(exprs[i]);
+          }
+        }
+        return state.commandBuilder.command(result);
+      },
+      withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
+        return withRetries(result, state.errorLogger.value, opts);
+      },
+    },
+  );
+  // copy over the get/set accessors for logDepth
+  const keyName: keyof typeof logDepthObj = "logDepth";
+  Object.defineProperty(result, keyName, Object.getOwnPropertyDescriptor(logDepthObj, keyName)!);
+  return result;
+
+  function getLogText(data: any[]) {
+    // this should be smarter to better emulate how console.log/error work
+    const combinedText = data.join(" ");
+    if (state.indentLevel.value === 0) {
+      return combinedText;
+    } else {
+      const indentText = "  ".repeat(state.indentLevel.value);
+      return combinedText
+        .split(/\n/) // keep \r on line
+        .map(l => `${indentText}${l}`)
+        .join("\n");
+    }
+  }
+
+  function logStep(
+    firstArg: string,
+    data: any[],
+    colourize: (text: string) => string,
+    logger: (...args: any[]) => void,
+  ) {
+    if (data.length === 0) {
+      let i = 0;
+      // skip over any leading whitespace
+      while (i < firstArg.length && firstArg[i] === " ") {
+        i++;
+      }
+      // skip over any non whitespace
+      while (i < firstArg.length && firstArg[i] !== " ") {
+        i++;
+      }
+      // emphasize the first word only
+      firstArg = colourize(firstArg.substring(0, i)) + firstArg.substring(i);
+    } else {
+      firstArg = colourize(firstArg);
+    }
+    logger(getLogText([firstArg, ...data]));
+  }
 }
 
 /**
@@ -425,45 +576,11 @@ export interface Create$Options {
  * const data = await $.request("https://plugins.dprint.dev/info.json").json();
  * ```
  */
-export function build$(options: Create$Options) {
-  const commandBuilder = options.commandBuilder ?? new CommandBuilder();
-  const requestBuilder = options.requestBuilder ?? new RequestBuilder();
-  const result = Object.assign(
-    (strings: TemplateStringsArray, ...exprs: any[]) => {
-      let result = "";
-      for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-        if (strings.length > i) {
-          result += strings[i];
-        }
-        if (exprs.length > i) {
-          result += templateLiteralExprToString(exprs[i], escapeArg);
-        }
-      }
-      return commandBuilder.command(result);
-    },
-    helperObject,
-    {
-      request(url: string | URL) {
-        return requestBuilder.url(url);
-      },
-      raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        let result = "";
-        for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-          if (strings.length > i) {
-            result += strings[i];
-          }
-          if (exprs.length > i) {
-            result += templateLiteralExprToString(exprs[i]);
-          }
-        }
-        return commandBuilder.command(result);
-      },
-    },
-  );
-  // copy over the get/set accessors for logDepth
-  const keyName: keyof typeof helperObject = "logDepth";
-  Object.defineProperty(result, keyName, Object.getOwnPropertyDescriptor(helperObject, keyName)!);
-  return result;
+export function build$(options: Create$Options = {}) {
+  return build$FromState(buildInitial$State({
+    isGlobal: false,
+    ...options,
+  }));
 }
 
 function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
@@ -482,5 +599,7 @@ function templateLiteralExprToString(expr: any, escape?: (arg: string) => string
 /**
  * Default `$` where commands may be executed.
  */
-export const $: $Type = build$({});
+export const $: $Type = build$FromState(buildInitial$State({
+  isGlobal: true,
+}));
 export default $;

@@ -135,6 +135,12 @@ $.log("Indented 2");
 $.logGroupEnd();
 $.logGroupEnd();
 
+// set the loggers. For example, log everything
+// on stdout instead of stderr
+$.setInfoLogger(console.log);
+$.setWarnLogger(console.log);
+$.setErrorLogger(console.log);
+
 // change directory
 $.cd("newDir");
 
@@ -362,4 +368,27 @@ await $`echo $MY_VALUE`;
 await $`echo $PWD`;
 // won't throw even though this command fails (because of `.noThrow()`)
 await $`deno eval 'Deno.exit(1);'`;
+```
+
+#### Building `$` from another `$`
+
+You can build a `$` from another `$` by calling `$.build$({ /* options go here */ })`.
+
+This might be useful in scenarios where you want to use a `$` with a custom logger.
+
+```
+const local$ = $.build$();
+local$.setInfoLogger((...args: any[]) => {
+  // a more real example might be logging to a file
+  console.log("Logging...");
+  console.log(...args);
+});
+local$.log("Hello!");
+```
+
+Outputs:
+
+```
+Logging...
+Hello!
 ```

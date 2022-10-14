@@ -1,6 +1,6 @@
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import $, { CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
-import { Buffer, path } from "./src/deps.ts";
+import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -194,20 +194,20 @@ Deno.test("command builder should build", async () => {
   const commandBuilder = new CommandBuilder()
     .env("TEST", "123");
   {
-    const $ = build$({ commandBuilder });
+    const local$ = $.build$({ commandBuilder });
     // after creating a $, the environment should be set in stone, so changing
     // this environment variable should have no effect here. Additionally,
     // command builders are immutable and return a new builder each time
     commandBuilder.env("TEST", "456");
-    const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }
 
   {
     // this one additionally won't be affected because command builders are immutable
-    const $ = build$({ commandBuilder });
-    const output = await $`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const local$ = $.build$({ commandBuilder });
+    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }
@@ -598,4 +598,29 @@ Deno.test("basic logging test to ensure no errors", async () => {
   $.log("Test");
   $.logGroupEnd();
   assertEquals($.logDepth, 4);
+  $.logDepth = 0;
+});
+
+Deno.test("setting logging", async () => {
+  const test$ = $.build$();
+  const infoLogs: any[] = [];
+  const warnLogs: any[] = [];
+  const errorLogs: any[] = [];
+  test$.setInfoLogger((...args) => {
+    infoLogs.push(args);
+  });
+  test$.setWarnLogger((...args) => {
+    warnLogs.push(args);
+  });
+  test$.setErrorLogger((...args) => {
+    errorLogs.push(args);
+  });
+
+  test$.log("Info");
+  test$.logWarn("Warn");
+  test$.logError("Error");
+
+  assertEquals(infoLogs, [["Info"]]);
+  assertEquals(warnLogs, [[colors.bold(colors.yellow("Warn"))]]);
+  assertEquals(errorLogs, [[colors.bold(colors.red("Error"))]]);
 });
