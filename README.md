@@ -178,7 +178,7 @@ Outputs the following (with the command text in blue):
 example
 ```
 
-Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-$)).
+Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-)).
 
 ### Timeout a command
 
