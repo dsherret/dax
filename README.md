@@ -6,7 +6,8 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 
 Differences:
 
-1. No globals or global configuration.
+1. Minimal globals or global configuration.
+   - Only a default instance of `$`, but it's not mandatory to use this.
 1. No custom CLI.
 1. Cross platform shell to help the code work on Windows.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
@@ -14,7 +15,7 @@ Differences:
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
-## Example
+## Executing commands
 
 ```ts
 import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
@@ -22,23 +23,43 @@ import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 // run a command
 await $`echo 5`; // outputs: 5
 
-// get the stdout of a command (makes stdout "quiet")
+// more complex example outputting 1 to stdout and 2 to stderr
+await $`echo 1 && deno eval 'console.error(2);'`;
+```
+
+### Retrieving output
+
+Get the stdout of a command (makes stdout "quiet"):
+
+```ts
 const result = await $`echo 1`.text();
 console.log(result); // 1
+```
 
-// get the result of stdout as json (makes stdout "quiet")
+Get the result of stdout as json (makes stdout "quiet"):
+
+```ts
 const result = await $`echo '{ "prop": 5 }'`.json();
 console.log(result.prop); // 5
+```
 
-// get the result of stdout as bytes (makes stdout "quiet")
+Get the result of stdout as bytes (makes stdout "quiet"):
+
+```ts
 const result = await $`echo 'test'`.bytes();
 console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
+```
 
-// get the result of stdout as a list of lines (makes stdout "quiet")
+Get the result of stdout as a list of lines (makes stdout "quiet"):
+
+```ts
 const result = await $`echo 1 && echo 2`.lines();
 console.log(result); // ["1", "2"]
+```
 
-// working with a lower level result that provides more details
+Working with a lower level result that provides more details:
+
+```ts
 const result = await $`deno eval 'console.log(1); console.error(2);'`
   .stdout("piped")
   .stderr("piped");
@@ -48,34 +69,70 @@ console.log(result.stdout); // 1\n
 console.log(result.stderr); // 5\n
 const output = await $`echo '{ "test": 5 }'`.stdout("piped");
 console.log(output.stdoutJson);
+```
 
-// expressions provided to the template literal are escaped if necessary
+### Providing arguments to a command
+
+Use substitution in a template literal expression to provide a single argument to a command:
+
+```ts
+const dirName = "some_dir";
+await $`mkdir ${dirName}`; // executes as: mkdir some_dir
+```
+
+Arguments are escaped so strings with spaces get escaped and remain as a single argument:
+
+```ts
 const dirName = "Dir with spaces";
 await $`mkdir ${dirName}`; // executes as: mkdir 'Dir with spaces'
+```
+
+Alternatively, provide an array for multiple arguments:
+
+```ts
 const dirNames = ["some_dir", "other dir"];
 await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
+```
 
-// or use $.raw to not do any escaping
+If you do not want to escape arguments in a template literal, you can opt out completely, by using `$.raw`:
+
+```ts
 const args = "arg1   arg2   arg3";
 await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
+```
 
-// providing stdout of command to other command
+Providing stdout of one command to another is possible as follows:
+
+```ts
 // Note: This will read trim the last newline of the other command's stdout
 const result = await $`echo 1`.stdout("piped"); // need to set stdout as piped for this to work
-const result2 = await $`echo ${result}`.stdout("piped");
-console.log(result2.stdout); // 1\n
+const finalText = await $`echo ${result}`.text();
+console.log(finalText); // 1
+```
 
+...though it's probably a lot easier to just collect all the text of a command and provide that:
+
+```ts
 // alternatively though, calling `.text()` like so is probably easier
 const result = await $`echo 1`.text();
-const result2 = await $`echo ${result}`.text();
-console.log(result2.stdout); // 1\n
+const finalText = await $`echo ${result}`.text();
+console.log(finalText); // 1
+```
 
-// providing stdin
+### Providing stdin
+
+```ts
 await $`command`.stdin("some value");
-await $`command`.stdin(bytes);
+await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
 await $`command`.stdin(someReader);
+```
 
-// setting env variables (outputs: 1 2 3 4)
+### Setting environment variables
+
+Done via the `.env(...)` method:
+
+```ts
+// outputs: 1 2 3 4
 await $`echo $var1 $var2 $var3 $var4`
   .env("var1", "1")
   .env("var2", "2")
@@ -84,28 +141,83 @@ await $`echo $var1 $var2 $var3 $var4`
     var3: "3",
     var4: "4",
   });
+```
 
-// setting cwd for command
+### Setting cwd for command
+
+Use `.cwd("new_cwd_goes_here")`:
+
+```ts
+// outputs that it's in the someDir directory
 await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
+```
 
-// makes a command not output anything to stdout and stderr
-// if set to "inherit" or "inheritPiped"
+### Silencing a command
+
+Makes a command not output anything to stdout and stderr if set to `"inherit"` or `"inheritPiped"`.
+
+```ts
 await $`echo 5`.quiet();
 await $`echo 5`.quiet("stdout"); // or just stdout
 await $`echo 5`.quiet("stderr"); // or just stderr
+```
 
-// output the command before executing it
+### Output a command before executing it
+
+The following code:
+
+```ts
 const text = "example";
 await $`echo ${text}`.printCommand();
-// outputs:
-// > echo example
-// example
+```
 
+Outputs the following (with the command text in blue):
+
+```ts
+> echo example
+example
+```
+
+Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-$)).
+
+### Timeout a command
+
+```ts
 // timeout a command after a specified time
 await $`some_command`.timeout("1s");
+```
 
+### Exporting the environment of the shell to JavaScript
+
+When executing commands in the shell, the environment will be contained to the shell and not exported to the current process. For example:
+
+```ts
+await $`cd src && export MY_VALUE=5`;
+// will output nothing
+await $`echo $MY_VALUE`;
+// will both NOT output it's in the src dir
+await $`echo $PWD`;
+console.log(Deno.cwd());
+```
+
+You can change that by using `exportEnv()` on the command:
+
+```ts
+await $`cd src && export MY_VALUE=5`.exportEnv();
+// will output "5"
+await $`echo $MY_VALUE`;
+// will both output it's in the src dir
+await $`echo $PWD`;
+console.log(Deno.cwd());
+```
+
+## Logging
+
+Dax comes with some helper functions for logging:
+
+```ts
 // logs with potential indentation
-// Note: everything is logged over stderr
+// Note: everything is logged over stderr by default
 $.log("Hello!");
 // log with the first word as bold green
 $.logStep("Fetching data from server...");
@@ -117,7 +229,11 @@ $.logError("Error Some error message.");
 $.logWarn("Warning Some warning message.");
 // logs out text in gray
 $.logLight("Some unimportant message.");
+```
 
+You may wish to indent some text when logging, use `$.logGroup` to do so:
+
+```ts
 // log indented within (handles de-indenting when an error is thrown)
 await $.logGroup(async () => {
   $.log("This will be indented.");
@@ -134,39 +250,58 @@ $.logGroup("Level 2");
 $.log("Indented 2");
 $.logGroupEnd();
 $.logGroupEnd();
+```
 
-// set the loggers. For example, log everything
+As mentioned previously, Dax logs to stderr for everything by default. This may not be desired, so you can change the current behaviour of a `$` object by setting a logger for either "info", "warn", or "error".
+
+```ts
+// Set the loggers. For example, log everything
 // on stdout instead of stderr
 $.setInfoLogger(console.log);
 $.setWarnLogger(console.log);
 $.setErrorLogger(console.log);
 
-// change directory
-$.cd("newDir");
+// or a more advanced scenario
+$.setInfoLogger((...args: any[]) => {
+  console.error(...args);
+  // write args to a file here...
+};)
+```
 
-// if the path exists
+## Helper functions
+
+Changing the current working directory of the current process:
+
+```ts
+$.cd("someDir");
+console.log(Deno.cwd()); // will be in someDir directory
+```
+
+Checking if a path exists:
+
+```ts
 // Note: beware of "time of check to time of use" race conditions when using this
 await $.exists("./file.txt");
 $.existsSync("./file.txt");
+```
 
-// sleep
+Sleeping asynchronously for a specified amount of time:
+
+```ts
 await $.sleep(100); // ms
 await $.sleep("1.5s");
 await $.sleep("100ms");
+```
 
-// download a file as JSON (this will throw on non-2xx status code)
-const data = await $.request("https://plugins.dprint.dev/info.json").json();
-// or text
-const text = await $.request("https://example.com").text();
-// or long form
-const response = await $.request("https://plugins.dprint.dev/info.json");
-console.log(response.code);
-console.log(await response.json());
+Getting path to an executable based on a command name:
 
-// get path to an executable
-await $.which("deno"); // path to deno executable
+```ts
+console.log(await $.which("deno")); // outputs the path to deno executable
+```
 
-// attempt doing an action until it succeeds
+Attempting to do an action until it succeeds or hits the maximum number of retries:
+
+```ts
 await $.withRetries({
   count: 5,
   // you may also specify an iterator here which is useful for exponential backoff
@@ -175,24 +310,48 @@ await $.withRetries({
     await $`cargo publish`;
   },
 });
+```
 
-// re-export of deno_std's path
+Re-export of deno_std's path:
+
+```ts
 $.path.basename("./deno/std/path/mod.ts"); // mod.ts
+```
 
-// re-export of deno_std's fs
+Re-export of deno_std's fs:
+
+```ts
 for await (const file of $.fs.expandGlob("**/*.ts")) {
   console.log(file);
 }
-
-// export the environment of a command to the executing process
-await $`cd src && export MY_VALUE=5`.exportEnv();
-// will output "5"
-await $`echo $MY_VALUE`;
-// will output it's in the src dir
-await $`echo $PWD`;
-// this will also output it's in the src dir
-console.log(Deno.cwd());
 ```
+
+## Making requests
+
+Dax ships with a slightly less verbose wrapper around `fetch` that will throw by default on non-`2xx` status codes (this is configurable per status code).
+
+Download a file as JSON:
+
+```ts
+const data = await $.request("https://plugins.dprint.dev/info.json").json();
+console.log(data.plugins);
+```
+
+Or as text:
+
+```ts
+const text = await $.request("https://example.com").text();
+```
+
+Or get the long form:
+
+```ts
+const response = await $.request("https://plugins.dprint.dev/info.json");
+console.log(response.code);
+console.log(await response.json());
+```
+
+See the [documentation on `RequestBuilder`](https://doc.deno.land/https/deno.land/x/dax/mod.ts) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
 ## Shell
 
@@ -208,9 +367,9 @@ const result = await $`cd someDir ; deno eval 'console.log(Deno.cwd())'`;
 Boolean lists:
 
 ```ts
-// returns stdout with 1\n\2n
+// outputs to stdout with 1\n\2n
 await $`echo 1 && echo 2`;
-// returns stdout with 1\n
+// outputs to stdout with 1\n
 await $`echo 1 || echo 2`;
 ```
 
@@ -325,7 +484,7 @@ const result = await requestBuilder
 
 ### Custom `$`
 
-You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is what the main default exported `$` function uses internally to build itself:
+You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself:
 
 ```ts
 import {

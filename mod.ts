@@ -21,7 +21,8 @@ export type {
  *
  * Differences:
  *
- * 1. No globals or global configuration.
+ * 1. Minimal globals or global configuration.
+ *    - Only a default instance of `$`, but it's not mandatory to use this.
  * 1. No custom CLI.
  * 1. Cross platform shell to help the code work on Windows.
  *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
