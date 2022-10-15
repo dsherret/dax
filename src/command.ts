@@ -45,7 +45,7 @@ const builtInCommands = {
 };
 
 /**
- * The underlying builder API for executing commands.
+ * Underlying builder API for executing commands.
  *
  * This is what `$` uses to execute commands. Using this provides
  * a way to provide a raw text command or an array of arguments.

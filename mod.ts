@@ -4,8 +4,9 @@ import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
-export type { CommandContext, CommandHandler, CommandPipeWriter } from "./src/command_handler.ts";
+export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
+// these are used when registering commands
 export type {
   CdChange,
   ContinueExecuteResult,
@@ -53,6 +54,7 @@ export interface RetryOptions<TReturn> {
   quiet?: boolean;
 }
 
+/** Type of `$` instances. */
 export interface $Type {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
   /**
@@ -598,7 +600,7 @@ function templateLiteralExprToString(expr: any, escape?: (arg: string) => string
 }
 
 /**
- * Default `$` where commands may be executed.
+ * Default `$` instance where commands may be executed.
  */
 export const $: $Type = build$FromState(buildInitial$State({
   isGlobal: true,
