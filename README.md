@@ -27,7 +27,7 @@ await $`echo 5`; // outputs: 5
 await $`echo 1 && deno eval 'console.error(2);'`;
 ```
 
-### Retrieving output
+### Getting output
 
 Get the stdout of a command (makes stdout "quiet"):
 
@@ -73,7 +73,7 @@ console.log(output.stdoutJson);
 
 ### Providing arguments to a command
 
-Use substitution in a template literal expression to provide a single argument to a command:
+Use an expression in a template literal to provide a single argument to a command:
 
 ```ts
 const dirName = "some_dir";
