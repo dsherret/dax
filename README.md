@@ -182,7 +182,7 @@ example
 
 Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-)).
 
-That said, since enabling this has a low change of breaking downstream code, you can mutate a `$` to enable or disable it by calling `$.setPrintCommand(true);`.
+That said, since enabling this has a low change of breaking downstream code, you can mutate a `$` to enable it by calling `$.setPrintCommand(true);`.
 
 ```ts
 $.setPrintCommand(true);

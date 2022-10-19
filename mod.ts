@@ -249,6 +249,7 @@ export interface $Type {
    *
    * ```ts
    * $.setPrintCommand(true);
+   * const text = "example";
    * await $`echo ${text}`;
    * ```
    *
