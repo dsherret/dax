@@ -63,3 +63,32 @@ export function filterEmptyRecordValues<TValue>(record: Record<string, TValue | 
 export function resolvePath(cwd: string, arg: string) {
   return path.resolve(path.isAbsolute(arg) ? arg : path.join(cwd, arg));
 }
+
+export class Box<T> {
+  constructor(public value: T) {
+  }
+}
+
+export class TreeBox<T> {
+  #value: T | TreeBox<T>;
+
+  constructor(value: T | TreeBox<T>) {
+    this.#value = value;
+  }
+
+  getValue() {
+    let tree: TreeBox<T> = this;
+    while (tree.#value instanceof TreeBox) {
+      tree = tree.#value;
+    }
+    return tree.#value;
+  }
+
+  setValue(value: T) {
+    this.#value = value;
+  }
+
+  createChild(): TreeBox<T> {
+    return new TreeBox(this);
+  }
+}

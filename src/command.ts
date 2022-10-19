@@ -5,7 +5,7 @@ import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
-import { delayToMs } from "./common.ts";
+import { delayToMs, TreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path } from "./deps.ts";
 import {
@@ -30,6 +30,7 @@ interface CommandBuilderState {
   cwd: string;
   exportEnv: boolean;
   printCommand: boolean;
+  printCommandLogger: TreeBox<(...args: any[]) => void>;
   timeout: number | undefined;
 }
 
@@ -65,13 +66,10 @@ const builtInCommands = {
  * ```
  */
 export class CommandBuilder implements PromiseLike<CommandResult> {
-  #state: Readonly<CommandBuilderState> | undefined;
+  #state: Readonly<CommandBuilderState> = CommandBuilder.#getDefaultState();
 
   #getClonedState(): CommandBuilderState {
     const state = this.#state;
-    if (state == null) {
-      return this.#getDefaultState();
-    }
     return {
       // be explicit here in order to evaluate each property on a case by case basis
       command: state.command,
@@ -84,22 +82,26 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       commands: { ...state.commands },
       exportEnv: state.exportEnv,
       printCommand: state.printCommand,
+      printCommandLogger: state.printCommandLogger.createChild(),
       timeout: state.timeout,
     };
   }
 
-  #getDefaultState(): CommandBuilderState {
+  static #getDefaultState(): CommandBuilderState {
     return {
       command: undefined,
       stdin: "inherit",
       stdoutKind: "inherit",
       stderrKind: "inherit",
       noThrow: false,
+      // todo(dsherret): this env and cwd is problematic... it should be additive until spawning
+      // a command
       env: Deno.env.toObject(),
       cwd: Deno.cwd(),
       commands: { ...builtInCommands },
       exportEnv: false,
       printCommand: false,
+      printCommandLogger: new TreeBox(console.error),
       timeout: undefined,
     };
   }
@@ -286,6 +288,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Mutates the command builder to change the logger used
+   * for `printCommand()`.
+   */
+  setPrintCommandLogger(logger: (...args: any[]) => void) {
+    this.#state.printCommandLogger.setValue(logger);
+  }
+
+  /**
    * Ensures stdout and stderr are piped if they have the default behaviour or are inherited.
    *
    * ```ts
@@ -387,7 +397,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    console.log(colors.white(">"), colors.blue(state.command));
+    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
   }
 
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
@@ -449,7 +459,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     const stdoutBuffer = state.stdoutKind === "inherit"
       ? "inherit"
       : state.stdoutKind === "inheritPiped"
-      ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+      ? new CapturingBufferWriter(Deno.stdout, new Buffer())
       : state.stdoutKind === "null"
       ? "null"
       : new Buffer();

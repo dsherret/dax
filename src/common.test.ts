@@ -1,4 +1,4 @@
-import { delayToIterator, delayToMs, formatMillis, resolvePath } from "./common.ts";
+import { delayToIterator, delayToMs, formatMillis, resolvePath, TreeBox } from "./common.ts";
 import { assertEquals } from "./deps.test.ts";
 import { path } from "./deps.ts";
 
@@ -50,4 +50,30 @@ Deno.test("should resolve absolute and relative paths", () => {
     resolvePath("/some/path", "/some/other/path"),
     path.resolve("/some/other/path"),
   );
+});
+
+Deno.test("tree box should work storing values in a tree", () => {
+  const box = new TreeBox(1);
+  const childA = box.createChild();
+  const childB = box.createChild();
+
+  box.setValue(2);
+  assertEquals(box.getValue(), 2);
+  assertEquals(childA.getValue(), 2);
+  assertEquals(childB.getValue(), 2);
+
+  childA.setValue(3);
+  assertEquals(childA.getValue(), 3);
+  assertEquals(box.getValue(), 2);
+  assertEquals(childB.getValue(), 2);
+
+  box.setValue(4);
+  const grandChildA1 = childA.createChild();
+  const grandChildA2 = childA.createChild();
+  grandChildA2.setValue(5);
+  assertEquals(childA.getValue(), 3);
+  assertEquals(grandChildA1.getValue(), 3);
+  assertEquals(grandChildA2.getValue(), 5);
+  assertEquals(box.getValue(), 4);
+  assertEquals(childB.getValue(), 4);
 });
