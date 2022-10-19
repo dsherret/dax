@@ -476,6 +476,34 @@ Deno.test("should actually change the environment when using .exportEnv()", asyn
   }
 });
 
+Deno.test("exporting env should modify real environment when something changed via the api", async () => {
+  const previousCwd = Deno.cwd();
+  const envName = "DAX_TEST_ENV_SET";
+  try {
+    await $`echo 2`
+      .cwd("./src")
+      .env(envName, "123")
+      .exportEnv();
+    assertEquals(Deno.env.get(envName), "123");
+    assertEquals(Deno.cwd().slice(-3), "src");
+  } finally {
+    Deno.env.delete(envName);
+    Deno.chdir(previousCwd);
+  }
+});
+
+Deno.test("cwd should be resolved based on cwd at time of method call and not execution", async () => {
+  const previousCwd = Deno.cwd();
+  try {
+    const command = $`echo $PWD`.cwd("./src");
+    Deno.chdir("./rs_lib");
+    const result = await command.text();
+    assertEquals(result.slice(-3), "src");
+  } finally {
+    Deno.chdir(previousCwd);
+  }
+});
+
 Deno.test("should handle the PWD variable", async () => {
   const srcDir = path.resolve("./src");
   {
@@ -650,4 +678,27 @@ Deno.test("printCommand", async () => {
     [colors.white(">"), colors.blue("echo 5")],
     [colors.white(">"), colors.blue("echo 7")],
   ]);
+});
+
+Deno.test("environment should be evaluated at command execution", async () => {
+  const envName = "DAX_TEST_ENV_SET";
+  Deno.env.set(envName, "1");
+  try {
+    const result = await $.raw`echo $${envName}`.text();
+    assertEquals(result, "1");
+  } finally {
+    Deno.env.delete(envName);
+  }
+  const result = await $.raw`echo $${envName}`.text();
+  assertEquals(result, "");
+
+  // check cwd
+  const previousCwd = Deno.cwd();
+  try {
+    Deno.chdir("./src");
+    const result = await $`echo $PWD`.text();
+    assertEquals(result.slice(-3), "src");
+  } finally {
+    Deno.chdir(previousCwd);
+  }
 });
