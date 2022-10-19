@@ -132,10 +132,7 @@ class RealEnv implements Env {
   }
 
   clone(): Env {
-    return new ShellEnv({
-      cwd: this.getCwd(),
-      env: this.getEnvVars(),
-    });
+    return cloneEnv(this);
   }
 }
 
@@ -147,23 +144,17 @@ interface ShellEnvOpts {
 }
 
 class ShellEnv implements Env {
-  #cwd: string;
+  #cwd: string | undefined;
   #envVars: Record<string, string> = {};
-
-  constructor(opts: ShellEnvOpts) {
-    this.#cwd = opts.cwd;
-
-    // ensure the env vars are normalized
-    for (const [key, value] of Object.entries(opts.env)) {
-      this.setEnvVar(key, value);
-    }
-  }
 
   setCwd(cwd: string) {
     this.#cwd = cwd;
   }
 
   getCwd(): string {
+    if (this.#cwd == null) {
+      throw new Error("The cwd must be initialized.");
+    }
     return this.#cwd;
   }
 
@@ -190,11 +181,24 @@ class ShellEnv implements Env {
   }
 
   clone() {
-    return new ShellEnv({
-      cwd: this.#cwd,
-      env: { ...this.#envVars },
-    });
+    return cloneEnv(this);
   }
+}
+
+function initializeEnv(env: Env, opts: ShellEnvOpts) {
+  env.setCwd(opts.cwd);
+  for (const [key, value] of Object.entries(opts.env)) {
+    env.setEnvVar(key, value);
+  }
+}
+
+function cloneEnv(env: Env) {
+  const result = new ShellEnv();
+  initializeEnv(result, {
+    cwd: env.getCwd(),
+    env: env.getEnvVars(),
+  });
+  return result;
 }
 
 export class Context {
@@ -352,8 +356,10 @@ export interface SpawnOpts {
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
+  const env = opts.exportEnv ? new RealEnv() : new ShellEnv();
+  initializeEnv(env, opts);
   const context = new Context({
-    env: opts.exportEnv ? new RealEnv() : new ShellEnv(opts),
+    env,
     commands: opts.commands,
     stdin: opts.stdin,
     stdout: opts.stdout,

@@ -25,9 +25,9 @@ interface CommandBuilderState {
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
-  env: Record<string, string>;
+  env: Record<string, string | undefined>;
   commands: Record<string, CommandHandler>;
-  cwd: string;
+  cwd: string | undefined;
   exportEnv: boolean;
   printCommand: boolean;
   printCommandLogger: TreeBox<(...args: any[]) => void>;
@@ -66,7 +66,20 @@ const builtInCommands = {
  * ```
  */
 export class CommandBuilder implements PromiseLike<CommandResult> {
-  #state: Readonly<CommandBuilderState> = CommandBuilder.#getDefaultState();
+  #state: Readonly<CommandBuilderState> = {
+    command: undefined,
+    stdin: "inherit",
+    stdoutKind: "inherit",
+    stderrKind: "inherit",
+    noThrow: false,
+    env: {},
+    cwd: undefined,
+    commands: { ...builtInCommands },
+    exportEnv: false,
+    printCommand: false,
+    printCommandLogger: new TreeBox(console.error),
+    timeout: undefined,
+  };
 
   #getClonedState(): CommandBuilderState {
     const state = this.#state;
@@ -84,25 +97,6 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       printCommand: state.printCommand,
       printCommandLogger: state.printCommandLogger.createChild(),
       timeout: state.timeout,
-    };
-  }
-
-  static #getDefaultState(): CommandBuilderState {
-    return {
-      command: undefined,
-      stdin: "inherit",
-      stdoutKind: "inherit",
-      stderrKind: "inherit",
-      noThrow: false,
-      // todo(dsherret): this env and cwd is problematic... it should be additive until spawning
-      // a command
-      env: Deno.env.toObject(),
-      cwd: Deno.cwd(),
-      commands: { ...builtInCommands },
-      exportEnv: false,
-      printCommand: false,
-      printCommandLogger: new TreeBox(console.error),
-      timeout: undefined,
     };
   }
 
@@ -230,11 +224,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       if (Deno.build.os === "windows") {
         key = key.toUpperCase();
       }
-      if (value == null) {
-        delete state.env[key];
-      } else {
-        state.env[key] = value;
-      }
+      state.env[key] = value;
     }
   }
 
@@ -430,9 +420,9 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       stdin: state.stdin,
       stdout,
       stderr,
-      env: state.env,
+      env: buildEnv(state.env),
       commands: state.commands,
-      cwd: state.cwd,
+      cwd: state.cwd ?? Deno.cwd(),
       exportEnv: state.exportEnv,
       signal: abortController.signal,
     });
@@ -588,6 +578,18 @@ export class CommandResult {
     }
     return this.#combined.bytes();
   }
+}
+
+function buildEnv(env: Record<string, string | undefined>) {
+  const result = Deno.env.toObject();
+  for (const [key, value] of Object.entries(env)) {
+    if (value == null) {
+      delete result[key];
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 export function escapeArg(arg: string) {

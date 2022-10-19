@@ -651,3 +651,16 @@ Deno.test("printCommand", async () => {
     [colors.white(">"), colors.blue("echo 7")],
   ]);
 });
+
+Deno.test("environment should be evaluated at command execution", async () => {
+  const envName = "DAX_TEST_ENV_SET";
+  Deno.env.set(envName, "1");
+  try {
+    const result = await $.raw`echo $${envName}`.text();
+    assertEquals(result, "1");
+  } finally {
+    Deno.env.delete(envName);
+  }
+  const result = await $.raw`echo $${envName}`.text();
+  assertEquals(result, "");
+});
