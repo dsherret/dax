@@ -1,4 +1,4 @@
-import $, { CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
 import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
@@ -623,4 +623,31 @@ Deno.test("setting logging", async () => {
   assertEquals(infoLogs, [["Info"]]);
   assertEquals(warnLogs, [[colors.bold(colors.yellow("Warn"))]]);
   assertEquals(errorLogs, [[colors.bold(colors.red("Error"))]]);
+});
+
+Deno.test("printCommand", async () => {
+  const $ = build$({});
+  const errorLogs: any[] = [];
+  $.setErrorLogger((...args) => {
+    errorLogs.push(args);
+  });
+
+  $.setPrintCommand(true);
+  await $`echo 1`;
+  await $`echo 2`.printCommand(false);
+  await $`echo 3`;
+  $.setPrintCommand(false);
+  await $`echo 4`;
+  await $`echo 5`.printCommand(true);
+  const command = $`echo 6`.printCommand(true);
+  command.setPrintCommandLogger(() => {}); // no-op
+  await command;
+  await $`echo 7`.printCommand(true);
+
+  assertEquals(errorLogs, [
+    [colors.white(">"), colors.blue("echo 1")],
+    [colors.white(">"), colors.blue("echo 3")],
+    [colors.white(">"), colors.blue("echo 5")],
+    [colors.white(">"), colors.blue("echo 7")],
+  ]);
 });

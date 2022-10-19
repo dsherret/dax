@@ -1,5 +1,5 @@
 import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
-import { Delay, DelayIterator, delayToIterator, delayToMs, formatMillis } from "./src/common.ts";
+import { Box, Delay, DelayIterator, delayToIterator, delayToMs, formatMillis, TreeBox } from "./src/common.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
@@ -241,6 +241,29 @@ export interface $Type {
    */
   setErrorLogger(logger: (args: any[]) => void): void;
   /**
+   * Mutates the internal command builder to print the command text by
+   * default before executing commands instead of needing to build a
+   * custom `$`.
+   *
+   * For example:
+   *
+   * ```ts
+   * $.setPrintCommand(true);
+   * const text = "example";
+   * await $`echo ${text}`;
+   * ```
+   *
+   * Outputs:
+   *
+   * ```
+   * > echo example
+   * example
+   * ```
+   *
+   * @param value - Whether this should be enabled or disabled.
+   */
+  setPrintCommand(value: boolean): void;
+  /**
    * Sleep for the provided delay.
    *
    * ```ts
@@ -315,29 +338,22 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
-class Box<T> {
-  constructor(public value: T) {
-  }
-}
-
 interface $State {
-  isGlobal: boolean;
-  commandBuilder: CommandBuilder;
+  commandBuilder: TreeBox<CommandBuilder>;
   requestBuilder: RequestBuilder;
-  infoLogger: Box<(...args: any[]) => void>;
-  warnLogger: Box<(...args: any[]) => void>;
-  errorLogger: Box<(...args: any[]) => void>;
+  infoLogger: TreeBox<(...args: any[]) => void>;
+  warnLogger: TreeBox<(...args: any[]) => void>;
+  errorLogger: TreeBox<(...args: any[]) => void>;
   indentLevel: Box<number>;
 }
 
 function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $State {
   return {
-    isGlobal: opts.isGlobal,
-    commandBuilder: opts.commandBuilder ?? new CommandBuilder(),
+    commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
-    infoLogger: new Box(console.error),
-    warnLogger: new Box(console.error),
-    errorLogger: new Box(console.error),
+    infoLogger: new TreeBox(console.error),
+    warnLogger: new TreeBox(console.error),
+    errorLogger: new TreeBox(console.error),
     indentLevel: new Box(0),
   };
 }
@@ -401,41 +417,42 @@ function build$FromState(state: $State) {
           result += templateLiteralExprToString(exprs[i], escapeArg);
         }
       }
-      return state.commandBuilder.command(result);
+      return state.commandBuilder.getValue().command(result);
     },
     helperObject,
     logDepthObj,
     {
       build$(opts: Create$Options = {}) {
         return build$FromState({
-          isGlobal: false,
-          commandBuilder: opts.commandBuilder ?? state.commandBuilder,
+          commandBuilder: opts.commandBuilder != null
+            ? new TreeBox(opts.commandBuilder)
+            : state.commandBuilder.createChild(),
           requestBuilder: opts.requestBuilder ?? state.requestBuilder,
-          errorLogger: state.errorLogger,
-          infoLogger: state.infoLogger,
-          warnLogger: state.warnLogger,
+          errorLogger: state.errorLogger.createChild(),
+          infoLogger: state.infoLogger.createChild(),
+          warnLogger: state.warnLogger.createChild(),
           indentLevel: state.indentLevel,
         });
       },
       log(...data: any[]) {
-        state.infoLogger.value(getLogText(data));
+        state.infoLogger.getValue()(getLogText(data));
       },
       logLight(...data: any[]) {
-        state.infoLogger.value(colors.gray(getLogText(data)));
+        state.infoLogger.getValue()(colors.gray(getLogText(data)));
       },
       logStep(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.green(t)), state.infoLogger.value);
+        logStep(firstArg, data, (t) => colors.bold(colors.green(t)), state.infoLogger.getValue());
       },
       logError(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.red(t)), state.errorLogger.value);
+        logStep(firstArg, data, (t) => colors.bold(colors.red(t)), state.errorLogger.getValue());
       },
       logWarn(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)), state.warnLogger.value);
+        logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)), state.warnLogger.getValue());
       },
       logGroup<TResult>(labelOrAction?: string | (() => TResult), maybeAction?: () => TResult): TResult | void {
         const label = typeof labelOrAction === "string" ? labelOrAction : undefined;
         if (label) {
-          state.infoLogger.value(getLogText([label]));
+          state.infoLogger.getValue()(getLogText([label]));
         }
         state.indentLevel.value++;
         const action = label != null ? maybeAction : labelOrAction as (() => TResult);
@@ -468,25 +485,22 @@ function build$FromState(state: $State) {
         }
       },
       setInfoLogger(logger: (args: any[]) => void) {
-        if (state.isGlobal) {
-          state.infoLogger.value = logger;
-        } else {
-          state.infoLogger = new Box(logger);
-        }
+        state.infoLogger.setValue(logger);
       },
       setWarnLogger(logger: (args: any[]) => void) {
-        if (state.isGlobal) {
-          state.warnLogger.value = logger;
-        } else {
-          state.warnLogger = new Box(logger);
-        }
+        state.warnLogger.setValue(logger);
       },
       setErrorLogger(logger: (args: any[]) => void) {
-        if (state.isGlobal) {
-          state.errorLogger.value = logger;
-        } else {
-          state.errorLogger = new Box(logger);
-        }
+        state.errorLogger.setValue(logger);
+
+        // also update the logger used for the print command
+        const commandBuilder = state.commandBuilder.getValue();
+        commandBuilder.setPrintCommandLogger(logger);
+        state.commandBuilder.setValue(commandBuilder);
+      },
+      setPrintCommand(value: boolean) {
+        const commandBuilder = state.commandBuilder.getValue().printCommand(value);
+        state.commandBuilder.setValue(commandBuilder);
       },
       request(url: string | URL) {
         return state.requestBuilder.url(url);
@@ -501,10 +515,10 @@ function build$FromState(state: $State) {
             result += templateLiteralExprToString(exprs[i]);
           }
         }
-        return state.commandBuilder.command(result);
+        return state.commandBuilder.getValue().command(result);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
-        return withRetries(result, state.errorLogger.value, opts);
+        return withRetries(result, state.errorLogger.getValue(), opts);
       },
     },
   );
