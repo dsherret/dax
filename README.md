@@ -6,7 +6,7 @@
 
 Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
 
-Differences:
+## Differences with zx
 
 1. Minimal globals or global configuration.
    - Only a default instance of `$`, but it's not mandatory to use this.
@@ -112,7 +112,7 @@ const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1
 ```
 
-...though it's probably a lot easier to just collect all the text of a command and provide that:
+...though it's probably more straightforward to just collect the output text of a command and provide that:
 
 ```ts
 // alternatively though, calling `.text()` like so is probably easier
