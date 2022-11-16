@@ -1,6 +1,6 @@
-import { instantiate } from "../lib/rs_lib.generated.js";
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
+import { instantiate } from "./lib/rs_lib.generated.js";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 

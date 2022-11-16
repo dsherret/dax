@@ -496,7 +496,7 @@ Deno.test("cwd should be resolved based on cwd at time of method call and not ex
   const previousCwd = Deno.cwd();
   try {
     const command = $`echo $PWD`.cwd("./src");
-    Deno.chdir("./rs_lib");
+    Deno.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
   } finally {

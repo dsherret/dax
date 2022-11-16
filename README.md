@@ -2,7 +2,7 @@
 
 [![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
 
-<img src="logo.svg" height="150px" alt="dax logo">
+<img src="src/assets/logo.svg" height="150px" alt="dax logo">
 
 Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
 

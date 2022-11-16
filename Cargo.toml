@@ -1,4 +1,4 @@
 [workspace]
 members = [
-  "rs_lib",
+  "src/rs_lib",
 ]
