@@ -1,5 +1,5 @@
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
