@@ -1,5 +1,5 @@
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { assert, assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
@@ -708,23 +708,27 @@ Deno.test("test remove", async () => {
 
   const emptyDir = dir + "/hello";
   const someFile = dir + "/a.txt";
-  await $`mkdir ${emptyDir}`;
-  await $`touch ${someFile}`;
+
+  Deno.mkdirSync(emptyDir);
+  Deno.writeTextFileSync(someFile, "");
 
   await $`rm ${emptyDir}`;
   await $`rm ${someFile}`;
-  assert(!$.fs.existsSync(dir + "/hello"));
-  assert(!$.fs.existsSync(dir + "/a.txt"));
+  assertEquals($.fs.existsSync(dir + "/hello"), false);
+  assertEquals($.fs.existsSync(dir + "/a.txt"), false);
 
   const nonEmptyDir = dir + "/a";
   Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
 
   const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
     .then((r) => r.stderr);
-  assert(
-    error.startsWith("rm: Directory not empty (os error 39)"),
-  );
+  const expectedText = Deno.build.os === "linux"
+    ? "rm: Directory not empty"
+    : Deno.build.os === "windows"
+    ? "rm: The directory is not empty"
+    : "rm: Directory not empty";
+  assertEquals(error.substring(0, expectedText.length), expectedText);
 
   await $`rm -r ${nonEmptyDir}`;
-  assert(!$.fs.existsSync(nonEmptyDir));
+  assertEquals($.fs.existsSync(nonEmptyDir), false);
 });
