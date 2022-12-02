@@ -722,11 +722,9 @@ Deno.test("test remove", async () => {
 
   const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
     .then((r) => r.stderr);
-  const expectedText = Deno.build.os === "linux"
+  const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
     ? "rm: Directory not empty"
-    : Deno.build.os === "windows"
-    ? "rm: The directory is not empty"
-    : "rm: Directory not empty";
+    : "rm: The directory is not empty";
   assertEquals(error.substring(0, expectedText.length), expectedText);
 
   await $`rm -r ${nonEmptyDir}`;
