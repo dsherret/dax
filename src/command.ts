@@ -16,6 +16,7 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { parseArgs, spawn } from "./shell.ts";
+import { rmCommand } from "./commands/rm.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -43,6 +44,7 @@ const builtInCommands = {
   export: exportCommand,
   sleep: sleepCommand,
   test: testCommand,
+  rm: rmCommand,
 };
 
 /**

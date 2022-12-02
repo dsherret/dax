@@ -1,5 +1,15 @@
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import $, {
+  build$,
+  CommandBuilder,
+  CommandContext,
+  CommandHandler,
+} from "./mod.ts";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
@@ -16,7 +26,11 @@ Deno.test("should escape arguments", async () => {
 Deno.test("should not get stdout when inherited (default)", async () => {
   const output = await $`echo "should output"`;
   assertEquals(output.code, 0);
-  assertThrows(() => output.stdout, Error, `Stdout was not piped (was inherit).`);
+  assertThrows(
+    () => output.stdout,
+    Error,
+    `Stdout was not piped (was inherit).`,
+  );
 });
 
 Deno.test("should not get stdout when null", async () => {
@@ -70,7 +84,8 @@ Deno.test("should capture stderr when inherited and piped", async () => {
 });
 
 Deno.test("should get combined stdout and stderr when both piped", async () => {
-  const output = await $`echo 1 ; sleep 0.5 ; deno eval 'console.error(2);'`.stdout("piped").stderr("piped");
+  const output = await $`echo 1 ; sleep 0.5 ; deno eval 'console.error(2);'`
+    .stdout("piped").stderr("piped");
   assertEquals(output.code, 0);
   assertEquals(output.combined, "1\n2\n");
 });
@@ -86,7 +101,9 @@ Deno.test("should not get combined stdout and stderr when stdout is inherited (d
 });
 
 Deno.test("should not get combined stdout and stderr when stderr is inherited", async () => {
-  const output = await $`deno eval 'console.error("should output");'`.stdout("piped");
+  const output = await $`deno eval 'console.error("should output");'`.stdout(
+    "piped",
+  );
   assertEquals(output.code, 0);
   assertThrows(
     () => output.combined,
@@ -114,7 +131,9 @@ Deno.test("should throw when exit code is non-zero", async () => {
 });
 
 Deno.test("should change the cwd, but only in the shell", async () => {
-  const output = await $`cd src ; deno eval 'console.log(Deno.cwd());'`.stdout("piped");
+  const output = await $`cd src ; deno eval 'console.log(Deno.cwd());'`.stdout(
+    "piped",
+  );
   const standardizedOutput = output.stdout.trim().replace(/\\/g, "/");
   assertEquals(standardizedOutput.endsWith("src"), true, standardizedOutput);
 });
@@ -140,23 +159,29 @@ Deno.test("set var for command", async () => {
 });
 
 Deno.test("variable substitution", async () => {
-  const output = await $`deno eval "console.log($TEST);"`.env("TEST", "123").text();
+  const output = await $`deno eval "console.log($TEST);"`.env("TEST", "123")
+    .text();
   assertEquals(output.trim(), "123");
 });
 
 Deno.test("stdoutJson", async () => {
-  const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`.stdout("piped");
+  const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`
+    .stdout("piped");
   assertEquals(output.stdoutJson, { test: 5 });
   assertEquals(output.stdoutJson === output.stdoutJson, true); // should be memoized
 });
 
 Deno.test("CommandBuilder#json()", async () => {
-  const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`.json();
+  const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`
+    .json();
   assertEquals(output, { test: 5 });
 });
 
 Deno.test("stderrJson", async () => {
-  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("piped");
+  const output =
+    await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr(
+      "piped",
+    );
   assertEquals(output.stderrJson, { test: 5 });
   assertEquals(output.stderrJson === output.stderrJson, true); // should be memoized
 });
@@ -180,7 +205,8 @@ Deno.test("raw should handle providing array of arguments", async () => {
 });
 
 Deno.test("raw should handle text provided", async () => {
-  const text = await $.raw`deno eval 'console.log(Deno.args)' ${"testing this   out"}`.text();
+  const text = await $
+    .raw`deno eval 'console.log(Deno.args)' ${"testing this   out"}`.text();
   assertEquals(text, `[ "testing", "this", "out" ]`);
 });
 
@@ -199,7 +225,8 @@ Deno.test("command builder should build", async () => {
     // this environment variable should have no effect here. Additionally,
     // command builders are immutable and return a new builder each time
     commandBuilder.env("TEST", "456");
-    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`
+      .stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }
@@ -207,7 +234,8 @@ Deno.test("command builder should build", async () => {
   {
     // this one additionally won't be affected because command builders are immutable
     const local$ = $.build$({ commandBuilder });
-    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`
+      .stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }
@@ -215,13 +243,15 @@ Deno.test("command builder should build", async () => {
 
 Deno.test("should handle boolean list 'or'", async () => {
   {
-    const output = await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`.text();
+    const output =
+      await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`.text();
     assertEquals(output, "5");
   }
   {
-    const output = await $`deno eval 'Deno.exit(1)' || deno eval 'Deno.exit(2)' || deno eval 'Deno.exit(3)'`
-      .noThrow()
-      .stdout("piped");
+    const output =
+      await $`deno eval 'Deno.exit(1)' || deno eval 'Deno.exit(2)' || deno eval 'Deno.exit(3)'`
+        .noThrow()
+        .stdout("piped");
     assertEquals(output.stdout, "");
     assertEquals(output.code, 3);
   }
@@ -229,12 +259,16 @@ Deno.test("should handle boolean list 'or'", async () => {
 
 Deno.test("should handle boolean list 'and'", async () => {
   {
-    const output = await $`deno eval 'Deno.exit(5)' && echo 2`.noThrow().stdout("piped");
+    const output = await $`deno eval 'Deno.exit(5)' && echo 2`.noThrow().stdout(
+      "piped",
+    );
     assertEquals(output.code, 5);
     assertEquals(output.stdout, "");
   }
   {
-    const output = await $`deno eval 'Deno.exit(0)' && echo 5 && echo 6`.stdout("piped");
+    const output = await $`deno eval 'Deno.exit(0)' && echo 5 && echo 6`.stdout(
+      "piped",
+    );
     assertEquals(output.code, 0);
     assertEquals(output.stdout.trim(), "5\n6");
   }
@@ -393,22 +427,30 @@ Deno.test("test command", async (t) => {
     assertEquals(result.stderr, "test: expected 2 arguments\n");
   });
   await t.step("should work with boolean: pass && ..", async () => {
-    const result = await $`test -f zero.dat && echo yup`.noThrow().stdout("piped");
+    const result = await $`test -f zero.dat && echo yup`.noThrow().stdout(
+      "piped",
+    );
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "yup\n");
   });
   await t.step("should work with boolean: fail && ..", async () => {
-    const result = await $`test -f ${Deno.cwd()} && echo nope`.noThrow().stdout("piped");
+    const result = await $`test -f ${Deno.cwd()} && echo nope`.noThrow().stdout(
+      "piped",
+    );
     assertEquals(result.code, 1), "should have exit code 1";
     assertEquals(result.stdout, "");
   });
   await t.step("should work with boolean: pass || ..", async () => {
-    const result = await $`test -f zero.dat || echo nope`.noThrow().stdout("piped");
+    const result = await $`test -f zero.dat || echo nope`.noThrow().stdout(
+      "piped",
+    );
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "");
   });
   await t.step("should work with boolean: fail || ..", async () => {
-    const result = await $`test -f ${Deno.cwd()} || echo yup`.noThrow().stdout("piped");
+    const result = await $`test -f ${Deno.cwd()} || echo yup`.noThrow().stdout(
+      "piped",
+    );
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "yup\n");
   });
@@ -518,9 +560,14 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("timeout", async () => {
-  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
-    .timeout(200);
-  await assertRejects(async () => await command, Error, "Timed out with exit code: 124");
+  const command =
+    $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
+      .timeout(200);
+  await assertRejects(
+    async () => await command,
+    Error,
+    "Timed out with exit code: 124",
+  );
 
   const result = await command.noThrow();
   assertEquals(result.code, 124);
@@ -589,12 +636,12 @@ Deno.test("basic logging test to ensure no errors", async () => {
   assertEquals(setCount, 1);
   await $.logGroup("Label3", async () => {
     assertEquals($.logDepth, 2);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     setCount++;
     $.log("Test");
     await $.logGroup(async () => {
       assertEquals($.logDepth, 3);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       setCount++;
       $.log("Test");
     });
@@ -610,7 +657,7 @@ Deno.test("basic logging test to ensure no errors", async () => {
     assertEquals($.logDepth, 1);
     $.logGroupEnd();
     assertEquals($.logDepth, 0);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
   assertEquals($.logDepth, 0);
 
@@ -701,4 +748,30 @@ Deno.test("environment should be evaluated at command execution", async () => {
   } finally {
     Deno.chdir(previousCwd);
   }
+});
+
+Deno.test("test remove", async () => {
+  const dir = Deno.makeTempDirSync();
+
+  const emptyDir = dir + "/hello";
+  const someFile = dir + "/a.txt";
+  await $`mkdir ${emptyDir}`;
+  await $`touch ${someFile}`;
+
+  await $`rm ${emptyDir}`;
+  await $`rm ${someFile}`;
+  assert(!$.fs.existsSync(dir + "/hello"));
+  assert(!$.fs.existsSync(dir + "/a.txt"));
+
+  const nonEmptyDir = dir + "/a";
+  Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
+
+  const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
+    .then((r) => r.stderr);
+  assert(
+    error.startsWith("rm: Directory not empty (os error 39)"),
+  );
+
+  await $`rm -r ${nonEmptyDir}`;
+  assert(!$.fs.existsSync(nonEmptyDir));
 });
