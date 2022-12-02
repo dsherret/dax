@@ -30,7 +30,7 @@ async function executeRemove(cwd: string, args: string[]) {
   }));
 }
 
-function parseArgs(args: string[]) {
+export function parseArgs(args: string[]) {
   const result: RmFlags = {
     recursive: false,
     force: false,
@@ -61,7 +61,7 @@ function parseArgs(args: string[]) {
     }
   }
   if (result.paths.length == 0) {
-    throw "missing operand";
+    throw Error("missing operand");
   }
   return result;
 }
@@ -69,10 +69,10 @@ function parseArgs(args: string[]) {
 function bailUnsupported(arg: ArgKind) {
   switch (arg.kind) {
     case "Arg":
-      throw `unsupported argument: ${arg.arg}`;
+      throw Error(`unsupported argument: ${arg.arg}`);
     case "ShortFlag":
-      throw `unsupported flag: -${arg.arg}`;
+      throw Error(`unsupported flag: -${arg.arg}`);
     case "LongFlag":
-      throw `unsupported flag: --${arg.arg}`;
+      throw Error(`unsupported flag: --${arg.arg}`);
   }
 }
