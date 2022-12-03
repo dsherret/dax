@@ -549,7 +549,7 @@ You can build a `$` from another `$` by calling `$.build$({ /* options go here *
 
 This might be useful in scenarios where you want to use a `$` with a custom logger.
 
-```
+```ts
 const local$ = $.build$();
 local$.setInfoLogger((...args: any[]) => {
   // a more real example might be logging to a file
