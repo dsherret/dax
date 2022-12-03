@@ -1,46 +1,18 @@
 // @generated file from wasmbuild -- do not edit
 // deno-lint-ignore-file
 // deno-fmt-ignore-file
-// source-hash: 6fb3c424a5fb6c4fcf190ee79ad36d97c39c6d6b
+// source-hash: a15b6ced62e50bb6a6d058ac41f1614ceafa5a27
 let wasm;
-
-const cachedTextDecoder = new TextDecoder("utf-8", {
-  ignoreBOM: true,
-  fatal: true,
-});
-
-cachedTextDecoder.decode();
-
-let cachedUint8Memory0;
-function getUint8Memory0() {
-  if (cachedUint8Memory0.byteLength === 0) {
-    cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-  }
-  return cachedUint8Memory0;
-}
-
-function getStringFromWasm0(ptr, len) {
-  return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
-}
 
 const heap = new Array(32).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-let heap_next = heap.length;
-
-function addHeapObject(obj) {
-  if (heap_next === heap.length) heap.push(heap.length + 1);
-  const idx = heap_next;
-  heap_next = heap[idx];
-
-  heap[idx] = obj;
-  return idx;
-}
-
 function getObject(idx) {
   return heap[idx];
 }
+
+let heap_next = heap.length;
 
 function dropObject(idx) {
   if (idx < 36) return;
@@ -52,6 +24,100 @@ function takeObject(idx) {
   const ret = getObject(idx);
   dropObject(idx);
   return ret;
+}
+
+const cachedTextDecoder = new TextDecoder("utf-8", {
+  ignoreBOM: true,
+  fatal: true,
+});
+
+cachedTextDecoder.decode();
+
+let cachedUint8Memory0 = new Uint8Array();
+
+function getUint8Memory0() {
+  if (cachedUint8Memory0.byteLength === 0) {
+    cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
+  }
+  return cachedUint8Memory0;
+}
+
+function getStringFromWasm0(ptr, len) {
+  return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
+}
+
+function addHeapObject(obj) {
+  if (heap_next === heap.length) heap.push(heap.length + 1);
+  const idx = heap_next;
+  heap_next = heap[idx];
+
+  heap[idx] = obj;
+  return idx;
+}
+
+function debugString(val) {
+  // primitive types
+  const type = typeof val;
+  if (type == "number" || type == "boolean" || val == null) {
+    return `${val}`;
+  }
+  if (type == "string") {
+    return `"${val}"`;
+  }
+  if (type == "symbol") {
+    const description = val.description;
+    if (description == null) {
+      return "Symbol";
+    } else {
+      return `Symbol(${description})`;
+    }
+  }
+  if (type == "function") {
+    const name = val.name;
+    if (typeof name == "string" && name.length > 0) {
+      return `Function(${name})`;
+    } else {
+      return "Function";
+    }
+  }
+  // objects
+  if (Array.isArray(val)) {
+    const length = val.length;
+    let debug = "[";
+    if (length > 0) {
+      debug += debugString(val[0]);
+    }
+    for (let i = 1; i < length; i++) {
+      debug += ", " + debugString(val[i]);
+    }
+    debug += "]";
+    return debug;
+  }
+  // Test for built-in
+  const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
+  let className;
+  if (builtInMatches.length > 1) {
+    className = builtInMatches[1];
+  } else {
+    // Failed to match the standard '[object ClassName]'
+    return toString.call(val);
+  }
+  if (className == "Object") {
+    // we're a user defined class or Object
+    // JSON.stringify avoids problems with cycles, and is generally much
+    // easier than looping through ownProperties of `val`.
+    try {
+      return "Object(" + JSON.stringify(val) + ")";
+    } catch (_) {
+      return "Object";
+    }
+  }
+  // errors
+  if (val instanceof Error) {
+    return `${val.name}: ${val.message}\n${val.stack}`;
+  }
+  // TODO we could test for more things here, like `Set`s and `Map`s.
+  return className;
 }
 
 let WASM_VECTOR_LEN = 0;
@@ -99,7 +165,8 @@ function passStringToWasm0(arg, malloc, realloc) {
   return ptr;
 }
 
-let cachedInt32Memory0;
+let cachedInt32Memory0 = new Int32Array();
+
 function getInt32Memory0() {
   if (cachedInt32Memory0.byteLength === 0) {
     cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
@@ -134,15 +201,40 @@ export function parse(command) {
 
 const imports = {
   __wbindgen_placeholder__: {
-    __wbindgen_json_parse: function (arg0, arg1) {
-      const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
+    __wbindgen_object_drop_ref: function (arg0) {
+      takeObject(arg0);
+    },
+    __wbindgen_error_new: function (arg0, arg1) {
+      const ret = new Error(getStringFromWasm0(arg0, arg1));
       return addHeapObject(ret);
     },
-    __wbg_new_693216e109162396: function () {
+    __wbindgen_object_clone_ref: function (arg0) {
+      const ret = getObject(arg0);
+      return addHeapObject(ret);
+    },
+    __wbindgen_string_new: function (arg0, arg1) {
+      const ret = getStringFromWasm0(arg0, arg1);
+      return addHeapObject(ret);
+    },
+    __wbg_set_20cbc34131e76824: function (arg0, arg1, arg2) {
+      getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
+    },
+    __wbg_new_1d9a920c6bfc44a8: function () {
+      const ret = new Array();
+      return addHeapObject(ret);
+    },
+    __wbg_new_0b9bfdd97583284e: function () {
+      const ret = new Object();
+      return addHeapObject(ret);
+    },
+    __wbg_set_a68214f35c417fa9: function (arg0, arg1, arg2) {
+      getObject(arg0)[arg1 >>> 0] = takeObject(arg2);
+    },
+    __wbg_new_abda76e883ba8a5f: function () {
       const ret = new Error();
       return addHeapObject(ret);
     },
-    __wbg_stack_0ddaca5d1abfb52f: function (arg0, arg1) {
+    __wbg_stack_658279fe44541cf6: function (arg0, arg1) {
       const ret = getObject(arg1).stack;
       const ptr0 = passStringToWasm0(
         ret,
@@ -153,36 +245,53 @@ const imports = {
       getInt32Memory0()[arg0 / 4 + 1] = len0;
       getInt32Memory0()[arg0 / 4 + 0] = ptr0;
     },
-    __wbg_error_09919627ac0992f5: function (arg0, arg1) {
+    __wbg_error_f851667af71bcfc6: function (arg0, arg1) {
       try {
         console.error(getStringFromWasm0(arg0, arg1));
       } finally {
         wasm.__wbindgen_free(arg0, arg1);
       }
     },
-    __wbindgen_object_drop_ref: function (arg0) {
-      takeObject(arg0);
+    __wbindgen_debug_string: function (arg0, arg1) {
+      const ret = debugString(getObject(arg1));
+      const ptr0 = passStringToWasm0(
+        ret,
+        wasm.__wbindgen_malloc,
+        wasm.__wbindgen_realloc,
+      );
+      const len0 = WASM_VECTOR_LEN;
+      getInt32Memory0()[arg0 / 4 + 1] = len0;
+      getInt32Memory0()[arg0 / 4 + 0] = ptr0;
+    },
+    __wbindgen_throw: function (arg0, arg1) {
+      throw new Error(getStringFromWasm0(arg0, arg1));
     },
   },
 };
 
-const wasm_url = new URL("rs_lib_bg.wasm", import.meta.url);
-
 /**
  * Decompression callback
  *
- * @callback decompressCallback
+ * @callback DecompressCallback
  * @param {Uint8Array} compressed
  * @return {Uint8Array} decompressed
+ */
+
+/**
+ * Options for instantiating a Wasm instance.
+ * @typedef {Object} InstantiateOptions
+ * @property {URL=} url - Optional url to the Wasm file to instantiate.
+ * @property {DecompressCallback=} decompress - Callback to decompress the
+ * raw Wasm file bytes before instantiating.
  */
 
 /** Instantiates an instance of the Wasm module returning its functions.
  * @remarks It is safe to call this multiple times and once successfully
  * loaded it will always return a reference to the same object.
- * @param {decompressCallback=} transform
+ * @param {InstantiateOptions=} opts
  */
-export async function instantiate(transform) {
-  return (await instantiateWithInstance(transform)).exports;
+export async function instantiate(opts) {
+  return (await instantiateWithInstance(opts)).exports;
 }
 
 let instanceWithExports;
@@ -191,20 +300,20 @@ let lastLoadPromise;
 /** Instantiates an instance of the Wasm module along with its exports.
  * @remarks It is safe to call this multiple times and once successfully
  * loaded it will always return a reference to the same object.
- * @param {decompressCallback=} transform
+ * @param {InstantiateOptions=} opts
  * @returns {Promise<{
  *   instance: WebAssembly.Instance;
  *   exports: { parse: typeof parse }
  * }>}
  */
-export function instantiateWithInstance(transform) {
+export function instantiateWithInstance(opts) {
   if (instanceWithExports != null) {
     return Promise.resolve(instanceWithExports);
   }
   if (lastLoadPromise == null) {
     lastLoadPromise = (async () => {
       try {
-        const instance = (await instantiateModule(transform)).instance;
+        const instance = (await instantiateModule(opts ?? {})).instance;
         wasm = instance.exports;
         cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
         cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
@@ -230,36 +339,48 @@ export function isInstantiated() {
   return instanceWithExports != null;
 }
 
-async function instantiateModule(transform) {
-  switch (wasm_url.protocol) {
-    case "file:": {
-      if (typeof Deno !== "object") {
-        throw new Error("file urls are not supported in this environment");
-      }
+/**
+ * @param {InstantiateOptions} opts
+ */
+async function instantiateModule(opts) {
+  const wasmUrl = opts.url ?? new URL("rs_lib_bg.wasm", import.meta.url);
+  const decompress = opts.decompress;
+  const isFile = wasmUrl.protocol === "file:";
 
-      if ("permissions" in Deno) {
-        await Deno.permissions.request({ name: "read", path: wasm_url });
-      }
-      const wasmCode = await Deno.readFile(wasm_url);
-      return WebAssembly.instantiate(
-        !transform ? wasmCode : transform(wasmCode),
-        imports,
-      );
-    }
+  // make file urls work in Node via dnt
+  const isNode = globalThis.process?.versions?.node != null;
+  if (isNode && isFile) {
+    // the deno global will be shimmed by dnt
+    const wasmCode = await Deno.readFile(wasmUrl);
+    return WebAssembly.instantiate(
+      decompress ? decompress(wasmCode) : wasmCode,
+      imports,
+    );
+  }
+
+  switch (wasmUrl.protocol) {
+    case "file:":
     case "https:":
     case "http:": {
-      if (typeof Deno === "object" && "permissions" in Deno) {
-        await Deno.permissions.request({ name: "net", host: wasm_url.host });
+      if (isFile) {
+        if (typeof Deno !== "object") {
+          throw new Error("file urls are not supported in this environment");
+        }
+        if ("permissions" in Deno) {
+          await Deno.permissions.request({ name: "read", path: wasmUrl });
+        }
+      } else if (typeof Deno === "object" && "permissions" in Deno) {
+        await Deno.permissions.request({ name: "net", host: wasmUrl.host });
       }
-      const wasmResponse = await fetch(wasm_url);
-      if (transform) {
+      const wasmResponse = await fetch(wasmUrl);
+      if (decompress) {
         const wasmCode = new Uint8Array(await wasmResponse.arrayBuffer());
-        return WebAssembly.instantiate(transform(wasmCode), imports);
+        return WebAssembly.instantiate(decompress(wasmCode), imports);
       }
       if (
-        wasmResponse.headers.get("content-type")?.toLowerCase().startsWith(
-          "application/wasm",
-        )
+        isFile ||
+        wasmResponse.headers.get("content-type")?.toLowerCase()
+          .startsWith("application/wasm")
       ) {
         return WebAssembly.instantiateStreaming(wasmResponse, imports);
       } else {
@@ -270,6 +391,6 @@ async function instantiateModule(transform) {
       }
     }
     default:
-      throw new Error(`Unsupported protocol: ${wasm_url.protocol}`);
+      throw new Error(`Unsupported protocol: ${wasmUrl.protocol}`);
   }
 }
