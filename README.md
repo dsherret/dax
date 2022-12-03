@@ -425,6 +425,7 @@ Currently implemented (though not every option is supported):
   - Note that shells don't export their environment by default.
 - [`echo`](https://man7.org/linux/man-pages/man1/echo.1.html) - Echo command.
 - [`exit`](https://man7.org/linux/man-pages/man1/exit.1p.html) - Exit command.
+- [`rm`](https://man7.org/linux/man-pages/man1/rm.1.html) - Remove files or directories command.
 - [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
