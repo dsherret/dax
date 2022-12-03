@@ -21,7 +21,7 @@ export interface ShellVar extends EnvVar {
 
 export interface EnvVar {
   name: string;
-  value: StringOrWord;
+  value: Word;
 }
 
 export interface Pipeline {
@@ -43,22 +43,12 @@ export type CommandInner = SimpleCommand | TaggedSequentialList;
 export interface SimpleCommand {
   kind: "simple";
   envVars: EnvVar[];
-  args: StringOrWord[];
+  args: Word[];
 }
 
-export type StringOrWord = Word | StringOrWordString;
+export type Word = WordPart[];
 
-export interface Word {
-  kind: "word";
-  value: StringPart[];
-}
-
-export interface StringOrWordString {
-  kind: "string";
-  value: StringPart[];
-}
-
-export type StringPart = Text | Variable | StringPartCommand;
+export type WordPart = Text | Variable | StringPartCommand | Quoted;
 
 export interface Text {
   kind: "text";
@@ -73,6 +63,11 @@ export interface Variable {
 export interface StringPartCommand {
   kind: "command";
   value: SequentialList;
+}
+
+export interface Quoted {
+  kind: "quoted";
+  value: WordPart[];
 }
 
 export interface TaggedSequentialList extends SequentialList {
@@ -504,7 +499,7 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
 }
 
 async function executeShellVar(sequence: ShellVar, context: Context): Promise<ExecuteResult> {
-  const value = await evaluateStringOrWord(sequence.value, context);
+  const value = await evaluateWord(sequence.value, context);
   return {
     kind: "continue",
     code: 0,
@@ -545,7 +540,7 @@ function executeCommandInner(command: CommandInner, context: Context): Promise<E
 async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
   const context = parentContext.clone();
   for (const envVar of command.envVars) {
-    context.setEnvVar(envVar.name, await evaluateStringOrWord(envVar.value, context));
+    context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
   }
   const commandArgs = await evaluateArgs(command.args, context);
   return await executeCommandArgs(commandArgs, context);
@@ -693,34 +688,24 @@ async function resolveCommand(commandName: string, context: Context) {
   return commandPath;
 }
 
-async function evaluateArgs(stringOrWords: StringOrWord[], context: Context) {
+async function evaluateArgs(args: Word[], context: Context) {
   const result = [];
-  for (const stringOrWord of stringOrWords) {
-    switch (stringOrWord.kind) {
-      case "word":
-        result.push(...await evaluateStringParts(stringOrWord.value, context));
-        break;
-      case "string":
-        result.push((await evaluateStringParts(stringOrWord.value, context)).join(" "));
-        break;
-      default:
-        const _assertNever: never = stringOrWord;
-        throw new Error(`Not implemented: ${(stringOrWord as any).kind}`);
-    }
+  for (const arg of args) {
+    result.push(...await evaluateWordParts(arg, context));
   }
   return result;
 }
 
-async function evaluateStringOrWord(stringOrWord: StringOrWord, context: Context) {
-  const result = await evaluateStringParts(stringOrWord.value, context);
+async function evaluateWord(word: Word, context: Context) {
+  const result = await evaluateWordParts(word, context);
   return result.join(" ");
 }
 
-async function evaluateStringParts(stringParts: StringPart[], context: Context) {
+async function evaluateWordParts(wordParts: WordPart[], context: Context) {
   // not implemented mostly, and copying from deno_task_shell
   const result: string[] = [];
   let currentText = "";
-  for (const stringPart of stringParts) {
+  for (const stringPart of wordParts) {
     let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
       case "text":
@@ -729,6 +714,10 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
       case "variable":
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
+      case "quoted":
+        const text = (await evaluateWordParts(stringPart.value, context)).join(" ");
+        currentText += text;
+        continue;
       case "command":
       default:
         throw new Error(`Not implemented: ${stringPart.kind}`);

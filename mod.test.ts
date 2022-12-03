@@ -167,6 +167,12 @@ Deno.test("should handle interpolation", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
+Deno.test("should handle interpolation beside args", async () => {
+  const value = "a/b";
+  const text = await $`echo ${value}/c`.text();
+  assertEquals(text, "a/b/c");
+});
+
 Deno.test("should handle providing array of arguments", async () => {
   const args = [1, "2", "test   test"];
   const text = await $`deno eval 'console.log(Deno.args)' ${args}`.text();

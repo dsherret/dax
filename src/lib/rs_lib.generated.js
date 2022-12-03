@@ -1,7 +1,7 @@
 // @generated file from wasmbuild -- do not edit
 // deno-lint-ignore-file
 // deno-fmt-ignore-file
-// source-hash: 0e9b14e98b441a09933cec10fa429c443934578e
+// source-hash: 6fb3c424a5fb6c4fcf190ee79ad36d97c39c6d6b
 let wasm;
 
 const cachedTextDecoder = new TextDecoder("utf-8", {
@@ -138,13 +138,6 @@ const imports = {
       const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
       return addHeapObject(ret);
     },
-    __wbg_error_09919627ac0992f5: function (arg0, arg1) {
-      try {
-        console.error(getStringFromWasm0(arg0, arg1));
-      } finally {
-        wasm.__wbindgen_free(arg0, arg1);
-      }
-    },
     __wbg_new_693216e109162396: function () {
       const ret = new Error();
       return addHeapObject(ret);
@@ -160,11 +153,15 @@ const imports = {
       getInt32Memory0()[arg0 / 4 + 1] = len0;
       getInt32Memory0()[arg0 / 4 + 0] = ptr0;
     },
+    __wbg_error_09919627ac0992f5: function (arg0, arg1) {
+      try {
+        console.error(getStringFromWasm0(arg0, arg1));
+      } finally {
+        wasm.__wbindgen_free(arg0, arg1);
+      }
+    },
     __wbindgen_object_drop_ref: function (arg0) {
       takeObject(arg0);
-    },
-    __wbindgen_throw: function (arg0, arg1) {
-      throw new Error(getStringFromWasm0(arg0, arg1));
     },
   },
 };

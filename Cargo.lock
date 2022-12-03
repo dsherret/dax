@@ -32,11 +32,12 @@ dependencies = [
 
 [[package]]
 name = "deno_task_shell"
-version = "0.5.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8348a58271a9672a735850dd2293770c83344759f8d18e4636e53de9e4605d2"
+checksum = "532b383a071a05144c712614d62f08a2f9fad48dd62d6d457ed3884b049357da"
 dependencies = [
  "anyhow",
+ "monch",
  "serde",
 ]
 
@@ -60,6 +61,12 @@ checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "monch"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f13de1c3edc9a5b9dc3a1029f56e9ab3eba34640010aff4fc01044c42ef67afa"
 
 [[package]]
 name = "proc-macro2"
