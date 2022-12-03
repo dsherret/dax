@@ -1,6 +1,6 @@
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
-import { instantiate } from "./lib/rs_lib.generated.js";
+import { instantiateWithCaching } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
@@ -335,7 +335,7 @@ export class Context {
 }
 
 export async function parseArgs(command: string) {
-  const { parse } = await instantiate();
+  const { parse } = await instantiateWithCaching();
   return parse(command) as SequentialList;
 }
 
