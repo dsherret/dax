@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.8.4/main.ts --out ./src/lib",
+    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.10.2/main.ts --out ./src/lib",
     "update-lockfile": "deno cache --lock-write mod.ts src/deps.test.ts"
   }
 }
