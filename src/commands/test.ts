@@ -9,11 +9,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     let result: Promise<boolean>;
     switch (testFlag) {
       case "-f":
-        result = stat(testPath, info => info.isFile);
+        result = stat(testPath, (info) => info.isFile);
         break;
 
       case "-d":
-        result = stat(testPath, info => info.isDirectory);
+        result = stat(testPath, (info) => info.isDirectory);
         break;
 
       case "-e":
@@ -21,11 +21,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
         break;
 
       case "-s":
-        result = stat(testPath, info => info.size > 0);
+        result = stat(testPath, (info) => info.size > 0);
         break;
 
       case "-L":
-        result = stat(testPath, info => info.isSymlink);
+        result = stat(testPath, (info) => info.isSymlink);
         break;
 
       default:

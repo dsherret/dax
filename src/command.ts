@@ -134,7 +134,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    */
   registerCommand(command: string, handleFn: CommandHandler) {
     validateCommandName(command);
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.commands[command] = handleFn;
     });
   }
@@ -154,14 +154,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Unregister a command.
    */
   unregisterCommand(command: string) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       delete state.commands[command];
     });
   }
 
   /** Sets the raw command to execute. */
   command(command: string | string[]) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof command === "string") {
         state.command = command;
       } else {
@@ -172,14 +172,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** The command should not throw when it fails or times out. */
   noThrow(value = true) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.noThrow = value;
     });
   }
 
   /** Sets the stdin to use for the command. */
   stdin(reader: ShellPipeReader | string | Uint8Array) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof reader === "string") {
         // todo: support cloning these buffers so that
         // the state is immutable when creating a new
@@ -195,14 +195,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.stdoutKind = kind;
     });
   }
 
   /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.stderrKind = kind;
     });
   }
@@ -212,7 +212,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Sets a single environment variable to use. */
   env(name: string, value: string | undefined): CommandBuilder;
   env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof nameOrItems === "string") {
         setEnv(state, nameOrItems, value);
       } else {
@@ -232,7 +232,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Sets the current working directory to use when executing this command. */
   cwd(dirPath: string | URL) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.cwd = dirPath instanceof URL ? path.fromFileUrl(dirPath) : path.resolve(dirPath);
     });
   }
@@ -251,7 +251,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   exportEnv(value = true) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.exportEnv = value;
     });
   }
@@ -274,7 +274,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   printCommand(value = true) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.printCommand = value;
     });
   }
@@ -300,7 +300,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   quiet(kind: "stdout" | "stderr" | "both" = "both") {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (kind === "both" || kind === "stdout") {
         state.stdoutKind = getQuietKind(state.stdoutKind);
       }
@@ -332,7 +332,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * be thrown when timing out.
    */
   timeout(delay: Delay) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.timeout = delayToMs(delay);
     });
   }
@@ -395,19 +395,11 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
   const stdout = new ShellPipeWriter(
     state.stdoutKind,
-    stdoutBuffer === "null"
-      ? new NullPipeWriter()
-      : stdoutBuffer === "inherit"
-      ? Deno.stdout
-      : stdoutBuffer,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
   );
   const stderr = new ShellPipeWriter(
     state.stderrKind,
-    stderrBuffer === "null"
-      ? new NullPipeWriter()
-      : stderrBuffer === "inherit"
-      ? Deno.stderr
-      : stderrBuffer,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
 
   const abortController = new AbortController();

@@ -595,12 +595,12 @@ Deno.test("basic logging test to ensure no errors", async () => {
   assertEquals(setCount, 1);
   await $.logGroup("Label3", async () => {
     assertEquals($.logDepth, 2);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
     setCount++;
     $.log("Test");
     await $.logGroup(async () => {
       assertEquals($.logDepth, 3);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       setCount++;
       $.log("Test");
     });
@@ -616,7 +616,7 @@ Deno.test("basic logging test to ensure no errors", async () => {
     assertEquals($.logDepth, 1);
     $.logGroupEnd();
     assertEquals($.logDepth, 0);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
   assertEquals($.logDepth, 0);
 

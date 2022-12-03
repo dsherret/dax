@@ -303,7 +303,7 @@ export interface $Type {
 
 function sleep(delay: Delay) {
   const ms = delayToMs(delay);
-  return new Promise<void>(resolve => setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 async function withRetries<TReturn>(
@@ -536,7 +536,7 @@ function build$FromState(state: $State) {
       const indentText = "  ".repeat(state.indentLevel.value);
       return combinedText
         .split(/\n/) // keep \r on line
-        .map(l => `${indentText}${l}`)
+        .map((l) => `${indentText}${l}`)
         .join("\n");
     }
   }
@@ -603,7 +603,7 @@ export function build$(options: Create$Options = {}) {
 function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
   let result: string;
   if (expr instanceof Array) {
-    return expr.map(e => templateLiteralExprToString(e, escape)).join(" ");
+    return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");
   } else if (expr instanceof CommandResult) {
     // remove last newline
     result = expr.stdout.replace(/\r?\n$/, "");
