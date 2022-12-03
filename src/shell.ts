@@ -715,7 +715,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
       case "quoted":
-        currentText += stringPart.value;
+        const text = (await evaluateWordParts(stringPart.value, context)).join(" ");
+        currentText += text;
         continue;
       case "command":
       default:
