@@ -4,7 +4,7 @@ import { ExecuteResult, resultFromCode } from "../result.ts";
 export async function sleepCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
     const ms = parseArgs(context.args);
-    await new Promise(resolve => setTimeout(resolve, ms));
+    await new Promise((resolve) => setTimeout(resolve, ms));
     return resultFromCode(0);
   } catch (err) {
     await context.stderr.writeLine(`sleep: ${err?.message ?? err}`);

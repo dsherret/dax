@@ -47,19 +47,19 @@ export function parseArgs(args: string[]) {
 
   for (const arg of parse_arg_kinds(args)) {
     if (
-      (arg.arg === "recursive" && arg.kind === "LongFlag")
-      || (arg.arg === "r" && arg.kind == "ShortFlag")
-      || (arg.arg === "R" && arg.kind === "ShortFlag")
+      (arg.arg === "recursive" && arg.kind === "LongFlag") ||
+      (arg.arg === "r" && arg.kind == "ShortFlag") ||
+      (arg.arg === "R" && arg.kind === "ShortFlag")
     ) {
       result.recursive = true;
     } else if (
-      (arg.arg == "dir" && arg.kind === "LongFlag")
-      || (arg.arg == "d" && arg.kind === "ShortFlag")
+      (arg.arg == "dir" && arg.kind === "LongFlag") ||
+      (arg.arg == "d" && arg.kind === "ShortFlag")
     ) {
       result.dir = true;
     } else if (
-      (arg.arg == "force" && arg.kind === "LongFlag")
-      || (arg.arg == "f" && arg.kind === "ShortFlag")
+      (arg.arg == "force" && arg.kind === "LongFlag") ||
+      (arg.arg == "f" && arg.kind === "ShortFlag")
     ) {
       result.force = true;
     } else {

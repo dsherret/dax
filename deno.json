@@ -1,5 +1,11 @@
 {
   "tasks": {
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.10.2/main.ts --out ./src/lib"
+  },
+  "fmt": {
+    "options": {
+      "proseWrap": "preserve",
+      "lineWidth": 120
+    }
   }
 }

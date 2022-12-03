@@ -86,7 +86,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
 
   /** Specifies the URL to send the request to. */
   url(value: string | URL | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.url = value;
     });
   }
@@ -96,7 +96,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   /** Sets a header to send with the request. */
   header(name: string, value: string | undefined): RequestBuilder;
   header(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof nameOrItems === "string") {
         setHeader(state, nameOrItems, value);
       } else {
@@ -138,7 +138,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    */
   noThrow(exclusionStatusCode: number, ...additional: number[]): RequestBuilder;
   noThrow(value?: boolean | number, ...additional: number[]) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof value === "boolean" || value == null) {
         state.noThrow = value ?? true;
       } else {
@@ -148,62 +148,62 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   body(value: BodyInit | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.body = value;
     });
   }
 
   cache(value: RequestCache | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.cache = value;
     });
   }
 
   integrity(value: string | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.integrity = value;
     });
   }
 
   keepalive(value: boolean) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.keepalive = value;
     });
   }
 
   method(value: string) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.method = value;
     });
   }
 
   mode(value: RequestMode) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.mode = value;
     });
   }
 
   redirect(value: RequestRedirect) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.redirect = value;
     });
   }
 
   referrer(value: string | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.referrer = value;
     });
   }
 
   referrerPolicy(value: ReferrerPolicy | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.referrerPolicy = value;
     });
   }
 
   /** Timeout the request after the specified number of milliseconds */
   timeout(ms: number | undefined) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.timeout = ms;
     });
   }
@@ -226,8 +226,8 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     let builder: RequestBuilder = this;
     const acceptHeaderName = "ACCEPT";
     if (
-      builder.#state == null
-      || !Object.hasOwn(builder.#state.headers, acceptHeaderName)
+      builder.#state == null ||
+      !Object.hasOwn(builder.#state.headers, acceptHeaderName)
     ) {
       builder = builder.header(acceptHeaderName, "application/json");
     }

@@ -725,8 +725,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
 
     if (evaluationResult != null) {
       const parts = evaluationResult.split(" ")
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
       if (parts.length > 0) {
         // append the first part to the current text
         currentText += parts[0];
