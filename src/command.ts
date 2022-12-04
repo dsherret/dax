@@ -317,9 +317,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         case "null":
         case "piped":
           return kind;
-        default:
+        default: {
           const _assertNever: never = kind;
           throw new Error(`Unhandled kind ${kind}.`);
+        }
       }
     }
   }

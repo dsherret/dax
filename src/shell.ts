@@ -74,6 +74,7 @@ export interface TaggedSequentialList extends SequentialList {
   kind: "sequentialList";
 }
 
+// deno-lint-ignore no-empty-interface
 export interface Redirect {
   // todo...
 }
@@ -242,9 +243,10 @@ export class Context {
         case "shellvar":
           this.setShellVar(change.name, change.value);
           break;
-        default:
+        default: {
           const _assertNever: never = change;
           throw new Error(`Not implemented env change: ${change}`);
+        }
       }
     }
   }
@@ -368,7 +370,7 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
 
 async function executeSequentialList(list: SequentialList, context: Context): Promise<ExecuteResult> {
   let finalExitCode = 0;
-  let finalChanges = [];
+  const finalChanges = [];
   for (const item of list.items) {
     if (item.isAsync) {
       throw new Error("Async commands are not supported. Run a command concurrently in the JS code instead.");
@@ -384,8 +386,9 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
         break;
       case "exit":
         return result;
-      default:
+      default: {
         const _assertNever: never = result;
+      }
     }
   }
   return {
@@ -406,9 +409,10 @@ function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteR
       return executeBooleanList(sequence, context);
     case "shellVar":
       return executeShellVar(sequence, context);
-    default:
+    default: {
       const _assertNever: never = sequence;
       throw new Error(`Not implemented: ${sequence}`);
+    }
   }
 }
 
@@ -437,9 +441,10 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
       }
       exitCode = firstResult.code;
       break;
-    default:
+    default: {
       const _assertNever: never = firstResult;
       throw new Error("Not handled.");
+    }
   }
 
   const next = findNextSequence(list, exitCode);
@@ -466,9 +471,10 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
           code: nextResult.code,
           changes,
         };
-      default:
+      default: {
         const _assertNever: never = nextResult;
         throw new Error("Not Implemented");
+      }
     }
   }
 
@@ -714,10 +720,11 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
       case "variable":
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
-      case "quoted":
+      case "quoted": {
         const text = (await evaluateWordParts(stringPart.value, context)).join(" ");
         currentText += text;
         continue;
+      }
       case "command":
       default:
         throw new Error(`Not implemented: ${stringPart.kind}`);

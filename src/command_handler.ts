@@ -20,4 +20,4 @@ export interface CommandContext {
 }
 
 /** Handler for executing a command. */
-export type CommandHandler = (context: CommandContext) => Promise<ExecuteResult>;
+export type CommandHandler = (context: CommandContext) => Promise<ExecuteResult> | ExecuteResult;
