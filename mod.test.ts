@@ -1,5 +1,5 @@
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
@@ -248,9 +248,9 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .registerCommand("zardoz-speaks", (context) => {
+    .registerCommand("zardoz-speaks", async (context) => {
       if (context.args.length != 1) {
-        context.stderr.writeLine("zardoz-speaks: expected 1 argument");
+        await context.stderr.writeLine("zardoz-speaks: expected 1 argument");
         return {
           kind: "continue",
           code: 1,
@@ -749,3 +749,33 @@ async function withTempDir(action: (path: string) => Promise<void>) {
     }
   }
 }
+
+Deno.test("test mkdir", async () => {
+  const dir = Deno.makeTempDirSync();
+
+  await $`mkdir ${dir}/a`;
+  await $.exists(dir + "/a");
+
+  {
+    const error = await $`mkdir ${dir}/a`.noThrow().stderr("piped").spawn()
+      .then(
+        (r) => r.stderr,
+      );
+    const expecteError = "mkdir: cannot create directory";
+    assertEquals(error.slice(0, expecteError.length), expecteError);
+  }
+
+  {
+    const error = await $`mkdir ${dir}/b/c`.noThrow().stderr("piped").spawn()
+      .then(
+        (r) => r.stderr,
+      );
+    const expecteError = Deno.build.os === "windows"
+      ? "mkdir: The system cannot find the path specified."
+      : "mkdir: No such file or directory";
+    assertEquals(error.slice(0, expecteError.length), expecteError);
+  }
+
+  await $`mkdir -p ${dir}/b/c`;
+  assert(await $.exists(dir + "/b/c"));
+});
