@@ -25,3 +25,6 @@ jobs:
 
       - name: test
         run: deno test -A
+      
+      - name: lint
+        run: deno lint
