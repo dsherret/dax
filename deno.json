@@ -7,5 +7,10 @@
       "proseWrap": "preserve",
       "lineWidth": 120
     }
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any", "no-this-alias"]
+    }
   }
 }
