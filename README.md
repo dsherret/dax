@@ -441,9 +441,7 @@ The builder APIs are what the library uses internally and they're useful for sce
 `CommandBuilder` can be used for building up commands similar to what the tagged template `$` does:
 
 ```ts
-import {
-  CommandBuilder,
-} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+import { CommandBuilder } from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
@@ -484,9 +482,7 @@ const result = await commandBuilder
 `RequestBuilder` can be used for building up requests similar to `$.request`:
 
 ```ts
-import {
-  RequestBuilder,
-} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+import { RequestBuilder } from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
 const requestBuilder = new RequestBuilder()
   .header("SOME_VALUE", "some value to send in a header");
@@ -501,11 +497,7 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself:
 
 ```ts
-import {
-  build$,
-  CommandBuilder,
-  RequestBuilder,
-} from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")

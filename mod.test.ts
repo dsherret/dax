@@ -248,15 +248,15 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .registerCommand("zardoz-speaks", async (context) => {
+    .registerCommand("zardoz-speaks", (context) => {
       if (context.args.length != 1) {
-        await context.stderr.writeLine("zardoz-speaks: expected 1 argument");
+        context.stderr.writeLine("zardoz-speaks: expected 1 argument");
         return {
           kind: "continue",
           code: 1,
         };
       }
-      await context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
+      context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
       return {
         kind: "continue",
         code: 0,
@@ -294,9 +294,9 @@ Deno.test("should support custom command handlers", async () => {
   }
 });
 
-Deno.test("should not allow invalid command names", async () => {
+Deno.test("should not allow invalid command names", () => {
   const builder = new CommandBuilder();
-  const hax: CommandHandler = async (context: CommandContext) => {
+  const hax: CommandHandler = (context: CommandContext) => {
     context.stdout.writeLine("h4x!1!");
     return {
       kind: "continue",
@@ -635,7 +635,7 @@ Deno.test("basic logging test to ensure no errors", async () => {
   $.logDepth = 0;
 });
 
-Deno.test("setting logging", async () => {
+Deno.test("setting logging", () => {
   const test$ = $.build$();
   const infoLogs: any[] = [];
   const warnLogs: any[] = [];
