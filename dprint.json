@@ -7,6 +7,9 @@
     "deno": true,
     "lineWidth": 120
   },
+  "markdown": {
+    "lineWidth": 120
+  },
   "includes": ["**/*.{ts,tsx,js,jsx,cjs,mjs,json,md,toml,rs}"],
   "excludes": [
     "**/node_modules",
