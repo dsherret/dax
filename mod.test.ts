@@ -710,29 +710,42 @@ Deno.test("environment should be evaluated at command execution", async () => {
 });
 
 Deno.test("test remove", async () => {
-  const dir = Deno.makeTempDirSync();
+  await withTempDir(async (dir) => {
+    const emptyDir = dir + "/hello";
+    const someFile = dir + "/a.txt";
 
-  const emptyDir = dir + "/hello";
-  const someFile = dir + "/a.txt";
+    Deno.mkdirSync(emptyDir);
+    Deno.writeTextFileSync(someFile, "");
 
-  Deno.mkdirSync(emptyDir);
-  Deno.writeTextFileSync(someFile, "");
+    await $`rm ${emptyDir}`;
+    await $`rm ${someFile}`;
+    assertEquals($.fs.existsSync(dir + "/hello"), false);
+    assertEquals($.fs.existsSync(dir + "/a.txt"), false);
 
-  await $`rm ${emptyDir}`;
-  await $`rm ${someFile}`;
-  assertEquals($.fs.existsSync(dir + "/hello"), false);
-  assertEquals($.fs.existsSync(dir + "/a.txt"), false);
+    const nonEmptyDir = dir + "/a";
+    Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
 
-  const nonEmptyDir = dir + "/a";
-  Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
+    const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
+      .then((r) => r.stderr);
+    const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      ? "rm: Directory not empty"
+      : "rm: The directory is not empty";
+    assertEquals(error.substring(0, expectedText.length), expectedText);
 
-  const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
-    .then((r) => r.stderr);
-  const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
-    ? "rm: Directory not empty"
-    : "rm: The directory is not empty";
-  assertEquals(error.substring(0, expectedText.length), expectedText);
-
-  await $`rm -r ${nonEmptyDir}`;
-  assertEquals($.fs.existsSync(nonEmptyDir), false);
+    await $`rm -r ${nonEmptyDir}`;
+    assertEquals($.fs.existsSync(nonEmptyDir), false);
+  });
 });
+
+async function withTempDir(action: (path: string) => Promise<void>) {
+  const dirPath = Deno.makeTempDirSync();
+  try {
+    await action(dirPath);
+  } finally {
+    try {
+      await Deno.remove(dirPath, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+}
