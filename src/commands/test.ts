@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { resolvePath } from "../common.ts";
+import { lstat, resolvePath } from "../common.ts";
 import { fs } from "../deps.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
@@ -9,11 +9,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     let result: Promise<boolean>;
     switch (testFlag) {
       case "-f":
-        result = stat(testPath, (info) => info.isFile);
+        result = lstat(testPath, (info) => info.isFile);
         break;
 
       case "-d":
-        result = stat(testPath, (info) => info.isDirectory);
+        result = lstat(testPath, (info) => info.isDirectory);
         break;
 
       case "-e":
@@ -21,11 +21,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
         break;
 
       case "-s":
-        result = stat(testPath, (info) => info.size > 0);
+        result = lstat(testPath, (info) => info.size > 0);
         break;
 
       case "-L":
-        result = stat(testPath, (info) => info.isSymlink);
+        result = lstat(testPath, (info) => info.isSymlink);
         break;
 
       default:
@@ -49,17 +49,4 @@ function parseArgs(cwd: string, args: string[]) {
   }
 
   return [args[0], resolvePath(cwd, args[1])];
-}
-
-async function stat(path: string, test: (info: Deno.FileInfo) => boolean) {
-  try {
-    const info = await Deno.lstat(path);
-    return test(info);
-  } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      return false;
-    } else {
-      throw err;
-    }
-  }
 }

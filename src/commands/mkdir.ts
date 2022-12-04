@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { stat } from "../utils.ts";
+import { lstat } from "../common.ts";
 import { bailUnsupported, parse_arg_kinds } from "./args.ts";
 
 export async function mkdirCommand(
@@ -16,7 +16,7 @@ export async function mkdirCommand(
   }
 }
 
-interface mkdirFlags {
+interface MkdirFlags {
   parents: boolean;
   paths: string[];
 }
@@ -26,9 +26,9 @@ async function executeMkdir(cwd: string, args: string[]) {
   for (const specifiedPath of flags.paths) {
     const path = resolvePath(cwd, specifiedPath);
     if (
-      await stat(path, (info) => info.isFile) ||
+      await lstat(path, (info) => info.isFile) ||
       (!flags.parents &&
-        await stat(path, (info) => info.isDirectory))
+        await lstat(path, (info) => info.isDirectory))
     ) {
       throw Error(`cannot create directory '${specifiedPath}': File exists`);
     }
@@ -41,7 +41,7 @@ async function executeMkdir(cwd: string, args: string[]) {
 }
 
 export function parseArgs(args: string[]) {
-  const result: mkdirFlags = {
+  const result: MkdirFlags = {
     parents: false,
     paths: [],
   };
