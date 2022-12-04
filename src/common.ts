@@ -107,24 +107,14 @@ export class TreeBox<T> {
   }
 }
 
-export async function stat(path: string, test: (info: Deno.FileInfo) => boolean) {
+export async function lstat(path: string) {
   try {
-    const info = await Deno.lstat(path);
-    return test(info);
+    return await Deno.lstat(path);
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
-      return false;
+      return;
     } else {
       throw err;
     }
   }
-}
-export async function isFile(path: string) {
-  return await stat(path, (info) => info.isFile);
-}
-export async function isDir(path: string) {
-  return await stat(path, (info) => info.isDirectory);
-}
-export async function isSymlink(path: string) {
-  return await stat(path, (info) => info.isSymlink);
 }

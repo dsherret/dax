@@ -1,9 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { isDir, isFile, isSymlink } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { fs } from "../deps.ts";
-import { resolvePath, rustJoin } from "../common.ts";
+import { lstat, resolvePath, rustJoin } from "../common.ts";
 
 export async function cpCommand(
   context: CommandContext,
@@ -60,13 +58,15 @@ async function doCopyOperation(
 ) {
   // These are racy with the file system, but that's ok.
   // They only exists to give better error messages.
-  if (await isDir(from.path)) {
+  const fromInfo = await lstat(from.path);
+  if (fromInfo?.isDirectory) {
     if (flags.recursive) {
-      if (await fs.exists(to.path) && await isFile(to.path)) {
+      const toInfo = await lstat(to.path);
+      if (toInfo?.isFile) {
         throw Error("destination was a file");
-      } else if (await isSymlink(to.path)) {
+      } else if (toInfo?.isSymlink) {
         throw Error("no support for copying to symlinks");
-      } else if (await isSymlink(from.path)) {
+      } else if (fromInfo.isSymlink) {
         throw Error("no support for copying from symlinks");
       } else {
         await copyDirRecursively(from.path, to.path);
@@ -140,7 +140,7 @@ async function getCopyAndMoveOperations(
   const fromArgs = paths;
   const operations = [];
   if (fromArgs.length > 1) {
-    if (!await isDir(destination)) {
+    if (!await lstat(destination).then((p) => p?.isDirectory)) {
       throw Error(`target '${specified_destination}' is not a directory`);
     }
     for (const from of fromArgs) {
@@ -161,7 +161,7 @@ async function getCopyAndMoveOperations(
     }
   } else {
     const fromPath = resolvePath(cwd, fromArgs[0]);
-    const toPath = await isDir(destination) ? rustJoin(destination, fromPath) : destination;
+    const toPath = await lstat(destination).then((p) => p?.isDirectory) ? rustJoin(destination, fromPath) : destination;
     operations.push({
       from: {
         specified: fromArgs[0],

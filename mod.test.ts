@@ -1,5 +1,5 @@
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { isDir, rustJoin } from "./src/common.ts";
+import { lstat, rustJoin } from "./src/common.ts";
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
@@ -846,4 +846,9 @@ Deno.test("move test", async () => {
 
 async function getStdErr(cmd: CommandBuilder) {
   return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
+}
+
+async function isDir(path: string) {
+  const info = await lstat(path);
+  return info?.isDirectory ? true : false;
 }
