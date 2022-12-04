@@ -65,13 +65,11 @@ export function resolvePath(cwd: string, arg: string) {
 }
 
 /**
- Follow rust std::path::Path::join
- The advantage is it can handle joining 2 absolute paths with common part
+ * Follow rust std::path::Path::join
+ * The advantage is it can handle joining 2 absolute paths with common part
 
- rustjoin("/a/b","/a/c") => "/a/b/c"
-
- instead of:
- Deno.path.join("/a/b","/a/c") => "/a/b/a/c"
+ * Rust: join("/a/b","/a/c") => "/a/b/c"
+ * Deno. join("/a/b","/a/c") => "/a/b/a/c"
 **/
 export function rustJoin(path1: string, path2: string) {
   const maybeCommon = path.common([path1, path2]);

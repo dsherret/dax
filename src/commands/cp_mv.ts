@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { isDir, isFile, isSymlink } from "../common.ts";
-import { bailUnsupported, parse_arg_kinds } from "./args.ts";
+import { bailUnsupported, parseArgKinds } from "./args.ts";
 import { fs } from "../deps.ts";
 import { resolvePath, rustJoin } from "../common.ts";
 
@@ -22,7 +22,7 @@ interface PathWithSpecified {
   specified: string;
 }
 
-interface cpFlags {
+interface CopyFlags {
   recursive: boolean;
   operations: { from: PathWithSpecified; to: PathWithSpecified }[];
 }
@@ -34,10 +34,10 @@ async function executeCp(cwd: string, args: string[]) {
   }
 }
 
-export async function parseCpArgs(cwd: string, args: string[]): Promise<cpFlags> {
+export async function parseCpArgs(cwd: string, args: string[]): Promise<CopyFlags> {
   const paths = [];
   let recursive = false;
-  for (const arg of parse_arg_kinds(args)) {
+  for (const arg of parseArgKinds(args)) {
     if (arg.kind === "Arg") paths.push(arg.arg);
     else if (
       (arg.arg === "recursive" && arg.kind === "LongFlag") ||
@@ -54,7 +54,7 @@ export async function parseCpArgs(cwd: string, args: string[]): Promise<cpFlags>
 }
 
 async function doCopyOperation(
-  flags: cpFlags,
+  flags: CopyFlags,
   from: PathWithSpecified,
   to: PathWithSpecified,
 ) {
@@ -105,7 +105,7 @@ export async function mvCommand(
   }
 }
 
-interface mvFlags {
+interface MoveFlags {
   operations: { from: PathWithSpecified; to: PathWithSpecified }[];
 }
 
@@ -116,10 +116,10 @@ async function executeMove(cwd: string, args: string[]) {
   }
 }
 
-export async function parseMvArgs(cwd: string, args: string[]): Promise<mvFlags> {
+export async function parseMvArgs(cwd: string, args: string[]): Promise<MoveFlags> {
   const paths = [];
 
-  for (const arg of parse_arg_kinds(args)) {
+  for (const arg of parseArgKinds(args)) {
     if (arg.kind === "Arg") paths.push(arg.arg);
     else bailUnsupported(arg);
   }

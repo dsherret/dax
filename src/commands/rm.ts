@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { ArgKind, parse_arg_kinds } from "./args.ts";
+import { ArgKind, parseArgKinds } from "./args.ts";
 
 export async function rmCommand(
   context: CommandContext,
@@ -45,7 +45,7 @@ export function parseArgs(args: string[]) {
     paths: [],
   };
 
-  for (const arg of parse_arg_kinds(args)) {
+  for (const arg of parseArgKinds(args)) {
     if (
       (arg.arg === "recursive" && arg.kind === "LongFlag") ||
       (arg.arg === "r" && arg.kind == "ShortFlag") ||
