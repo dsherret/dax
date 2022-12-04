@@ -1,5 +1,6 @@
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { assertEquals, assertRejects, assertThrows } from "./src/deps.test.ts";
+import { isDir, rustJoin } from "./src/common.ts";
+import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
@@ -748,4 +749,93 @@ async function withTempDir(action: (path: string) => Promise<void>) {
       // ignore
     }
   }
+}
+
+Deno.test("copy test", async () => {
+  const dir = Deno.makeTempDirSync();
+  const file1 = path.join(dir, "file1.txt");
+  const file2 = path.join(dir, "file2.txt");
+  Deno.writeTextFileSync(file1, "test");
+  await $`cp ${file1} ${file2}`;
+
+  assert($.existsSync(file1));
+  assert($.existsSync(file2));
+
+  const destDir = path.join(dir, "dest");
+  Deno.mkdirSync(destDir);
+  await $`cp ${file1} ${file2} ${destDir}`;
+
+  assert($.existsSync(file1));
+  assert($.existsSync(file2));
+  assert($.existsSync(rustJoin(destDir, file1)));
+  assert($.existsSync(rustJoin(destDir, file2)));
+
+  const newFile = path.join(dir, "new.txt");
+  Deno.writeTextFileSync(newFile, "test");
+  await $`cp ${newFile} ${destDir}`;
+
+  assert(await isDir(destDir));
+  assert($.existsSync(newFile));
+  assert($.existsSync(rustJoin(destDir, newFile)));
+
+  assertEquals(await getStdErr($`cp ${file1} ${file2} non-existant`), "cp: target 'non-existant' is not a directory\n");
+
+  assertEquals(await getStdErr($`cp "" ""`), "cp: missing file operand\n");
+  assertStringIncludes(await getStdErr($`cp ${file1} ""`), "cp: missing destination file operand after");
+
+  // recursive test
+  Deno.mkdirSync(path.join(destDir, "sub_dir"));
+  Deno.writeTextFileSync(path.join(destDir, "sub_dir", "sub.txt"), "test");
+  const destDir2 = path.join(dir, "dest2");
+
+  assertEquals(await getStdErr($`cp ${destDir} ${destDir2}`), "cp: source was a directory; maybe specify -r\n");
+  assert(!$.existsSync(destDir2));
+
+  await $`cp -r ${destDir} ${destDir2}`;
+  assert($.existsSync(destDir2));
+  assert($.existsSync(path.join(destDir2, "file1.txt")));
+  assert($.existsSync(path.join(destDir2, "file2.txt")));
+  assert($.existsSync(path.join(destDir2, "sub_dir", "sub.txt")));
+
+  // copy again
+  await $`cp -r ${destDir} ${destDir2}`;
+
+  // try copying to a file
+  assertStringIncludes(await getStdErr($`cp -r ${destDir} ${destDir2}/file1.txt`), "destination was a file");
+});
+
+Deno.test("move test", async () => {
+  const dir = Deno.makeTempDirSync();
+  const file1 = path.join(dir, "file1.txt");
+  const file2 = path.join(dir, "file2.txt");
+  Deno.writeTextFileSync(file1, "test");
+
+  await $`mv ${file1} ${file2}`;
+  assert(!$.existsSync(file1));
+  assert($.existsSync(file2));
+
+  const destDir = path.join(dir, "dest");
+  Deno.writeTextFileSync(file1, "test"); // recreate
+  Deno.mkdirSync(destDir);
+  await $`mv ${file1} ${file2} ${destDir}`;
+  assert(!$.existsSync(file1));
+  assert(!$.existsSync(file2));
+  assert($.existsSync(rustJoin(destDir, file2)));
+  assert($.existsSync(rustJoin(destDir, file2)));
+
+  const newFile = path.join(dir, "new.txt");
+  Deno.writeTextFileSync(newFile, "test");
+  await $`mv ${newFile} ${destDir}`;
+  assert(await isDir(destDir));
+  assert(!$.existsSync(newFile));
+  assert($.existsSync(path.join(destDir, "new.txt")));
+
+  assertEquals(await getStdErr($`mv ${file1} ${file2} non-existant`), "mv: target 'non-existant' is not a directory\n");
+
+  assertEquals(await getStdErr($`mv "" ""`), "mv: missing operand\n");
+  assertStringIncludes(await getStdErr($`mv ${file1} ""`), "mv: missing destination file operand after");
+});
+
+async function getStdErr(cmd: CommandBuilder) {
+  return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
 }
