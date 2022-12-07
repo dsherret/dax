@@ -6,32 +6,32 @@ import { ExecuteResult, resultFromCode } from "../result.ts";
 export async function testCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
     const [testFlag, testPath] = parseArgs(context.cwd, context.args);
-    let result: Promise<boolean>;
+    let result: boolean;
     switch (testFlag) {
       case "-f":
-        result = lstat(testPath, (info) => info.isFile);
+        result = (await lstat(testPath))?.isFile ?? false;
         break;
 
       case "-d":
-        result = lstat(testPath, (info) => info.isDirectory);
+        result = (await lstat(testPath))?.isDirectory ?? false;
         break;
 
       case "-e":
-        result = fs.exists(testPath);
+        result = await fs.exists(testPath);
         break;
 
       case "-s":
-        result = lstat(testPath, (info) => info.size > 0);
+        result = ((await lstat(testPath))?.size ?? 0) > 0;
         break;
 
       case "-L":
-        result = lstat(testPath, (info) => info.isSymlink);
+        result = (await lstat(testPath))?.isSymlink ?? false;
         break;
 
       default:
         throw new Error("unsupported test type");
     }
-    return resultFromCode(await result ? 0 : 1);
+    return resultFromCode(result ? 0 : 1);
   } catch (err) {
     await context.stderr.writeLine(`test: ${err?.message ?? err}`);
     // bash test returns 2 on error, e.g. -bash: test: -8: unary operator expected

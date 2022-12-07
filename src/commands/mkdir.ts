@@ -2,7 +2,7 @@ import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { lstat } from "../common.ts";
-import { bailUnsupported, parse_arg_kinds } from "./args.ts";
+import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function mkdirCommand(
   context: CommandContext,
@@ -25,11 +25,8 @@ async function executeMkdir(cwd: string, args: string[]) {
   const flags = parseArgs(args);
   for (const specifiedPath of flags.paths) {
     const path = resolvePath(cwd, specifiedPath);
-    if (
-      await lstat(path, (info) => info.isFile) ||
-      (!flags.parents &&
-        await lstat(path, (info) => info.isDirectory))
-    ) {
+    const info = await lstat(path);
+    if (info?.isFile || (!flags.parents && info?.isDirectory)) {
       throw Error(`cannot create directory '${specifiedPath}': File exists`);
     }
     if (flags.parents) {
@@ -46,7 +43,7 @@ export function parseArgs(args: string[]) {
     paths: [],
   };
 
-  for (const arg of parse_arg_kinds(args)) {
+  for (const arg of parseArgKinds(args)) {
     if (
       (arg.arg === "parents" && arg.kind === "LongFlag") ||
       (arg.arg === "p" && arg.kind == "ShortFlag")
