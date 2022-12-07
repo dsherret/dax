@@ -112,7 +112,7 @@ export async function lstat(path: string) {
     return await Deno.lstat(path);
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
-      return;
+      return undefined;
     } else {
       throw err;
     }
