@@ -248,9 +248,9 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .registerCommand("zardoz-speaks", async (context) => {
+    .registerCommand("zardoz-speaks", (context) => {
       if (context.args.length != 1) {
-        await context.stderr.writeLine("zardoz-speaks: expected 1 argument");
+        context.stderr.writeLine("zardoz-speaks: expected 1 argument");
         return {
           kind: "continue",
           code: 1,
