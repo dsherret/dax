@@ -30,3 +30,14 @@ export function parse_arg_kinds(flags: string[]): ArgKind[] {
   }
   return result;
 }
+
+export function bailUnsupported(arg: ArgKind): never {
+  switch (arg.kind) {
+    case "Arg":
+      throw Error(`unsupported argument: ${arg.arg}`);
+    case "ShortFlag":
+      throw Error(`unsupported flag: -${arg.arg}`);
+    case "LongFlag":
+      throw Error(`unsupported flag: --${arg.arg}`);
+  }
+}

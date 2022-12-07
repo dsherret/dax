@@ -92,3 +92,19 @@ export class TreeBox<T> {
     return new TreeBox(this);
   }
 }
+
+export async function lstat(
+  path: string,
+  test: (info: Deno.FileInfo) => boolean,
+) {
+  try {
+    const info = await Deno.lstat(path);
+    return test(info);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return false;
+    } else {
+      throw err;
+    }
+  }
+}
