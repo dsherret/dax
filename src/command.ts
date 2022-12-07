@@ -3,6 +3,7 @@ import { cdCommand } from "./commands/cd.ts";
 import { echoCommand } from "./commands/echo.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
+import { mkdirCommand } from "./commands/mkdir.ts";
 import { rmCommand } from "./commands/rm.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
@@ -46,6 +47,7 @@ const builtInCommands = {
   sleep: sleepCommand,
   test: testCommand,
   rm: rmCommand,
+  mkdir: mkdirCommand,
   cp: cpCommand,
   mv: mvCommand,
 };

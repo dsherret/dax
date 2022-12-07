@@ -751,6 +751,36 @@ async function withTempDir(action: (path: string) => Promise<void>) {
   }
 }
 
+Deno.test("test mkdir", async () => {
+  await withTempDir(async (dir) => {
+    await $`mkdir ${dir}/a`;
+    await $.exists(dir + "/a");
+
+    {
+      const error = await $`mkdir ${dir}/a`.noThrow().stderr("piped").spawn()
+        .then(
+          (r) => r.stderr,
+        );
+      const expecteError = "mkdir: cannot create directory";
+      assertEquals(error.slice(0, expecteError.length), expecteError);
+    }
+
+    {
+      const error = await $`mkdir ${dir}/b/c`.noThrow().stderr("piped").spawn()
+        .then(
+          (r) => r.stderr,
+        );
+      const expectedError = Deno.build.os === "windows"
+        ? "mkdir: The system cannot find the path specified."
+        : "mkdir: No such file or directory";
+      assertEquals(error.slice(0, expectedError.length), expectedError);
+    }
+
+    await $`mkdir -p ${dir}/b/c`;
+    assert(await $.exists(dir + "/b/c"));
+  });
+});
+
 Deno.test("copy test", async () => {
   await withTempDir(async (dir) => {
     const file1 = path.join(dir, "file1.txt");
