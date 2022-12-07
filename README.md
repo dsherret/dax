@@ -425,7 +425,13 @@ Currently implemented (though not every option is supported):
   - Note that shells don't export their environment by default.
 - [`echo`](https://man7.org/linux/man-pages/man1/echo.1.html) - Echo command.
 - [`exit`](https://man7.org/linux/man-pages/man1/exit.1p.html) - Exit command.
+- [`cp`](https://man7.org/linux/man-pages/man1/cp.1.html) - Copies files.
+- [`mv`](https://man7.org/linux/man-pages/man1/mv.1.html) - Moves files.
 - [`rm`](https://man7.org/linux/man-pages/man1/rm.1.html) - Remove files or directories command.
+- [`mkdir`](https://man7.org/linux/man-pages/man1/mkdir.1.html) - Makes
+  directories.
+  - Ex. `mkdir -p DIRECTORY...` - Commonly used to make a directory and all its
+    parents with no error if it exists.
 - [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands

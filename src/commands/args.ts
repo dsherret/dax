@@ -3,7 +3,7 @@ export interface ArgKind {
   arg: string;
 }
 
-export function parse_arg_kinds(flags: string[]): ArgKind[] {
+export function parseArgKinds(flags: string[]): ArgKind[] {
   const result: ArgKind[] = [];
   let had_dash_dash = false;
   for (const arg of flags) {

@@ -18,6 +18,7 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { parseArgs, spawn } from "./shell.ts";
+import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -47,6 +48,8 @@ const builtInCommands = {
   test: testCommand,
   rm: rmCommand,
   mkdir: mkdirCommand,
+  cp: cpCommand,
+  mv: mvCommand,
 };
 
 /**

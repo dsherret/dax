@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.130.0/testing/asserts.ts";
-import { parse_arg_kinds } from "./args.ts";
+import { parseArgKinds } from "./args.ts";
 
 Deno.test("parses", () => {
   const data = [
@@ -14,7 +14,7 @@ Deno.test("parses", () => {
     "--test",
     "-t",
   ];
-  const args = parse_arg_kinds(data);
+  const args = parseArgKinds(data);
 
   assertEquals(args, [
     { arg: "f", kind: "ShortFlag" },
