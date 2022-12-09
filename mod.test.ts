@@ -874,6 +874,10 @@ Deno.test("move test", async () => {
   });
 });
 
+Deno.test("xargs test", async () => {
+  assert(await $`echo '1 2 3' | xargs`.text(), "1 2 3\n");
+});
+
 async function getStdErr(cmd: CommandBuilder) {
   return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
 }
