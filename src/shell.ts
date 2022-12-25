@@ -1,8 +1,6 @@
-import { instantiate } from "../lib/rs_lib.generated.js";
-import { cdCommand } from "./commands/cd.ts";
-import { echoCommand } from "./commands/echo.ts";
-import { exportCommand } from "./commands/export.ts";
+import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
+import { instantiateWithCaching } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
@@ -23,7 +21,7 @@ export interface ShellVar extends EnvVar {
 
 export interface EnvVar {
   name: string;
-  value: StringOrWord;
+  value: Word;
 }
 
 export interface Pipeline {
@@ -45,22 +43,12 @@ export type CommandInner = SimpleCommand | TaggedSequentialList;
 export interface SimpleCommand {
   kind: "simple";
   envVars: EnvVar[];
-  args: StringOrWord[];
+  args: Word[];
 }
 
-export type StringOrWord = Word | StringOrWordString;
+export type Word = WordPart[];
 
-export interface Word {
-  kind: "word";
-  value: StringPart[];
-}
-
-export interface StringOrWordString {
-  kind: "string";
-  value: StringPart[];
-}
-
-export type StringPart = Text | Variable | StringPartCommand;
+export type WordPart = Text | Variable | StringPartCommand | Quoted;
 
 export interface Text {
   kind: "text";
@@ -77,10 +65,16 @@ export interface StringPartCommand {
   value: SequentialList;
 }
 
+export interface Quoted {
+  kind: "quoted";
+  value: WordPart[];
+}
+
 export interface TaggedSequentialList extends SequentialList {
   kind: "sequentialList";
 }
 
+// deno-lint-ignore no-empty-interface
 export interface Redirect {
   // todo...
 }
@@ -134,10 +128,7 @@ class RealEnv implements Env {
   }
 
   clone(): Env {
-    return new ShellEnv({
-      cwd: this.getCwd(),
-      env: this.getEnvVars(),
-    });
+    return cloneEnv(this);
   }
 }
 
@@ -149,25 +140,17 @@ interface ShellEnvOpts {
 }
 
 class ShellEnv implements Env {
-  #cwd: string;
-  #envVars: {
-    [key: string]: string;
-  } = {};
-
-  constructor(opts: ShellEnvOpts) {
-    this.#cwd = opts.cwd;
-
-    // ensure the env vars are normalized
-    for (const [key, value] of Object.entries(opts.env)) {
-      this.setEnvVar(key, value);
-    }
-  }
+  #cwd: string | undefined;
+  #envVars: Record<string, string> = {};
 
   setCwd(cwd: string) {
     this.#cwd = cwd;
   }
 
   getCwd(): string {
+    if (this.#cwd == null) {
+      throw new Error("The cwd must be initialized.");
+    }
     return this.#cwd;
   }
 
@@ -194,19 +177,33 @@ class ShellEnv implements Env {
   }
 
   clone() {
-    return new ShellEnv({
-      cwd: this.#cwd,
-      env: { ...this.#envVars },
-    });
+    return cloneEnv(this);
   }
 }
 
-class Context {
+function initializeEnv(env: Env, opts: ShellEnvOpts) {
+  env.setCwd(opts.cwd);
+  for (const [key, value] of Object.entries(opts.env)) {
+    env.setEnvVar(key, value);
+  }
+}
+
+function cloneEnv(env: Env) {
+  const result = new ShellEnv();
+  initializeEnv(result, {
+    cwd: env.getCwd(),
+    env: env.getEnvVars(),
+  });
+  return result;
+}
+
+export class Context {
   stdin: ShellPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   #env: Env;
   #shellVars: Record<string, string>;
+  #commands: Record<string, CommandHandler>;
   #signal: AbortSignal;
 
   constructor(opts: {
@@ -214,6 +211,7 @@ class Context {
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
     env: Env;
+    commands: Record<string, CommandHandler>;
     shellVars: Record<string, string>;
     signal: AbortSignal;
   }) {
@@ -221,6 +219,7 @@ class Context {
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
     this.#env = opts.env;
+    this.#commands = opts.commands;
     this.#shellVars = opts.shellVars;
     this.#signal = opts.signal;
   }
@@ -244,9 +243,10 @@ class Context {
         case "shellvar":
           this.setShellVar(change.name, change.value);
           break;
-        default:
+        default: {
           const _assertNever: never = change;
           throw new Error(`Not implemented env change: ${change}`);
+        }
       }
     }
   }
@@ -298,12 +298,38 @@ class Context {
     return this.#env.getEnvVar(key) ?? this.#shellVars[key];
   }
 
+  getCommand(command: string) {
+    return this.#commands[command] ?? null;
+  }
+
+  asCommandContext(args: string[]): CommandContext {
+    const context = this;
+    return {
+      get args() {
+        return args;
+      },
+      get cwd() {
+        return context.getCwd();
+      },
+      get stdin() {
+        return context.stdin;
+      },
+      get stdout() {
+        return context.stdout;
+      },
+      get stderr() {
+        return context.stderr;
+      },
+    };
+  }
+
   clone() {
     return new Context({
       stdin: this.stdin,
       stdout: this.stdout,
       stderr: this.stderr,
       env: this.#env.clone(),
+      commands: { ...this.#commands },
       shellVars: { ...this.#shellVars },
       signal: this.#signal,
     });
@@ -311,7 +337,7 @@ class Context {
 }
 
 export async function parseArgs(command: string) {
-  const { parse } = await instantiate();
+  const { parse } = await instantiateWithCaching();
   return parse(command) as SequentialList;
 }
 
@@ -320,14 +346,18 @@ export interface SpawnOpts {
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   env: Record<string, string>;
+  commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
   signal: AbortSignal;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
+  const env = opts.exportEnv ? new RealEnv() : new ShellEnv();
+  initializeEnv(env, opts);
   const context = new Context({
-    env: opts.exportEnv ? new RealEnv() : new ShellEnv(opts),
+    env,
+    commands: opts.commands,
     stdin: opts.stdin,
     stdout: opts.stdout,
     stderr: opts.stderr,
@@ -340,7 +370,7 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
 
 async function executeSequentialList(list: SequentialList, context: Context): Promise<ExecuteResult> {
   let finalExitCode = 0;
-  let finalChanges = [];
+  const finalChanges = [];
   for (const item of list.items) {
     if (item.isAsync) {
       throw new Error("Async commands are not supported. Run a command concurrently in the JS code instead.");
@@ -356,8 +386,9 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
         break;
       case "exit":
         return result;
-      default:
+      default: {
         const _assertNever: never = result;
+      }
     }
   }
   return {
@@ -378,9 +409,10 @@ function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteR
       return executeBooleanList(sequence, context);
     case "shellVar":
       return executeShellVar(sequence, context);
-    default:
+    default: {
       const _assertNever: never = sequence;
       throw new Error(`Not implemented: ${sequence}`);
+    }
   }
 }
 
@@ -409,9 +441,10 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
       }
       exitCode = firstResult.code;
       break;
-    default:
+    default: {
       const _assertNever: never = firstResult;
       throw new Error("Not handled.");
+    }
   }
 
   const next = findNextSequence(list, exitCode);
@@ -438,9 +471,10 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
           code: nextResult.code,
           changes,
         };
-      default:
+      default: {
         const _assertNever: never = nextResult;
         throw new Error("Not Implemented");
+      }
     }
   }
 
@@ -471,7 +505,7 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
 }
 
 async function executeShellVar(sequence: ShellVar, context: Context): Promise<ExecuteResult> {
-  const value = await evaluateStringOrWord(sequence.value, context);
+  const value = await evaluateWord(sequence.value, context);
   return {
     kind: "continue",
     code: 0,
@@ -512,57 +546,55 @@ function executeCommandInner(command: CommandInner, context: Context): Promise<E
 async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
   const context = parentContext.clone();
   for (const envVar of command.envVars) {
-    context.setEnvVar(envVar.name, await evaluateStringOrWord(envVar.value, context));
+    context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
   }
   const commandArgs = await evaluateArgs(command.args, context);
   return await executeCommandArgs(commandArgs, context);
 }
 
 async function executeCommandArgs(commandArgs: string[], context: Context) {
-  if (commandArgs[0] === "cd") {
-    return await cdCommand(context.getCwd(), commandArgs.slice(1), context.stderr);
-  } else if (commandArgs[0] === "echo") {
-    return await echoCommand(commandArgs.slice(1), context.stdout);
-  } else if (commandArgs[0] === "export") {
-    return await exportCommand(commandArgs.slice(1));
-  } else {
-    const commandPath = await resolveCommand(commandArgs[0], context);
-    const p = Deno.run({
-      cmd: [commandPath, ...commandArgs.slice(1)],
-      cwd: context.getCwd(),
-      env: context.getEnvVars(),
-      stdin: getStdioStringValue(context.stdin),
-      stdout: getStdioStringValue(context.stdout.kind),
-      stderr: getStdioStringValue(context.stderr.kind),
-    });
-    const abortListener = () => p.kill("SIGKILL");
-    context.signal.addEventListener("abort", abortListener);
-    const completeController = new AbortController();
-    const completeSignal = completeController.signal;
-    try {
-      // ignore the result of writing to stdin because it may
-      // have not finished before the process finished
-      const _ignore = writeStdin(context.stdin, p, completeSignal);
-      const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
-      const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
-      const [status] = await Promise.all([
-        p.status(),
-        readStdoutTask,
-        readStderrTask,
-      ]);
-      if (context.signal.aborted) {
-        return getAbortedResult();
-      } else {
-        return resultFromCode(status.code);
-      }
-    } finally {
-      completeController.abort();
-      context.signal.removeEventListener("abort", abortListener);
-      p.close();
-      p.stdin?.close();
-      p.stdout?.close();
-      p.stderr?.close();
+  // look for a registered command first
+  const command = context.getCommand(commandArgs[0]);
+  if (command != null) {
+    return command(context.asCommandContext(commandArgs.slice(1)));
+  }
+
+  // fall back to trying to resolve the command on the fs
+  const commandPath = await resolveCommand(commandArgs[0], context);
+  const p = Deno.run({
+    cmd: [commandPath, ...commandArgs.slice(1)],
+    cwd: context.getCwd(),
+    env: context.getEnvVars(),
+    stdin: getStdioStringValue(context.stdin),
+    stdout: getStdioStringValue(context.stdout.kind),
+    stderr: getStdioStringValue(context.stderr.kind),
+  });
+  const abortListener = () => p.kill("SIGKILL");
+  context.signal.addEventListener("abort", abortListener);
+  const completeController = new AbortController();
+  const completeSignal = completeController.signal;
+  try {
+    // ignore the result of writing to stdin because it may
+    // have not finished before the process finished
+    const _ignore = writeStdin(context.stdin, p, completeSignal);
+    const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
+    const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
+    const [status] = await Promise.all([
+      p.status(),
+      readStdoutTask,
+      readStderrTask,
+    ]);
+    if (context.signal.aborted) {
+      return getAbortedResult();
+    } else {
+      return resultFromCode(status.code);
     }
+  } finally {
+    completeController.abort();
+    context.signal.removeEventListener("abort", abortListener);
+    p.close();
+    p.stdout?.close();
+    p.stderr?.close();
   }
 
   async function writeStdin(stdin: ShellPipeReader, p: Deno.Process, signal: AbortSignal) {
@@ -570,6 +602,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
       return;
     }
     await pipeReaderToWriter(stdin, p.stdin!, signal);
+    p.stdin!.close();
   }
 
   async function readStdOutOrErr(reader: Deno.Reader | null, writer: ShellPipeWriter) {
@@ -578,7 +611,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     }
     // don't abort... ensure all of stdout/stderr is read in case the process
     // exits before this finishes
-    await pipeReaderToWriter(reader, writer, new AbortController().signal);
+    await pipeReaderToWriterSync(reader, writer, new AbortController().signal);
   }
 
   async function pipeReaderToWriter(reader: Deno.Reader, writer: Deno.Writer, signal: AbortSignal) {
@@ -599,8 +632,26 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
     }
   }
 
+  async function pipeReaderToWriterSync(reader: Deno.Reader, writer: Deno.WriterSync, signal: AbortSignal) {
+    while (!signal.aborted) {
+      const buffer = new Uint8Array(1024);
+      const length = await reader.read(buffer);
+      if (length === 0 || length == null) {
+        break;
+      }
+      writeAll(buffer.subarray(0, length));
+    }
+
+    function writeAll(arr: Uint8Array) {
+      let nwritten = 0;
+      while (nwritten < arr.length && !signal.aborted) {
+        nwritten += writer.writeSync(arr.subarray(nwritten));
+      }
+    }
+  }
+
   function getStdioStringValue(value: ShellPipeReader | ShellPipeWriterKind) {
-    if (value === "default") {
+    if (value === "inheritPiped") {
       return "piped";
     } else if (value === "inherit" || value === "null" || value === "piped") {
       return value;
@@ -643,34 +694,24 @@ async function resolveCommand(commandName: string, context: Context) {
   return commandPath;
 }
 
-async function evaluateArgs(stringOrWords: StringOrWord[], context: Context) {
+async function evaluateArgs(args: Word[], context: Context) {
   const result = [];
-  for (const stringOrWord of stringOrWords) {
-    switch (stringOrWord.kind) {
-      case "word":
-        result.push(...await evaluateStringParts(stringOrWord.value, context));
-        break;
-      case "string":
-        result.push((await evaluateStringParts(stringOrWord.value, context)).join(" "));
-        break;
-      default:
-        const _assertNever: never = stringOrWord;
-        throw new Error(`Not implemented: ${(stringOrWord as any).kind}`);
-    }
+  for (const arg of args) {
+    result.push(...await evaluateWordParts(arg, context));
   }
   return result;
 }
 
-async function evaluateStringOrWord(stringOrWord: StringOrWord, context: Context) {
-  const result = await evaluateStringParts(stringOrWord.value, context);
+async function evaluateWord(word: Word, context: Context) {
+  const result = await evaluateWordParts(word, context);
   return result.join(" ");
 }
 
-async function evaluateStringParts(stringParts: StringPart[], context: Context) {
+async function evaluateWordParts(wordParts: WordPart[], context: Context) {
   // not implemented mostly, and copying from deno_task_shell
   const result: string[] = [];
   let currentText = "";
-  for (const stringPart of stringParts) {
+  for (const stringPart of wordParts) {
     let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
       case "text":
@@ -679,6 +720,11 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
       case "variable":
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
+      case "quoted": {
+        const text = (await evaluateWordParts(stringPart.value, context)).join(" ");
+        currentText += text;
+        continue;
+      }
       case "command":
       default:
         throw new Error(`Not implemented: ${stringPart.kind}`);
@@ -686,8 +732,8 @@ async function evaluateStringParts(stringParts: StringPart[], context: Context) 
 
     if (evaluationResult != null) {
       const parts = evaluationResult.split(" ")
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
       if (parts.length > 0) {
         // append the first part to the current text
         currentText += parts[0];

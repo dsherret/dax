@@ -1,10 +1,10 @@
-import { path } from "../deps.ts";
-import { ShellPipeWriter } from "../pipes.ts";
+import { CommandContext } from "../command_handler.ts";
+import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
-export async function cdCommand(cwd: string, args: string[], stderr: ShellPipeWriter): Promise<ExecuteResult> {
+export async function cdCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
-    const dir = await executeCd(cwd, args);
+    const dir = await executeCd(context.cwd, context.args);
     return {
       code: 0,
       kind: "continue",
@@ -14,14 +14,14 @@ export async function cdCommand(cwd: string, args: string[], stderr: ShellPipeWr
       }],
     };
   } catch (err) {
-    await stderr.writeLine(`cd: ${err?.message ?? err}`);
+    await context.stderr.writeLine(`cd: ${err?.message ?? err}`);
     return resultFromCode(1);
   }
 }
 
 async function executeCd(cwd: string, args: string[]) {
   const arg = parseArgs(args);
-  const result = path.resolve(path.join(cwd, arg));
+  const result = resolvePath(cwd, arg);
   if (!await isDirectory(result)) {
     throw new Error(`${result}: Not a directory`);
   }

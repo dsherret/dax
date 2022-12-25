@@ -1,6 +1,15 @@
-import { delayToMs } from "./common.ts";
+import { CommandHandler } from "./command_handler.ts";
+import { cdCommand } from "./commands/cd.ts";
+import { echoCommand } from "./commands/echo.ts";
+import { exitCommand } from "./commands/exit.ts";
+import { exportCommand } from "./commands/export.ts";
+import { mkdirCommand } from "./commands/mkdir.ts";
+import { rmCommand } from "./commands/rm.ts";
+import { sleepCommand } from "./commands/sleep.ts";
+import { testCommand } from "./commands/test.ts";
+import { delayToMs, TreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, path } from "./deps.ts";
+import { Buffer, colors, path } from "./deps.ts";
 import {
   CapturingBufferWriter,
   NullPipeWriter,
@@ -9,6 +18,7 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { parseArgs, spawn } from "./shell.ts";
+import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -18,22 +28,68 @@ interface CommandBuilderState {
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
-  env: Record<string, string>;
-  cwd: string;
+  env: Record<string, string | undefined>;
+  commands: Record<string, CommandHandler>;
+  cwd: string | undefined;
   exportEnv: boolean;
+  printCommand: boolean;
+  printCommandLogger: TreeBox<(...args: any[]) => void>;
   timeout: number | undefined;
 }
 
 const textDecoder = new TextDecoder();
 
+const builtInCommands = {
+  cd: cdCommand,
+  echo: echoCommand,
+  exit: exitCommand,
+  export: exportCommand,
+  sleep: sleepCommand,
+  test: testCommand,
+  rm: rmCommand,
+  mkdir: mkdirCommand,
+  cp: cpCommand,
+  mv: mvCommand,
+};
+
+/**
+ * Underlying builder API for executing commands.
+ *
+ * This is what `$` uses to execute commands. Using this provides
+ * a way to provide a raw text command or an array of arguments.
+ *
+ * Command builders are immutable where each method call creates
+ * a new command builder.
+ *
+ * ```ts
+ * const builder = new CommandBuilder()
+ *  .cwd("./src")
+ *  .command("echo $MY_VAR");
+ *
+ * // outputs 5
+ * console.log(await builder.env("MY_VAR", "5").text());
+ * // outputs 6
+ * console.log(await builder.env("MY_VAR", "6").text());
+ * ```
+ */
 export class CommandBuilder implements PromiseLike<CommandResult> {
-  #state: Readonly<CommandBuilderState> | undefined;
+  #state: Readonly<CommandBuilderState> = {
+    command: undefined,
+    stdin: "inherit",
+    stdoutKind: "inherit",
+    stderrKind: "inherit",
+    noThrow: false,
+    env: {},
+    cwd: undefined,
+    commands: { ...builtInCommands },
+    exportEnv: false,
+    printCommand: false,
+    printCommandLogger: new TreeBox(console.error),
+    timeout: undefined,
+  };
 
   #getClonedState(): CommandBuilderState {
     const state = this.#state;
-    if (state == null) {
-      return this.#getDefaultState();
-    }
     return {
       // be explicit here in order to evaluate each property on a case by case basis
       command: state.command,
@@ -43,22 +99,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       noThrow: state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
+      commands: { ...state.commands },
       exportEnv: state.exportEnv,
+      printCommand: state.printCommand,
+      printCommandLogger: state.printCommandLogger.createChild(),
       timeout: state.timeout,
-    };
-  }
-
-  #getDefaultState(): CommandBuilderState {
-    return {
-      command: undefined,
-      stdin: "inherit",
-      stdoutKind: "default",
-      stderrKind: "default",
-      noThrow: false,
-      env: Deno.env.toObject(),
-      cwd: Deno.cwd(),
-      exportEnv: false,
-      timeout: undefined,
     };
   }
 
@@ -77,6 +122,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return this.spawn().then(onfulfilled).catch(onrejected);
   }
 
+  /**
+   * Explicit way to spawn a command.
+   *
+   * This is an alias for awaiting the command builder or calling `.then(...)`
+   */
   spawn(): Promise<CommandResult> {
     // store a snapshot of the current command
     // in case someone wants to spawn multiple
@@ -84,23 +134,61 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return parseAndSpawnCommand(this.#getClonedState());
   }
 
+  /**
+   * Register a command.
+   */
+  registerCommand(command: string, handleFn: CommandHandler) {
+    validateCommandName(command);
+    return this.#newWithState((state) => {
+      state.commands[command] = handleFn;
+    });
+  }
+
+  /**
+   * Register multilple commands.
+   */
+  registerCommands(commands: Record<string, CommandHandler>) {
+    let command: CommandBuilder = this;
+    for (const [key, value] of Object.entries(commands)) {
+      command = command.registerCommand(key, value);
+    }
+    return command;
+  }
+
+  /**
+   * Unregister a command.
+   */
+  unregisterCommand(command: string) {
+    return this.#newWithState((state) => {
+      delete state.commands[command];
+    });
+  }
+
   /** Sets the raw command to execute. */
-  command(commandText: string) {
-    return this.#newWithState(state => {
-      state.command = commandText;
+  command(command: string | string[]) {
+    return this.#newWithState((state) => {
+      if (typeof command === "string") {
+        state.command = command;
+      } else {
+        state.command = command.map(escapeArg).join(" ");
+      }
     });
   }
 
   /** The command should not throw when it fails or times out. */
   noThrow(value = true) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.noThrow = value;
     });
   }
 
+  /** Sets the stdin to use for the command. */
   stdin(reader: ShellPipeReader | string | Uint8Array) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof reader === "string") {
+        // todo: support cloning these buffers so that
+        // the state is immutable when creating a new
+        // builder... this is a bug
         state.stdin = new Buffer(new TextEncoder().encode(reader));
       } else if (reader instanceof Uint8Array) {
         state.stdin = new Buffer(reader);
@@ -110,22 +198,26 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.stdoutKind = kind;
     });
   }
 
+  /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.stderrKind = kind;
     });
   }
 
-  env(items: Record<string, string | undefined>): this;
-  env(name: string, value: string | undefined): this;
+  /** Sets multiple environment variables to use at the same time via an object literal. */
+  env(items: Record<string, string | undefined>): CommandBuilder;
+  /** Sets a single environment variable to use. */
+  env(name: string, value: string | undefined): CommandBuilder;
   env(nameOrItems: string | Record<string, string | undefined>, value?: string) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (typeof nameOrItems === "string") {
         setEnv(state, nameOrItems, value);
       } else {
@@ -139,17 +231,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       if (Deno.build.os === "windows") {
         key = key.toUpperCase();
       }
-      if (value == null) {
-        delete state.env[key];
-      } else {
-        state.env[key] = value;
-      }
+      state.env[key] = value;
     }
   }
 
-  cwd(dirPath: string) {
-    return this.#newWithState(state => {
-      state.cwd = path.resolve(dirPath);
+  /** Sets the current working directory to use when executing this command. */
+  cwd(dirPath: string | URL) {
+    return this.#newWithState((state) => {
+      state.cwd = dirPath instanceof URL ? path.fromFileUrl(dirPath) : path.resolve(dirPath);
     });
   }
 
@@ -167,9 +256,40 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   exportEnv(value = true) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.exportEnv = value;
     });
+  }
+
+  /**
+   * Prints the command text before executing the command.
+   *
+   * For example:
+   *
+   * ```ts
+   * const text = "example";
+   * await $`echo ${text}`.printCommand();
+   * ```
+   *
+   * Outputs:
+   *
+   * ```
+   * > echo example
+   * example
+   * ```
+   */
+  printCommand(value = true) {
+    return this.#newWithState((state) => {
+      state.printCommand = value;
+    });
+  }
+
+  /**
+   * Mutates the command builder to change the logger used
+   * for `printCommand()`.
+   */
+  setPrintCommandLogger(logger: (...args: any[]) => void) {
+    this.#state.printCommandLogger.setValue(logger);
   }
 
   /**
@@ -185,7 +305,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * ```
    */
   quiet(kind: "stdout" | "stderr" | "both" = "both") {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       if (kind === "both" || kind === "stdout") {
         state.stdoutKind = getQuietKind(state.stdoutKind);
       }
@@ -196,15 +316,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
       switch (kind) {
-        case "default":
+        case "inheritPiped":
         case "inherit":
           return "piped";
         case "null":
         case "piped":
           return kind;
-        default:
+        default: {
           const _assertNever: never = kind;
           throw new Error(`Unhandled kind ${kind}.`);
+        }
       }
     }
   }
@@ -217,7 +338,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * be thrown when timing out.
    */
   timeout(delay: Delay) {
-    return this.#newWithState(state => {
+    return this.#newWithState((state) => {
       state.timeout = delayToMs(delay);
     });
   }
@@ -227,25 +348,31 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * Shorthand for:
    *
-   * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdoutBytes;
+   * ```ts
+   * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
   async bytes() {
-    return (await this.quiet("stdout").spawn()).stdoutBytes;
+    return (await this.quiet("stdout")).stdoutBytes;
   }
 
   /**
-   * Sets stdout as quiet, spawns the command, and gets stdout as a string.
+   * Sets stdout as quiet, spawns the command, and gets stdout as a string without the last newline.
    *
    * Shorthand for:
    *
-   * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdout;
+   * ```ts
+   * const data = (await $`command`.quiet("stdout")).stdout.replace(/\r?\n$/, "");
    * ```
    */
   async text() {
-    return (await this.quiet("stdout").spawn()).stdout;
+    return (await this.quiet("stdout")).stdout.replace(/\r?\n$/, "");
+  }
+
+  /** Gets the text as an array of lines. */
+  async lines() {
+    const text = await this.text();
+    return text.split(/\r?\n/g);
   }
 
   /**
@@ -253,12 +380,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * Shorthand for:
    *
-   * ```json
-   * const data = (await $`command`.quiet("stdout").spawn()).stdoutJson;
+   * ```ts
+   * const data = (await $`command`.quiet("stdout")).stdoutJson;
    * ```
    */
   async json<TResult = any>(): Promise<TResult> {
-    return (await this.quiet("stdout").spawn()).stdoutJson;
+    return (await this.quiet("stdout")).stdoutJson;
   }
 }
 
@@ -267,35 +394,18 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     throw new Error("A command must be set before it can be spawned.");
   }
 
-  const stdoutBuffer = state.stdoutKind === "default"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stdoutKind === "null"
-    ? "null"
-    : state.stdoutKind === "inherit"
-    ? "inherit"
-    : new Buffer();
+  if (state.printCommand) {
+    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
+  }
+
+  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
   const stdout = new ShellPipeWriter(
     state.stdoutKind,
-    stdoutBuffer === "null"
-      ? new NullPipeWriter()
-      : stdoutBuffer === "inherit"
-      ? Deno.stdout
-      : stdoutBuffer,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
   );
-  const stderrBuffer = state.stderrKind === "default"
-    ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-    : state.stderrKind === "null"
-    ? "null"
-    : state.stderrKind === "inherit"
-    ? "inherit"
-    : new Buffer();
   const stderr = new ShellPipeWriter(
     state.stderrKind,
-    stderrBuffer === "null"
-      ? new NullPipeWriter()
-      : stderrBuffer === "inherit"
-      ? Deno.stderr
-      : stderrBuffer,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
 
   const abortController = new AbortController();
@@ -310,8 +420,9 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       stdin: state.stdin,
       stdout,
       stderr,
-      env: state.env,
-      cwd: state.cwd,
+      env: buildEnv(state.env),
+      commands: state.commands,
+      cwd: state.cwd ?? Deno.cwd(),
       exportEnv: state.exportEnv,
       signal: abortController.signal,
     });
@@ -326,28 +437,61 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       code,
       stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
       stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
+      combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
     );
   } finally {
     if (timeoutId != null) {
       clearTimeout(timeoutId);
     }
   }
+
+  function getBuffers() {
+    const stdoutBuffer = state.stdoutKind === "inherit"
+      ? "inherit"
+      : state.stdoutKind === "inheritPiped"
+      ? new CapturingBufferWriter(Deno.stdout, new Buffer())
+      : state.stdoutKind === "null"
+      ? "null"
+      : new Buffer();
+    const stderrBuffer = state.stderrKind === "inherit"
+      ? "inherit"
+      : state.stderrKind === "inheritPiped"
+      ? new CapturingBufferWriter(Deno.stderr, new Buffer())
+      : state.stderrKind === "null"
+      ? "null"
+      : new Buffer();
+    if (typeof stdoutBuffer !== "string" && typeof stderrBuffer !== "string") {
+      // if both are piped then create a capturing buffer writer for both
+      const combinedBuffer = new Buffer();
+      return [
+        new CapturingBufferWriter(stdoutBuffer, combinedBuffer),
+        new CapturingBufferWriter(stderrBuffer, combinedBuffer),
+        combinedBuffer,
+      ] as const;
+    }
+    return [stdoutBuffer, stderrBuffer, undefined] as const;
+  }
 }
 
+/** Result of running a command. */
 export class CommandResult {
   #stdout: BufferStdio;
   #stderr: BufferStdio;
+  #combined: Buffer | undefined;
+
   /** The exit code. */
   readonly code: number;
 
-  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio) {
+  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio, combined: Buffer | undefined) {
     this.code = code;
     this.#stdout = stdout;
     this.#stderr = stderr;
+    this.#combined = combined;
   }
 
   #memoizedStdout: string | undefined;
 
+  /** Raw decoded stdout text. */
   get stdout() {
     if (!this.#memoizedStdout) {
       this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
@@ -357,6 +501,11 @@ export class CommandResult {
 
   #memoizedStdoutJson: any | undefined;
 
+  /**
+   * Stdout text as JSON.
+   *
+   * @remarks Will throw if it can't be parsed as JSON.
+   */
   get stdoutJson() {
     if (this.#memoizedStdoutJson == null) {
       this.#memoizedStdoutJson = JSON.parse(this.stdout);
@@ -364,15 +513,19 @@ export class CommandResult {
     return this.#memoizedStdoutJson;
   }
 
+  /** Raw stdout bytes. */
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
-      throw new Error(`Stdout was not piped (was ${this.#stdout}). By default stdout is piped.`);
+      throw new Error(
+        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") on the process.`,
+      );
     }
     return this.#stdout.bytes();
   }
 
   #memoizedStderr: string | undefined;
 
+  /** Raw decoded stdout text. */
   get stderr() {
     if (!this.#memoizedStderr) {
       this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
@@ -382,6 +535,11 @@ export class CommandResult {
 
   #memoizedStderrJson: any | undefined;
 
+  /**
+   * Stderr text as JSON.
+   *
+   * @remarks Will throw if it can't be parsed as JSON.
+   */
   get stderrJson() {
     if (this.#memoizedStderrJson == null) {
       this.#memoizedStderrJson = JSON.parse(this.stderr);
@@ -389,10 +547,62 @@ export class CommandResult {
     return this.#memoizedStderrJson;
   }
 
+  /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
     if (typeof this.#stderr === "string") {
-      throw new Error(`Stderr was not piped (was ${this.#stderr}). Call .stderr("pipe") on the process.`);
+      throw new Error(
+        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") on the process.`,
+      );
     }
     return this.#stderr.bytes();
+  }
+
+  #memoizedCombined: string | undefined;
+
+  /** Raw combined stdout and stderr text. */
+  get combined() {
+    if (!this.#memoizedCombined) {
+      this.#memoizedCombined = textDecoder.decode(this.combinedBytes);
+    }
+    return this.#memoizedCombined;
+  }
+
+  /** Raw combined stdout and stderr bytes. */
+  get combinedBytes(): Uint8Array {
+    if (this.#combined == null) {
+      // one of these won't be piped, and accessing
+      // them will throw the appropriate exception
+      this.stdoutBytes;
+      this.stderrBytes;
+      throw new Error("unreachable");
+    }
+    return this.#combined.bytes();
+  }
+}
+
+function buildEnv(env: Record<string, string | undefined>) {
+  const result = Deno.env.toObject();
+  for (const [key, value] of Object.entries(env)) {
+    if (value == null) {
+      delete result[key];
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+export function escapeArg(arg: string) {
+  // very basic for now
+  if (/^[A-Za-z0-9]*$/.test(arg)) {
+    return arg;
+  } else {
+    return `'${arg.replace("'", `'"'"'`)}'`;
+  }
+}
+
+function validateCommandName(command: string) {
+  if (command.match(/^[a-zA-Z0-9-_]+$/) == null) {
+    throw new Error("Invalid command name");
   }
 }

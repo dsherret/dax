@@ -1,21 +1,28 @@
-import { Buffer, writeAll } from "./deps.ts";
+import { Buffer, writeAllSync } from "./deps.ts";
 
 const encoder = new TextEncoder();
 
 export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "default";
+/**
+ * The behaviour to use for a shell pipe.
+ * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).
+ * @value "null" - Does not pipe or redirect the pipe.
+ * @value "piped" - Captures the pipe without outputting.
+ * @value "inheritPiped" - Captures the pipe with outputting.
+ */
+export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped";
 
-export class NullPipeWriter implements Deno.Writer {
-  write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(p.length);
+export class NullPipeWriter implements Deno.WriterSync {
+  writeSync(p: Uint8Array): number {
+    return p.length;
   }
 }
 
-export class ShellPipeWriter implements Deno.Writer {
+export class ShellPipeWriter implements Deno.WriterSync {
   #kind: ShellPipeWriterKind;
-  #inner: Deno.Writer;
+  #inner: Deno.WriterSync;
 
-  constructor(kind: ShellPipeWriterKind, inner: Deno.Writer) {
+  constructor(kind: ShellPipeWriterKind, inner: Deno.WriterSync) {
     this.#kind = kind;
     this.#inner = inner;
   }
@@ -24,24 +31,24 @@ export class ShellPipeWriter implements Deno.Writer {
     return this.#kind;
   }
 
-  write(p: Uint8Array): Promise<number> {
-    return this.#inner.write(p);
+  writeSync(p: Uint8Array) {
+    return this.#inner.writeSync(p);
   }
 
-  async writeText(text: string) {
-    return writeAll(this, encoder.encode(text));
+  writeText(text: string) {
+    return writeAllSync(this, encoder.encode(text));
   }
 
-  async writeLine(text: string) {
+  writeLine(text: string) {
     return this.writeText(text + "\n");
   }
 }
 
-export class CapturingBufferWriter implements Deno.Writer {
+export class CapturingBufferWriter implements Deno.WriterSync {
   #buffer: Buffer;
-  #innerWriter: Deno.Writer;
+  #innerWriter: Deno.WriterSync;
 
-  constructor(innerWriter: Deno.Writer, buffer: Buffer) {
+  constructor(innerWriter: Deno.WriterSync, buffer: Buffer) {
     this.#innerWriter = innerWriter;
     this.#buffer = buffer;
   }
@@ -50,9 +57,8 @@ export class CapturingBufferWriter implements Deno.Writer {
     return this.#buffer;
   }
 
-  async write(p: Uint8Array): Promise<number> {
-    const nWritten = await this.#innerWriter.write(p);
-    // sync is ok because Buffer is sync
+  writeSync(p: Uint8Array) {
+    const nWritten = this.#innerWriter.writeSync(p);
     this.#buffer.writeSync(p.slice(0, nWritten));
     return nWritten;
   }

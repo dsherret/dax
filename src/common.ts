@@ -1,3 +1,5 @@
+import { path } from "./deps.ts";
+
 /**
  * Delay used for certain actions.
  *
@@ -56,4 +58,63 @@ export function filterEmptyRecordValues<TValue>(record: Record<string, TValue | 
     }
   }
   return result;
+}
+
+export function resolvePath(cwd: string, arg: string) {
+  return path.resolve(path.isAbsolute(arg) ? arg : path.join(cwd, arg));
+}
+
+/**
+ * Follow rust std::path::Path::join
+ * The advantage is it can handle joining 2 absolute paths with common part
+
+ * Rust: join("/a/b","/a/c") => "/a/b/c"
+ * Deno. join("/a/b","/a/c") => "/a/b/a/c"
+**/
+export function rustJoin(path1: string, path2: string) {
+  const maybeCommon = path.common([path1, path2]);
+  if (!maybeCommon) return path.join(path1, path2);
+
+  return path.join(maybeCommon, path1.replace(maybeCommon, ""), path2.replace(maybeCommon, ""));
+}
+
+export class Box<T> {
+  constructor(public value: T) {
+  }
+}
+
+export class TreeBox<T> {
+  #value: T | TreeBox<T>;
+
+  constructor(value: T | TreeBox<T>) {
+    this.#value = value;
+  }
+
+  getValue() {
+    let tree: TreeBox<T> = this;
+    while (tree.#value instanceof TreeBox) {
+      tree = tree.#value;
+    }
+    return tree.#value;
+  }
+
+  setValue(value: T) {
+    this.#value = value;
+  }
+
+  createChild(): TreeBox<T> {
+    return new TreeBox(this);
+  }
+}
+
+export async function lstat(path: string) {
+  try {
+    return await Deno.lstat(path);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return undefined;
+    } else {
+      throw err;
+    }
+  }
 }
