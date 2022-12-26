@@ -1,10 +1,21 @@
 import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
-import { Box, Delay, DelayIterator, delayToIterator, delayToMs, formatMillis, TreeBox } from "./src/common.ts";
+import {
+  Box,
+  Delay,
+  DelayIterator,
+  delayToIterator,
+  delayToMs,
+  formatMillis,
+  LoggerTreeBox,
+  TreeBox,
+} from "./src/common.ts";
+import { multiSelect, MultiSelectOptions } from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
+export type { MultiSelectOption, MultiSelectOptions } from "./src/console/mod.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -225,6 +236,7 @@ export interface $Type {
   logGroupEnd(): void;
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
+  multiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
   /**
    * Sets the logger used for info logging.
    * @default console.error
@@ -341,9 +353,9 @@ function cd(path: string | URL) {
 interface $State {
   commandBuilder: TreeBox<CommandBuilder>;
   requestBuilder: RequestBuilder;
-  infoLogger: TreeBox<(...args: any[]) => void>;
-  warnLogger: TreeBox<(...args: any[]) => void>;
-  errorLogger: TreeBox<(...args: any[]) => void>;
+  infoLogger: LoggerTreeBox;
+  warnLogger: LoggerTreeBox;
+  errorLogger: LoggerTreeBox;
   indentLevel: Box<number>;
 }
 
@@ -351,9 +363,9 @@ function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $Stat
   return {
     commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
-    infoLogger: new TreeBox(console.error),
-    warnLogger: new TreeBox(console.error),
-    errorLogger: new TreeBox(console.error),
+    infoLogger: new LoggerTreeBox(console.error),
+    warnLogger: new LoggerTreeBox(console.error),
+    errorLogger: new LoggerTreeBox(console.error),
     indentLevel: new Box(0),
   };
 }
@@ -484,6 +496,7 @@ function build$FromState(state: $State) {
           state.indentLevel.value--;
         }
       },
+      multiSelect,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },

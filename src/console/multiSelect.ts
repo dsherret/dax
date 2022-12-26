@@ -1,5 +1,6 @@
 import { colors } from "../deps.ts";
-import { clearStaticText, ensureTty, hideCursor, Key, readKeys, setStaticText, showCursor, TextItem } from "./utils.ts";
+import { logger, LoggerRefreshItemKind } from "./logger.ts";
+import { ensureTty, hideCursor, Key, readKeys, showCursor, TextItem } from "./utils.ts";
 
 export interface MultiSelectOption {
   text: string;
@@ -55,7 +56,7 @@ export async function multiSelect(opts: MultiSelectOptions) {
           break;
         }
         case Key.Enter:
-          await clearStaticText();
+          await logger.setItems(LoggerRefreshItemKind.Selection, []);
           return drawState
             .items
             .map((value, index) => [value, index] as const)
@@ -66,14 +67,15 @@ export async function multiSelect(opts: MultiSelectOptions) {
       await refresh();
     }
 
-    await clearStaticText();
+    await logger.setItems(LoggerRefreshItemKind.Selection, []);
   } finally {
     await showCursor();
+    Deno.stdin.setRaw(false);
   }
 
   function refresh() {
-    const text = render(drawState);
-    return setStaticText(text);
+    const items = render(drawState);
+    return logger.setItems(LoggerRefreshItemKind.Selection, items);
   }
 }
 
@@ -100,10 +102,3 @@ function render(state: DrawState): TextItem[] {
   }
   return items;
 }
-
-console.log(
-  await multiSelect({
-    title: "Which options would you like to select?",
-    options: ["Option 1", "Some long text that should wrap. ".repeat(5), "Option 3"],
-  }),
-);

@@ -1,4 +1,4 @@
-import { instantiateWithCaching } from "../lib/mod.ts";
+import { getIfInstantiated, instantiateWithCaching, WasmInstance } from "../lib/mod.ts";
 
 const encoder = new TextEncoder();
 
@@ -64,20 +64,40 @@ export interface HangingTextItem {
   indent: number;
 }
 
-export async function setStaticText(items: TextItem[]) {
-  const { static_text_render_text } = await instantiateWithCaching();
-  const { columns, rows } = Deno.consoleSize();
-  const newText = static_text_render_text(items, columns, rows);
-  if (newText != null) {
-    await Deno.stderr.write(encoder.encode(newText));
-  }
+export interface ConsoleSize {
+  columns: number;
+  rows: number;
 }
 
-export async function clearStaticText() {
-  const { static_text_clear_text } = await instantiateWithCaching();
-  const { columns, rows } = Deno.consoleSize();
-  const newText = static_text_clear_text(columns, rows);
-  if (newText != null) {
-    await Deno.stderr.write(encoder.encode(newText));
-  }
+export async function getStaticText() {
+  const instance = await instantiateWithCaching();
+  return createStaticTextFromInstance(instance);
+}
+
+export function getStaticTextIfCreated() {
+  const instance = getIfInstantiated();
+  return instance == null ? undefined : createStaticTextFromInstance(instance);
+}
+
+function createStaticTextFromInstance(instance: WasmInstance) {
+  return {
+    set(items: TextItem[], size?: ConsoleSize) {
+      if (items.length === 0) {
+        return this.clear(size);
+      }
+
+      const { columns, rows } = size ?? Deno.consoleSize();
+      const newText = instance.static_text_render_text(items, columns, rows);
+      if (newText != null) {
+        Deno.stderr.writeSync(encoder.encode(newText));
+      }
+    },
+    clear(size?: ConsoleSize) {
+      const { columns, rows } = size ?? Deno.consoleSize();
+      const newText = instance.static_text_clear_text(columns, rows);
+      if (newText != null) {
+        Deno.stderr.writeSync(encoder.encode(newText));
+      }
+    },
+  };
 }

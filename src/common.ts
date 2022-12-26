@@ -1,3 +1,4 @@
+import { logger } from "./console/mod.ts";
 import { path } from "./deps.ts";
 
 /**
@@ -104,6 +105,18 @@ export class TreeBox<T> {
 
   createChild(): TreeBox<T> {
     return new TreeBox(this);
+  }
+}
+
+/** A special kind of tree box that handles logging with static text. */
+export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
+  getValue(): (...args: any[]) => void {
+    const innerValue = super.getValue();
+    return (...args: any[]) => {
+      return logger.logAboveStaticText(() => {
+        innerValue(...args);
+      });
+    };
   }
 }
 
