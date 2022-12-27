@@ -1,4 +1,4 @@
-import { ConsoleSize, getStaticText, getStaticTextIfCreated, TextItem } from "./utils.ts";
+import { ConsoleSize, getStaticText, getStaticTextIfCreated, safeConsoleSize, TextItem } from "./utils.ts";
 
 export enum LoggerRefreshItemKind {
   ProgressBars,
@@ -27,12 +27,12 @@ function refreshWithStaticText(staticText: Awaited<ReturnType<typeof getStaticTe
 
 function logAboveStaticText(inner: () => void, providedSize?: ConsoleSize) {
   const staticText = getStaticTextIfCreated();
-  const size = staticText == null ? undefined : providedSize ?? Deno.consoleSize();
-  if (staticText != null) {
+  const size = staticText == null ? undefined : providedSize ?? safeConsoleSize();
+  if (staticText != null && size != null) {
     staticText.clear(size);
   }
   inner();
-  if (staticText != null) {
+  if (staticText != null && size != null) {
     refreshWithStaticText(staticText, size);
   }
 }

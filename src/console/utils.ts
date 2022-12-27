@@ -83,6 +83,9 @@ interface SelectionOptions<TReturn> {
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
   ensureTty(options.message);
+  if (safeConsoleSize() == null) {
+    throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
+  }
   return ensureSingleSelection(async () => {
     await logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
@@ -139,6 +142,14 @@ export interface HangingTextItem {
 export interface ConsoleSize {
   columns: number;
   rows: number;
+}
+
+export function safeConsoleSize(): ConsoleSize | undefined {
+  try {
+    return Deno.consoleSize();
+  } catch {
+    return undefined;
+  }
 }
 
 export async function getStaticText() {
