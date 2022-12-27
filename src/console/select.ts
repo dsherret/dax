@@ -1,6 +1,5 @@
 import { colors } from "../deps.ts";
-import { logger, LoggerRefreshItemKind } from "./logger.ts";
-import { ensureSingleSelection, ensureTty, Keys, readKeys, TextItem } from "./utils.ts";
+import { createSelection, Keys, TextItem } from "./utils.ts";
 
 /** Options for showing a selection that only has one result. */
 export interface SelectOptions {
@@ -10,13 +9,17 @@ export interface SelectOptions {
   initialIndex?: number;
   /** Options to show the user. */
   options: string[];
+  /**
+   * Whether to not clear the selection text on selection.
+   * @default `false`
+   */
+  noClear?: boolean;
 }
 
 export function select(opts: SelectOptions) {
   if (opts.options.length <= 1) {
     throw new Error(`You must provide at least two options. (Prompt: '${opts.message}')`);
   }
-  ensureTty(opts.message);
 
   const drawState: DrawState = {
     title: opts.message,
@@ -24,10 +27,11 @@ export function select(opts: SelectOptions) {
     items: opts.options,
   };
 
-  return ensureSingleSelection(async () => {
-    await refresh();
-
-    for await (const key of readKeys()) {
+  return createSelection({
+    message: opts.message,
+    noClear: opts.noClear,
+    render: () => render(drawState),
+    onKey: (key) => {
       switch (key) {
         case Keys.Up:
           if (drawState.activeIndex === 0) {
@@ -40,20 +44,10 @@ export function select(opts: SelectOptions) {
           drawState.activeIndex = (drawState.activeIndex + 1) % drawState.items.length;
           break;
         case Keys.Enter:
-          await logger.setItems(LoggerRefreshItemKind.Selection, []);
           return drawState.activeIndex;
       }
-
-      await refresh();
-    }
-
-    await logger.setItems(LoggerRefreshItemKind.Selection, []);
+    },
   });
-
-  function refresh() {
-    const items = render(drawState);
-    return logger.setItems(LoggerRefreshItemKind.Selection, items);
-  }
 }
 
 interface DrawState {

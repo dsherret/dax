@@ -72,6 +72,20 @@ pub fn static_text_clear_text(cols: usize, rows: usize) -> Option<String> {
 }
 
 #[wasm_bindgen]
+pub fn static_text_render_once(
+  items: JsValue,
+  cols: usize,
+  rows: usize,
+) -> Result<Option<String>, JsValue> {
+  let items: Vec<WasmTextItem> = serde_wasm_bindgen::from_value(items)?;
+  let mut static_text = ConsoleStaticText::new(move || ConsoleSize {
+    cols: Some(cols as u16),
+    rows: Some(rows as u16),
+  });
+  Ok(static_text.render_items(items.iter().map(|i| i.as_text_item())))
+}
+
+#[wasm_bindgen]
 pub fn strip_ansi_codes(text: String) -> String {
   console_static_text::strip_ansi_codes(&text).to_string()
 }

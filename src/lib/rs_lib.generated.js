@@ -1,7 +1,7 @@
 // @generated file from wasmbuild -- do not edit
 // deno-lint-ignore-file
 // deno-fmt-ignore-file
-// source-hash: 66a52cc5f5e6a12670aea556e6c8220a21e9b0e9
+// source-hash: 63a2d99dd4ae419de402675f8f80f5136d66d83b
 let wasm;
 
 const heap = new Array(32).fill(undefined);
@@ -253,6 +253,34 @@ export function static_text_clear_text(cols, rows) {
     wasm.static_text_clear_text(retptr, cols, rows);
     var r0 = getInt32Memory0()[retptr / 4 + 0];
     var r1 = getInt32Memory0()[retptr / 4 + 1];
+    let v0;
+    if (r0 !== 0) {
+      v0 = getStringFromWasm0(r0, r1).slice();
+      wasm.__wbindgen_free(r0, r1 * 1);
+    }
+    return v0;
+  } finally {
+    wasm.__wbindgen_add_to_stack_pointer(16);
+  }
+}
+
+/**
+ * @param {any} items
+ * @param {number} cols
+ * @param {number} rows
+ * @returns {string | undefined}
+ */
+export function static_text_render_once(items, cols, rows) {
+  try {
+    const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+    wasm.static_text_render_once(retptr, addHeapObject(items), cols, rows);
+    var r0 = getInt32Memory0()[retptr / 4 + 0];
+    var r1 = getInt32Memory0()[retptr / 4 + 1];
+    var r2 = getInt32Memory0()[retptr / 4 + 2];
+    var r3 = getInt32Memory0()[retptr / 4 + 3];
+    if (r3) {
+      throw takeObject(r2);
+    }
     let v0;
     if (r0 !== 0) {
       v0 = getStringFromWasm0(r0, r1).slice();
@@ -538,7 +566,7 @@ let lastLoadPromise;
  * @param {InstantiateOptions=} opts
  * @returns {Promise<{
  *   instance: WebAssembly.Instance;
- *   exports: { parse: typeof parse; static_text_render_text: typeof static_text_render_text; static_text_clear_text: typeof static_text_clear_text; strip_ansi_codes: typeof strip_ansi_codes }
+ *   exports: { parse: typeof parse; static_text_render_text: typeof static_text_render_text; static_text_clear_text: typeof static_text_clear_text; static_text_render_once: typeof static_text_render_once; strip_ansi_codes: typeof strip_ansi_codes }
  * }>}
  */
 export function instantiateWithInstance(opts) {
@@ -566,7 +594,7 @@ export function instantiateWithInstance(opts) {
 }
 
 function getWasmInstanceExports() {
-  return { parse, static_text_render_text, static_text_clear_text, strip_ansi_codes };
+  return { parse, static_text_render_text, static_text_clear_text, static_text_render_once, strip_ansi_codes };
 }
 
 /** Gets if the Wasm module has been instantiated. */

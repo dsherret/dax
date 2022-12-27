@@ -1,6 +1,5 @@
 import { colors } from "../deps.ts";
-import { logger, LoggerRefreshItemKind } from "./logger.ts";
-import { ensureSingleSelection, ensureTty, Keys, readKeys, TextItem } from "./utils.ts";
+import { createSelection, Keys, TextItem } from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {
@@ -16,13 +15,17 @@ export interface MultiSelectOptions {
   message: string;
   /** Options to show the user. */
   options: (string | MultiSelectOption)[];
+  /**
+   * Whether to not clear the prompt text on selection.
+   * @default `false`
+   */
+  noClear?: boolean;
 }
 
 export function multiSelect(opts: MultiSelectOptions) {
   if (opts.options.length === 0) {
     throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }
-  ensureTty(opts.message);
 
   const drawState: DrawState = {
     title: opts.message,
@@ -40,10 +43,11 @@ export function multiSelect(opts: MultiSelectOptions) {
     }),
   };
 
-  return ensureSingleSelection(async () => {
-    await refresh();
-
-    for await (const key of readKeys()) {
+  return createSelection({
+    message: opts.message,
+    noClear: opts.noClear,
+    render: () => render(drawState),
+    onKey: (key) => {
       switch (key) {
         case Keys.Up:
           if (drawState.activeIndex === 0) {
@@ -61,22 +65,15 @@ export function multiSelect(opts: MultiSelectOptions) {
           break;
         }
         case Keys.Enter:
-          await logger.setItems(LoggerRefreshItemKind.Selection, []);
           return drawState
             .items
             .map((value, index) => [value, index] as const)
             .filter(([value]) => value.selected)
             .map(([, index]) => index);
       }
-
-      await refresh();
-    }
+      return undefined;
+    },
   });
-
-  function refresh() {
-    const items = render(drawState);
-    return logger.setItems(LoggerRefreshItemKind.Selection, items);
-  }
 }
 
 interface DrawState {

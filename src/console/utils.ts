@@ -1,4 +1,5 @@
 import { getIfInstantiated, instantiateWithCaching, WasmInstance } from "../lib/mod.ts";
+import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -73,8 +74,38 @@ export function ensureTty(title: string) {
   }
 }
 
+interface SelectionOptions<TReturn> {
+  message: string;
+  render: () => TextItem[];
+  noClear: boolean | undefined;
+  onKey: (key: string | Keys) => TReturn | undefined;
+}
+
+export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
+  ensureTty(options.message);
+  return ensureSingleSelection(async () => {
+    await logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+
+    for await (const key of readKeys()) {
+      const keyResult = options.onKey(key);
+      if (keyResult != null) {
+        const size = Deno.consoleSize();
+        await logger.setItems(LoggerRefreshItemKind.Selection, [], size);
+        if (options.noClear) {
+          await logger.renderOnce(options.render(), size);
+        }
+        return keyResult;
+      }
+      await logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+    }
+
+    await logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
+    return undefined;
+  });
+}
+
 let lastPromise: Promise<any> = Promise.resolve();
-export function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
+function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
   const currentLastPromise = lastPromise;
   const currentPromise = (async () => {
     try {
@@ -131,6 +162,13 @@ function createStaticTextFromInstance(instance: WasmInstance) {
       const newText = instance.static_text_render_text(items, columns, rows);
       if (newText != null) {
         Deno.stderr.writeSync(encoder.encode(newText));
+      }
+    },
+    renderOnce(items: TextItem[], size?: ConsoleSize) {
+      const { columns, rows } = size ?? Deno.consoleSize();
+      const newText = instance.static_text_render_once(items, columns, rows);
+      if (newText != null) {
+        Deno.stderr.writeSync(encoder.encode(newText + "\n"));
       }
     },
     clear(size?: ConsoleSize) {
