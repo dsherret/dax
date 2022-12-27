@@ -302,7 +302,7 @@ const name = await $.prompt({
 });
 ```
 
-Again, you can use just `$.maybePrompt("What's your name?")` to get a nullable return value for when the user hit `ctrl+c`.
+Again, you can use `$.maybePrompt("What's your name?")` to get a nullable return value for when the user presses `ctrl+c`.
 
 ### `$.confirm` / `$.maybeConfirm`
 

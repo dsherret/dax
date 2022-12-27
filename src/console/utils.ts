@@ -74,7 +74,15 @@ export function ensureTty(title: string) {
   }
 }
 
-interface SelectionOptions<TReturn> {
+export function resultOrExit<T>(result: T | undefined): T {
+  if (result == null) {
+    Deno.exit(130);
+  } else {
+    return result;
+  }
+}
+
+export interface SelectionOptions<TReturn> {
   message: string;
   render: () => TextItem[];
   noClear: boolean | undefined;
@@ -175,7 +183,7 @@ function createStaticTextFromInstance(instance: WasmInstance) {
         Deno.stderr.writeSync(encoder.encode(newText));
       }
     },
-    renderOnce(items: TextItem[], size?: ConsoleSize) {
+    outputItems(items: TextItem[], size?: ConsoleSize) {
       const { columns, rows } = size ?? Deno.consoleSize();
       const newText = instance.static_text_render_once(items, columns, rows);
       if (newText != null) {

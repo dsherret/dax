@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, TextItem } from "./utils.ts";
 
 /** Options for showing a selection that only has one result. */
 export interface SelectOptions {
@@ -17,13 +17,7 @@ export interface SelectOptions {
 }
 
 export function select(opts: SelectOptions) {
-  return maybeSelect(opts).then((result) => {
-    if (result == null) {
-      Deno.exit(130);
-    } else {
-      return result;
-    }
-  });
+  return maybeSelect(opts).then(resultOrExit);
 }
 
 export function maybeSelect(opts: SelectOptions) {

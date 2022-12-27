@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
 
 /** Options for showing confirming a yes or no question. */
 export interface ConfirmOptions {
@@ -18,32 +18,27 @@ export interface ConfirmOptions {
 }
 
 export function confirm(optsOrMessage: ConfirmOptions | string) {
-  return maybeConfirm(optsOrMessage).then((result) => {
-    if (result == null) {
-      Deno.exit(130);
-    } else {
-      return result;
-    }
-  });
+  return maybeConfirm(optsOrMessage).then(resultOrExit);
 }
 
 export function maybeConfirm(optsOrMessage: ConfirmOptions | string) {
-  const opts = typeof optsOrMessage === "string"
-    ? {
-      message: optsOrMessage,
-    }
-    : optsOrMessage;
+  const opts = typeof optsOrMessage === "string" ? { message: optsOrMessage } : optsOrMessage;
 
+  return createSelection({
+    message: opts.message,
+    noClear: opts.noClear,
+    ...innerConfirm(opts),
+  });
+}
+
+export function innerConfirm(opts: ConfirmOptions): Pick<SelectionOptions<boolean | undefined>, "render" | "onKey"> {
   const drawState: DrawState = {
     title: opts.message,
     default: opts.default,
     inputText: "",
     hasSelected: false,
   };
-
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
+  return {
     render: () => render(drawState),
     onKey: (key) => {
       switch (key) {
@@ -70,7 +65,7 @@ export function maybeConfirm(optsOrMessage: ConfirmOptions | string) {
           return drawState.inputText === "Y" ? true : drawState.inputText === "N" ? false : drawState.default;
       }
     },
-  });
+  };
 }
 
 interface DrawState {
@@ -83,7 +78,7 @@ interface DrawState {
 function render(state: DrawState): TextItem[] {
   return [
     colors.bold(colors.blue(state.title)) +
-    " " + (state.default == null ? "" : state.default ? "(Y/n) " : "(y/N) ") +
+    " " + (state.default == null || state.hasSelected ? "" : state.default ? "(Y/n) " : "(y/N) ") +
     state.inputText +
     (state.hasSelected ? "" : "\u2588"), // (block character)
   ];

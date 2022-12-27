@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, TextItem } from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {
@@ -23,13 +23,7 @@ export interface MultiSelectOptions {
 }
 
 export function multiSelect(opts: MultiSelectOptions) {
-  return maybeMultiSelect(opts).then((result) => {
-    if (result == null) {
-      Deno.exit(130);
-    } else {
-      return result;
-    }
-  });
+  return maybeMultiSelect(opts).then(resultOrExit);
 }
 
 export function maybeMultiSelect(opts: MultiSelectOptions) {

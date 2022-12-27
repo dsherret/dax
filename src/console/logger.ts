@@ -40,7 +40,7 @@ function logAboveStaticText(inner: () => void, providedSize?: ConsoleSize) {
 async function renderOnce(items: TextItem[], size?: ConsoleSize) {
   const staticText = await getStaticText();
   logAboveStaticText(() => {
-    staticText.renderOnce(items, size);
+    staticText.outputItems(items, size);
   }, size);
 }
 

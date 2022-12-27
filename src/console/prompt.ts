@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, TextItem } from "./utils.ts";
 
 /** Options for showing an input where the user enters a value. */
 export interface PromptOptions {
@@ -17,13 +17,7 @@ export interface PromptOptions {
 }
 
 export function prompt(optsOrMessage: PromptOptions | string) {
-  return maybePrompt(optsOrMessage).then((result) => {
-    if (result == null) {
-      Deno.exit(130);
-    } else {
-      return result;
-    }
-  });
+  return maybePrompt(optsOrMessage).then(resultOrExit);
 }
 
 export function maybePrompt(optsOrMessage: PromptOptions | string) {
