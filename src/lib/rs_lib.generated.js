@@ -1,7 +1,7 @@
 // @generated file from wasmbuild -- do not edit
 // deno-lint-ignore-file
 // deno-fmt-ignore-file
-// source-hash: c15f8bec503e7cb67366dc208a213ba3233c4e5c
+// source-hash: 66a52cc5f5e6a12670aea556e6c8220a21e9b0e9
 let wasm;
 
 const heap = new Array(32).fill(undefined);
@@ -264,6 +264,25 @@ export function static_text_clear_text(cols, rows) {
   }
 }
 
+/**
+ * @param {string} text
+ * @returns {string}
+ */
+export function strip_ansi_codes(text) {
+  try {
+    const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+    const ptr0 = passStringToWasm0(text, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    wasm.strip_ansi_codes(retptr, ptr0, len0);
+    var r0 = getInt32Memory0()[retptr / 4 + 0];
+    var r1 = getInt32Memory0()[retptr / 4 + 1];
+    return getStringFromWasm0(r0, r1);
+  } finally {
+    wasm.__wbindgen_add_to_stack_pointer(16);
+    wasm.__wbindgen_free(r0, r1);
+  }
+}
+
 function handleError(f, args) {
   try {
     return f.apply(this, args);
@@ -519,7 +538,7 @@ let lastLoadPromise;
  * @param {InstantiateOptions=} opts
  * @returns {Promise<{
  *   instance: WebAssembly.Instance;
- *   exports: { parse: typeof parse; static_text_render_text: typeof static_text_render_text; static_text_clear_text: typeof static_text_clear_text }
+ *   exports: { parse: typeof parse; static_text_render_text: typeof static_text_render_text; static_text_clear_text: typeof static_text_clear_text; strip_ansi_codes: typeof strip_ansi_codes }
  * }>}
  */
 export function instantiateWithInstance(opts) {
@@ -547,7 +566,7 @@ export function instantiateWithInstance(opts) {
 }
 
 function getWasmInstanceExports() {
-  return { parse, static_text_render_text, static_text_clear_text };
+  return { parse, static_text_render_text, static_text_clear_text, strip_ansi_codes };
 }
 
 /** Gets if the Wasm module has been instantiated. */

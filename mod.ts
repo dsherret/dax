@@ -9,13 +9,28 @@ import {
   LoggerTreeBox,
   TreeBox,
 } from "./src/common.ts";
-import { confirm, ConfirmOptions, multiSelect, MultiSelectOptions, select, SelectOptions } from "./src/console/mod.ts";
+import {
+  confirm,
+  ConfirmOptions,
+  multiSelect,
+  MultiSelectOptions,
+  prompt,
+  PromptOptions,
+  select,
+  SelectOptions,
+} from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { ConfirmOptions, MultiSelectOption, MultiSelectOptions, SelectOptions } from "./src/console/mod.ts";
+export type {
+  ConfirmOptions,
+  MultiSelectOption,
+  MultiSelectOptions,
+  PromptOptions,
+  SelectOptions,
+} from "./src/console/mod.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -236,20 +251,44 @@ export interface $Type {
   logGroupEnd(): void;
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or `undefined` if they pressed ctrl+c.
+   */
   confirm(message: string): Promise<boolean | undefined>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or `undefined` if they pressed ctrl+c.
+   */
   confirm(options: ConfirmOptions): Promise<boolean | undefined>;
   /**
    * Shows a prompt selection to the user where there is one possible answer.
    *
-   * @returns Option index the user selected or `undefined` if the user hit ctrl+c.
+   * @returns Option index the user selected or `undefined` if the user pressed ctrl+c.
    */
   select(options: SelectOptions): Promise<number | undefined>;
   /**
    * Shows a prompt selection to the user where there are multiple or zero possible answers.
    *
-   * @returns Array of selected indexes or `undefined` if the user hit ctrl+c.
+   * @returns Array of selected indexes or `undefined` if the user pressed ctrl+c.
    */
   multiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param message Message to show.
+   * @returns The inputted text or `undefined` if the user pressed ctrl+c.
+   */
+  prompt(message: string): Promise<string | undefined>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param options Options for the prompt.
+   * @returns The inputted text or `undefined` if the user pressed ctrl+c.
+   */
+  prompt(options: PromptOptions): Promise<string | undefined>;
   /**
    * Sets the logger used for info logging.
    * @default console.error
@@ -512,6 +551,7 @@ function build$FromState(state: $State) {
       confirm,
       select,
       multiSelect,
+      prompt,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },

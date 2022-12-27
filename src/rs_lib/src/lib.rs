@@ -70,3 +70,8 @@ pub fn static_text_clear_text(cols: usize, rows: usize) -> Option<String> {
       rows: Some(rows as u16),
     })
 }
+
+#[wasm_bindgen]
+pub fn strip_ansi_codes(text: String) -> String {
+  console_static_text::strip_ansi_codes(&text).to_string()
+}

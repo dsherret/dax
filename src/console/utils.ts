@@ -1,6 +1,7 @@
 import { getIfInstantiated, instantiateWithCaching, WasmInstance } from "../lib/mod.ts";
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 export enum Keys {
   Up,
@@ -10,24 +11,30 @@ export enum Keys {
   Enter,
   Space,
   Backspace,
-  Y,
-  N,
 }
 
 export async function* readKeys() {
+  const { strip_ansi_codes } = await instantiateWithCaching();
   while (true) {
-    const buf = new Uint8Array(16);
+    const buf = new Uint8Array(8);
     const byteCount = await Deno.read(Deno.stdin.rid, buf);
+    if (byteCount == null) {
+      break;
+    }
     if (byteCount === 3) {
       if (buf[0] === 27 && buf[1] === 91) {
         if (buf[2] === 65) {
           yield Keys.Up;
+          continue;
         } else if (buf[2] === 66) {
           yield Keys.Down;
+          continue;
         } else if (buf[2] === 67) {
           yield Keys.Right;
+          continue;
         } else if (buf[2] === 68) {
           yield Keys.Left;
+          continue;
         }
       }
     } else if (byteCount === 1) {
@@ -36,15 +43,18 @@ export async function* readKeys() {
         break;
       } else if (buf[0] === 13) {
         yield Keys.Enter;
+        continue;
       } else if (buf[0] === 32) {
         yield Keys.Space;
+        continue;
       } else if (buf[0] === 127) {
         yield Keys.Backspace;
-      } else if (buf[0] === 121 || buf[0] === 89) {
-        yield Keys.Y;
-      } else if (buf[0] === 110 || buf[0] === 78) {
-        yield Keys.N;
+        continue;
       }
+    }
+    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0)));
+    if (text.length > 0) {
+      yield text;
     }
   }
 }

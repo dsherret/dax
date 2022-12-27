@@ -71,8 +71,6 @@ export function multiSelect(opts: MultiSelectOptions) {
 
       await refresh();
     }
-
-    await logger.setItems(LoggerRefreshItemKind.Selection, []);
   });
 
   function refresh() {
