@@ -874,6 +874,10 @@ Deno.test("move test", async () => {
   });
 });
 
+Deno.test("pwd: pwd", async () => {
+  assertEquals(await $`pwd`.text(), Deno.cwd());
+});
+
 async function getStdErr(cmd: CommandBuilder) {
   return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
 }
