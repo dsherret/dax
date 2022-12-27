@@ -55,7 +55,7 @@ export function ensureTty(title: string) {
 }
 
 let lastPromise: Promise<any> = Promise.resolve();
-export async function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
+export function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
   const currentLastPromise = lastPromise;
   const currentPromise = (async () => {
     try {

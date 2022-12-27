@@ -7,7 +7,7 @@ import { mkdirCommand } from "./commands/mkdir.ts";
 import { rmCommand } from "./commands/rm.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
-import { delayToMs, LoggerTreeBox, TreeBox } from "./common.ts";
+import { delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path } from "./deps.ts";
 import {
