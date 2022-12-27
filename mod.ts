@@ -9,13 +9,13 @@ import {
   LoggerTreeBox,
   TreeBox,
 } from "./src/common.ts";
-import { multiSelect, MultiSelectOptions } from "./src/console/mod.ts";
+import { multiSelect, MultiSelectOptions, select, SelectOptions } from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { MultiSelectOption, MultiSelectOptions } from "./src/console/mod.ts";
+export type { MultiSelectOption, MultiSelectOptions, SelectOptions } from "./src/console/mod.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -236,6 +236,17 @@ export interface $Type {
   logGroupEnd(): void;
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
+  /**
+   * Shows a prompt selection to the user where there is one possible answer.
+   *
+   * @returns Option index the user selected or `undefined` if the user hit ctrl+c.
+   */
+  select(options: SelectOptions): Promise<number | undefined>;
+  /**
+   * Shows a prompt selection to the user where there are multiple or zero possible answers.
+   *
+   * @returns Array of selected indexes or `undefined` if the user hit ctrl+c.
+   */
   multiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
   /**
    * Sets the logger used for info logging.
@@ -496,6 +507,7 @@ function build$FromState(state: $State) {
           state.indentLevel.value--;
         }
       },
+      select,
       multiSelect,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);

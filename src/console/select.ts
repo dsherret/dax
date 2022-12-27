@@ -2,42 +2,26 @@ import { colors } from "../deps.ts";
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 import { ensureSingleSelection, ensureTty, Keys, readKeys, TextItem } from "./utils.ts";
 
-/** Single options within a multi-select option. */
-export interface MultiSelectOption {
-  /** Text to display for this option. */
-  text: string;
-  /** Whether it is selected by default. */
-  selected?: boolean;
-}
-
-/** Options for showing a selection that has multiple possible values. */
-export interface MultiSelectOptions {
+/** Options for showing a selection that only has one result. */
+export interface SelectOptions {
   /** Prompt text to show the user. */
   title: string;
+  /** Initial selected option index. Defaults to 0. */
+  initialIndex?: number;
   /** Options to show the user. */
-  options: (string | MultiSelectOption)[];
+  options: string[];
 }
 
-export function multiSelect(opts: MultiSelectOptions) {
-  if (opts.options.length === 0) {
-    throw new Error(`You must provide at least one option. (Prompt: '${opts.title}')`);
+export function select(opts: SelectOptions) {
+  if (opts.options.length <= 1) {
+    throw new Error(`You must provide at least two options. (Prompt: '${opts.title}')`);
   }
   ensureTty(opts.title);
 
   const drawState: DrawState = {
     title: opts.title,
-    activeIndex: 0,
-    items: opts.options.map((option) => {
-      if (typeof option === "string") {
-        option = {
-          text: option,
-        };
-      }
-      return {
-        selected: option.selected ?? false,
-        text: option.text,
-      };
-    }),
+    activeIndex: (opts.initialIndex ?? 0) % opts.options.length,
+    items: opts.options,
   };
 
   return ensureSingleSelection(async () => {
@@ -55,18 +39,9 @@ export function multiSelect(opts: MultiSelectOptions) {
         case Keys.Down:
           drawState.activeIndex = (drawState.activeIndex + 1) % drawState.items.length;
           break;
-        case Keys.Space: {
-          const item = drawState.items[drawState.activeIndex];
-          item.selected = !item.selected;
-          break;
-        }
         case Keys.Enter:
           await logger.setItems(LoggerRefreshItemKind.Selection, []);
-          return drawState
-            .items
-            .map((value, index) => [value, index] as const)
-            .filter(([value]) => value.selected)
-            .map(([, index]) => index);
+          return drawState.activeIndex;
       }
 
       await refresh();
@@ -84,22 +59,17 @@ export function multiSelect(opts: MultiSelectOptions) {
 interface DrawState {
   title: string;
   activeIndex: number;
-  items: ItemDrawState[];
-}
-
-interface ItemDrawState {
-  selected: boolean;
-  text: string;
+  items: string[];
 }
 
 function render(state: DrawState): TextItem[] {
   const items = [];
   items.push(colors.bold(colors.blue(state.title)));
-  for (const [i, item] of state.items.entries()) {
+  for (const [i, text] of state.items.entries()) {
     const prefix = i === state.activeIndex ? "> " : "  ";
     items.push({
-      text: `${prefix}[${item.selected ? "x" : " "}] ${item.text}`,
-      indent: 6,
+      text: `${prefix}${text}`,
+      indent: 4,
     });
   }
   return items;

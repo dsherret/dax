@@ -2,7 +2,7 @@ import { getIfInstantiated, instantiateWithCaching, WasmInstance } from "../lib/
 
 const encoder = new TextEncoder();
 
-export enum Key {
+export enum Keys {
   Up,
   Down,
   Left,
@@ -12,49 +12,71 @@ export enum Key {
 }
 
 export async function* readKeys() {
-  Deno.stdin.setRaw(true);
   while (true) {
-    const buf = new Uint8Array(128);
+    const buf = new Uint8Array(16);
     const byteCount = await Deno.read(Deno.stdin.rid, buf);
     if (byteCount === 3) {
       if (buf[0] === 27 && buf[1] === 91) {
         if (buf[2] === 65) {
-          yield Key.Up;
+          yield Keys.Up;
         } else if (buf[2] === 66) {
-          yield Key.Down;
+          yield Keys.Down;
         } else if (buf[2] === 67) {
-          yield Key.Right;
+          yield Keys.Right;
         } else if (buf[2] === 68) {
-          yield Key.Left;
+          yield Keys.Left;
         }
       }
-    }
-    if (byteCount === 1) {
+    } else if (byteCount === 1) {
       if (buf[0] === 3) {
         // ctrl+c
         break;
       } else if (buf[0] === 13) {
-        yield Key.Enter;
+        yield Keys.Enter;
       } else if (buf[0] === 32) {
-        yield Key.Space;
+        yield Keys.Space;
       }
     }
-    //console.log(buf);
   }
 }
 
 export function hideCursor() {
-  return Deno.stderr.write(encoder.encode("\x1B[?25l"));
+  Deno.stderr.writeSync(encoder.encode("\x1B[?25l"));
 }
 
 export function showCursor() {
-  return Deno.stderr.write(encoder.encode("\x1B[?25h"));
+  Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
 export function ensureTty(title: string) {
   if (!Deno.isatty(Deno.stdin.rid)) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${title}')`);
   }
+}
+
+let lastPromise: Promise<any> = Promise.resolve();
+export async function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
+  const currentLastPromise = lastPromise;
+  const currentPromise = (async () => {
+    try {
+      await currentLastPromise;
+    } catch {
+      // ignore
+    }
+    hideCursor();
+    try {
+      Deno.stdin.setRaw(true);
+      try {
+        return await action();
+      } finally {
+        Deno.stdin.setRaw(false);
+      }
+    } finally {
+      showCursor();
+    }
+  })();
+  lastPromise = currentPromise;
+  return currentPromise;
 }
 
 export type TextItem = string | HangingTextItem;

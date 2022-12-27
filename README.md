@@ -281,6 +281,10 @@ $.setInfoLogger((...args: any[]) => {
 };)
 ```
 
+## Selections / Prompts
+
+todo...
+
 ## Helper functions
 
 Changing the current working directory of the current process:
