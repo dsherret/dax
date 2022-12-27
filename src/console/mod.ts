@@ -1,9 +1,9 @@
-export { confirm } from "./confirm.ts";
+export { confirm, maybeConfirm } from "./confirm.ts";
 export type { ConfirmOptions } from "./confirm.ts";
 export { logger } from "./logger.ts";
-export { multiSelect } from "./multiSelect.ts";
+export { maybeMultiSelect, multiSelect } from "./multiSelect.ts";
 export type { MultiSelectOption, MultiSelectOptions } from "./multiSelect.ts";
-export { prompt } from "./prompt.ts";
+export { maybePrompt, prompt } from "./prompt.ts";
 export type { PromptOptions } from "./prompt.ts";
-export { select } from "./select.ts";
+export { maybeSelect, select } from "./select.ts";
 export type { SelectOptions } from "./select.ts";

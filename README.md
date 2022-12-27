@@ -283,7 +283,73 @@ $.setInfoLogger((...args: any[]) => {
 
 ## Selections / Prompts
 
-todo...
+There are a few selections/prompts that can be used.
+
+By default, all prompts will exit the process if the user cancelled their selection via ctrl+c. If you don't want this behaviour, then use the `maybe` variant functions.
+
+### `$.prompt` / `$.maybePrompt`
+
+Gets a string value from the user:
+
+```ts
+const name = await $.prompt("What's your name?");
+
+// or provide an object, which has some more options
+const name = await $.prompt({
+  message: "What's your name?",
+  default: "Dax", // prefilled value
+  noClear: true, // don't clear the text on result
+});
+```
+
+Again, you can use just `$.maybePrompt("What's your name?")` to get a nullable return value for when the user hit `ctrl+c`.
+
+### `$.confirm` / `$.maybeConfirm`
+
+Gets the answer to a yes or no question:
+
+```ts
+const result = await $.confirm("Would you like to continue?");
+
+// or with more options
+const result = await $.confirm({
+  message: "Would you like to continue?",
+  default: true,
+});
+```
+
+### `$.select` / `$.maybeSelect`
+
+Gets a single value:
+
+```ts
+const index = await $.select({
+  message: "What's your favourite colour?",
+  options: [
+    "Red",
+    "Green",
+    "Blue",
+  ],
+});
+```
+
+### `$.multiSelect` / `$.maybeMultiSelect`
+
+Gets multiple or no values:
+
+```ts
+const indexes = await $.multiSelect({
+  message: "Which of the following are days of the week?",
+  options: [
+    "Monday",
+    {
+      text: "Wednesday",
+      selected: true, // defaults to false
+    },
+    "Blue",
+  ],
+});
+```
 
 ## Helper functions
 

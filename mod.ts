@@ -12,6 +12,10 @@ import {
 import {
   confirm,
   ConfirmOptions,
+  maybeConfirm,
+  maybeMultiSelect,
+  maybePrompt,
+  maybeSelect,
   multiSelect,
   MultiSelectOptions,
   prompt,
@@ -254,41 +258,79 @@ export interface $Type {
   /**
    * Shows a prompt asking the user to answer a yes or no question.
    *
-   * @returns `true` or `false` if the user made a selection or `undefined` if they pressed ctrl+c.
+   * @returns `true` or `false` if the user made a selection or `undefined` if the user pressed ctrl+c.
    */
-  confirm(message: string): Promise<boolean | undefined>;
+  maybeConfirm(message: string): Promise<boolean | undefined>;
   /**
    * Shows a prompt asking the user to answer a yes or no question.
    *
-   * @returns `true` or `false` if the user made a selection or `undefined` if they pressed ctrl+c.
+   * @returns `true` or `false` if the user made a selection or `undefined` if the user pressed ctrl+c.
    */
-  confirm(options: ConfirmOptions): Promise<boolean | undefined>;
+  maybeConfirm(options: ConfirmOptions): Promise<boolean | undefined>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or exits the process if the user pressed ctrl+c.
+   */
+  confirm(message: string): Promise<boolean>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or exits the process if the user pressed ctrl+c.
+   */
+  confirm(options: ConfirmOptions): Promise<boolean>;
   /**
    * Shows a prompt selection to the user where there is one possible answer.
    *
    * @returns Option index the user selected or `undefined` if the user pressed ctrl+c.
    */
-  select(options: SelectOptions): Promise<number | undefined>;
+  maybeSelect(options: SelectOptions): Promise<number | undefined>;
+  /**
+   * Shows a prompt selection to the user where there is one possible answer.
+   *
+   * @returns Option index the user selected or exits the process if the user pressed ctrl+c.
+   */
+  select(options: SelectOptions): Promise<number>;
   /**
    * Shows a prompt selection to the user where there are multiple or zero possible answers.
    *
    * @returns Array of selected indexes or `undefined` if the user pressed ctrl+c.
    */
-  multiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
+  maybeMultiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
+  /**
+   * Shows a prompt selection to the user where there are multiple or zero possible answers.
+   *
+   * @returns Array of selected indexes or exits the process if the user pressed ctrl+c.
+   */
+  multiSelect(options: MultiSelectOptions): Promise<number[]>;
   /**
    * Shows an input prompt where the user can enter any text.
    *
    * @param message Message to show.
    * @returns The inputted text or `undefined` if the user pressed ctrl+c.
    */
-  prompt(message: string): Promise<string | undefined>;
+  maybePrompt(message: string): Promise<string | undefined>;
   /**
    * Shows an input prompt where the user can enter any text.
    *
    * @param options Options for the prompt.
    * @returns The inputted text or `undefined` if the user pressed ctrl+c.
    */
-  prompt(options: PromptOptions): Promise<string | undefined>;
+  maybePrompt(options: PromptOptions): Promise<string | undefined>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param message Message to show.
+   * @returns The inputted text or exits the process if the user pressed ctrl+c.
+   */
+  prompt(message: string): Promise<string>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param options Options for the prompt.
+   * @returns The inputted text or exits the process if the user pressed ctrl+c.
+   */
+  prompt(options: PromptOptions): Promise<string>;
   /**
    * Sets the logger used for info logging.
    * @default console.error
@@ -548,9 +590,13 @@ function build$FromState(state: $State) {
           state.indentLevel.value--;
         }
       },
+      maybeConfirm,
       confirm,
+      maybeSelect,
       select,
+      maybeMultiSelect,
       multiSelect,
+      maybePrompt,
       prompt,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);

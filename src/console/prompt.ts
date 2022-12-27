@@ -17,6 +17,16 @@ export interface PromptOptions {
 }
 
 export function prompt(optsOrMessage: PromptOptions | string) {
+  return maybePrompt(optsOrMessage).then((result) => {
+    if (result == null) {
+      Deno.exit(130);
+    } else {
+      return result;
+    }
+  });
+}
+
+export function maybePrompt(optsOrMessage: PromptOptions | string) {
   const opts = typeof optsOrMessage === "string"
     ? {
       message: optsOrMessage,

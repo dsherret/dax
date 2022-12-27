@@ -23,6 +23,16 @@ export interface MultiSelectOptions {
 }
 
 export function multiSelect(opts: MultiSelectOptions) {
+  return maybeMultiSelect(opts).then((result) => {
+    if (result == null) {
+      Deno.exit(130);
+    } else {
+      return result;
+    }
+  });
+}
+
+export function maybeMultiSelect(opts: MultiSelectOptions) {
   if (opts.options.length === 0) {
     throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }

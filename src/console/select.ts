@@ -17,6 +17,16 @@ export interface SelectOptions {
 }
 
 export function select(opts: SelectOptions) {
+  return maybeSelect(opts).then((result) => {
+    if (result == null) {
+      Deno.exit(130);
+    } else {
+      return result;
+    }
+  });
+}
+
+export function maybeSelect(opts: SelectOptions) {
   if (opts.options.length <= 1) {
     throw new Error(`You must provide at least two options. (Prompt: '${opts.message}')`);
   }
