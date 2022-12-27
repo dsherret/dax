@@ -9,13 +9,13 @@ import {
   LoggerTreeBox,
   TreeBox,
 } from "./src/common.ts";
-import { multiSelect, MultiSelectOptions, select, SelectOptions } from "./src/console/mod.ts";
+import { confirm, ConfirmOptions, multiSelect, MultiSelectOptions, select, SelectOptions } from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { MultiSelectOption, MultiSelectOptions, SelectOptions } from "./src/console/mod.ts";
+export type { ConfirmOptions, MultiSelectOption, MultiSelectOptions, SelectOptions } from "./src/console/mod.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -236,6 +236,8 @@ export interface $Type {
   logGroupEnd(): void;
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
+  confirm(message: string): Promise<boolean | undefined>;
+  confirm(options: ConfirmOptions): Promise<boolean | undefined>;
   /**
    * Shows a prompt selection to the user where there is one possible answer.
    *
@@ -507,6 +509,7 @@ function build$FromState(state: $State) {
           state.indentLevel.value--;
         }
       },
+      confirm,
       select,
       multiSelect,
       setInfoLogger(logger: (args: any[]) => void) {

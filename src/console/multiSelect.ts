@@ -13,19 +13,19 @@ export interface MultiSelectOption {
 /** Options for showing a selection that has multiple possible values. */
 export interface MultiSelectOptions {
   /** Prompt text to show the user. */
-  title: string;
+  message: string;
   /** Options to show the user. */
   options: (string | MultiSelectOption)[];
 }
 
 export function multiSelect(opts: MultiSelectOptions) {
   if (opts.options.length === 0) {
-    throw new Error(`You must provide at least one option. (Prompt: '${opts.title}')`);
+    throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }
-  ensureTty(opts.title);
+  ensureTty(opts.message);
 
   const drawState: DrawState = {
-    title: opts.title,
+    title: opts.message,
     activeIndex: 0,
     items: opts.options.map((option) => {
       if (typeof option === "string") {

@@ -5,7 +5,7 @@ import { ensureSingleSelection, ensureTty, Keys, readKeys, TextItem } from "./ut
 /** Options for showing a selection that only has one result. */
 export interface SelectOptions {
   /** Prompt text to show the user. */
-  title: string;
+  message: string;
   /** Initial selected option index. Defaults to 0. */
   initialIndex?: number;
   /** Options to show the user. */
@@ -14,12 +14,12 @@ export interface SelectOptions {
 
 export function select(opts: SelectOptions) {
   if (opts.options.length <= 1) {
-    throw new Error(`You must provide at least two options. (Prompt: '${opts.title}')`);
+    throw new Error(`You must provide at least two options. (Prompt: '${opts.message}')`);
   }
-  ensureTty(opts.title);
+  ensureTty(opts.message);
 
   const drawState: DrawState = {
-    title: opts.title,
+    title: opts.message,
     activeIndex: (opts.initialIndex ?? 0) % opts.options.length,
     items: opts.options,
   };

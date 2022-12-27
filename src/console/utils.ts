@@ -9,6 +9,9 @@ export enum Keys {
   Right,
   Enter,
   Space,
+  Backspace,
+  Y,
+  N,
 }
 
 export async function* readKeys() {
@@ -35,6 +38,12 @@ export async function* readKeys() {
         yield Keys.Enter;
       } else if (buf[0] === 32) {
         yield Keys.Space;
+      } else if (buf[0] === 127) {
+        yield Keys.Backspace;
+      } else if (buf[0] === 121 || buf[0] === 89) {
+        yield Keys.Y;
+      } else if (buf[0] === 110 || buf[0] === 78) {
+        yield Keys.N;
       }
     }
   }
