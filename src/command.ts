@@ -5,6 +5,7 @@ import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { mkdirCommand } from "./commands/mkdir.ts";
 import { rmCommand } from "./commands/rm.ts";
+import { pwdCommand } from "./commands/pwd.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { delayToMs, LoggerTreeBox } from "./common.ts";
@@ -50,6 +51,7 @@ const builtInCommands = {
   mkdir: mkdirCommand,
   cp: cpCommand,
   mv: mvCommand,
+  pwd: pwdCommand,
 };
 
 /**
