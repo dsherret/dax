@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, resultOrExit, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
 
 /** Options for showing an input where the user enters a value. */
 export interface PromptOptions {
@@ -27,15 +27,23 @@ export function maybePrompt(optsOrMessage: PromptOptions | string) {
     }
     : optsOrMessage;
 
-  const drawState: DrawState = {
-    title: opts.message,
-    inputText: opts.default ?? "",
-    hasSelected: false,
-  };
-
   return createSelection({
     message: opts.message,
     noClear: opts.noClear,
+    ...innerPrompt(opts),
+  });
+}
+
+export function innerPrompt(
+  opts: PromptOptions,
+): Pick<SelectionOptions<string | undefined>, "render" | "onKey"> {
+  const drawState: DrawState = {
+    title: opts.message,
+    inputText: opts.default ?? "",
+    hasCompleted: false,
+  };
+
+  return {
     render: () => render(drawState),
     onKey: (key) => {
       if (typeof key === "string") {
@@ -49,19 +57,19 @@ export function maybePrompt(optsOrMessage: PromptOptions | string) {
             drawState.inputText = drawState.inputText.slice(0, -1);
             break;
           case Keys.Enter:
-            drawState.hasSelected = true;
+            drawState.hasCompleted = true;
             return drawState.inputText;
         }
       }
       return undefined;
     },
-  });
+  };
 }
 
 interface DrawState {
   title: string;
   inputText: string;
-  hasSelected: boolean;
+  hasCompleted: boolean;
 }
 
 function render(state: DrawState): TextItem[] {
@@ -69,6 +77,6 @@ function render(state: DrawState): TextItem[] {
     colors.bold(colors.blue(state.title)) +
     " " +
     state.inputText +
-    (state.hasSelected ? "" : "\u2588"), // (block character)
+    (state.hasCompleted ? "" : "\u2588"), // (block character)
   ];
 }

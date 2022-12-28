@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, resultOrExit, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {
@@ -31,6 +31,16 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
     throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }
 
+  return createSelection({
+    message: opts.message,
+    noClear: opts.noClear,
+    ...innerMultiSelect(opts),
+  });
+}
+
+export function innerMultiSelect(
+  opts: MultiSelectOptions,
+): Pick<SelectionOptions<number[] | undefined>, "render" | "onKey"> {
   const drawState: DrawState = {
     title: opts.message,
     activeIndex: 0,
@@ -45,11 +55,10 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
         text: option.text,
       };
     }),
+    hasCompleted: false,
   };
 
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
+  return {
     render: () => render(drawState),
     onKey: (key) => {
       switch (key) {
@@ -69,6 +78,7 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
           break;
         }
         case Keys.Enter:
+          drawState.hasCompleted = true;
           return drawState
             .items
             .map((value, index) => [value, index] as const)
@@ -77,13 +87,14 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
       }
       return undefined;
     },
-  });
+  };
 }
 
 interface DrawState {
   title: string;
   activeIndex: number;
   items: ItemDrawState[];
+  hasCompleted: boolean;
 }
 
 interface ItemDrawState {
@@ -94,12 +105,27 @@ interface ItemDrawState {
 function render(state: DrawState): TextItem[] {
   const items = [];
   items.push(colors.bold(colors.blue(state.title)));
-  for (const [i, item] of state.items.entries()) {
-    const prefix = i === state.activeIndex ? "> " : "  ";
-    items.push({
-      text: `${prefix}[${item.selected ? "x" : " "}] ${item.text}`,
-      indent: 6,
-    });
+  if (state.hasCompleted) {
+    if (state.items.some((i) => i.selected)) {
+      for (const item of state.items) {
+        if (item.selected) {
+          items.push({
+            text: ` - ${item.text}`,
+            indent: 3,
+          });
+        }
+      }
+    } else {
+      items.push(colors.italic(" <None>"));
+    }
+  } else {
+    for (const [i, item] of state.items.entries()) {
+      const prefix = i === state.activeIndex ? "> " : "  ";
+      items.push({
+        text: `${prefix}[${item.selected ? "x" : " "}] ${item.text}`,
+        indent: 6,
+      });
+    }
   }
   return items;
 }

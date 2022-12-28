@@ -36,7 +36,7 @@ export function innerConfirm(opts: ConfirmOptions): Pick<SelectionOptions<boolea
     title: opts.message,
     default: opts.default,
     inputText: "",
-    hasSelected: false,
+    hasCompleted: false,
   };
   return {
     render: () => render(drawState),
@@ -61,7 +61,7 @@ export function innerConfirm(opts: ConfirmOptions): Pick<SelectionOptions<boolea
 
             drawState.inputText = drawState.default ? "Y" : "N";
           }
-          drawState.hasSelected = true;
+          drawState.hasCompleted = true;
           return drawState.inputText === "Y" ? true : drawState.inputText === "N" ? false : drawState.default;
       }
     },
@@ -72,14 +72,14 @@ interface DrawState {
   title: string;
   default: boolean | undefined;
   inputText: string;
-  hasSelected: boolean;
+  hasCompleted: boolean;
 }
 
 function render(state: DrawState): TextItem[] {
   return [
     colors.bold(colors.blue(state.title)) +
-    " " + (state.default == null || state.hasSelected ? "" : state.default ? "(Y/n) " : "(y/N) ") +
+    " " + (state.default == null || state.hasCompleted ? "" : state.default ? "(Y/n) " : "(y/N) ") +
     state.inputText +
-    (state.hasSelected ? "" : "\u2588"), // (block character)
+    (state.hasCompleted ? "" : "\u2588"), // (block character)
   ];
 }
