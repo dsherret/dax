@@ -44,15 +44,15 @@ Deno.test("should render when default is undefined", async () => {
     message: "Some question?",
   }));
 
-  assertEquals(tester.getText(), "Some question? \u2588");
+  assertEquals(tester.getText(), "Some question? (Y/N) \u2588");
   assertEquals(tester.onKey("Y"), undefined);
-  assertEquals(tester.getText(), "Some question? Y\u2588");
+  assertEquals(tester.getText(), "Some question? (Y/N) Y\u2588");
   assertEquals(tester.onKey(Keys.Backspace), undefined);
-  assertEquals(tester.getText(), "Some question? \u2588");
+  assertEquals(tester.getText(), "Some question? (Y/N) \u2588");
   assertEquals(tester.onKey(Keys.Enter), undefined);
-  assertEquals(tester.getText(), "Some question? \u2588");
+  assertEquals(tester.getText(), "Some question? (Y/N) \u2588");
   assertEquals(tester.onKey("Y"), undefined);
-  assertEquals(tester.getText(), "Some question? Y\u2588");
+  assertEquals(tester.getText(), "Some question? (Y/N) Y\u2588");
   assertEquals(tester.onKey(Keys.Enter), true);
   assertEquals(tester.getText(), "Some question? Y");
 });
