@@ -18,7 +18,6 @@ import {
   maybeSelect,
   multiSelect,
   MultiSelectOptions,
-  progress,
   ProgressBar,
   ProgressOptions,
   prompt,
@@ -337,6 +336,8 @@ export interface $Type {
    */
   prompt(options: PromptOptions): Promise<string>;
   /** Shows a progress message when indeterminate or bar when determinate. */
+  progress(message: string): ProgressBar;
+  /** Shows a progress message when indeterminate or bar when determinate. */
   progress(options: ProgressOptions): ProgressBar;
   /**
    * Sets the logger used for info logging.
@@ -605,7 +606,20 @@ function build$FromState(state: $State) {
       multiSelect,
       maybePrompt,
       prompt,
-      progress,
+      progress(messageOrText: ProgressOptions | string) {
+        const options: ProgressOptions = typeof messageOrText === "string"
+          ? (() => {
+            const words = messageOrText.split(" ");
+            return {
+              prefix: words[0],
+              message: words.length > 1 ? words.slice(1).join(" ") : undefined,
+            };
+          })()
+          : messageOrText;
+        return new ProgressBar((...data) => {
+          state.infoLogger.getValue()(...data);
+        }, options);
+      },
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },

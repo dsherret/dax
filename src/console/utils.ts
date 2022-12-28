@@ -74,6 +74,8 @@ export function ensureTty(title: string) {
   }
 }
 
+export const isInteractiveConsole = Deno.isatty(Deno.stdin.rid) && safeConsoleSize() != null;
+
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
     Deno.exit(130);
@@ -103,7 +105,7 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
         const size = Deno.consoleSize();
         await logger.setItems(LoggerRefreshItemKind.Selection, [], size);
         if (options.noClear) {
-          await logger.renderOnce(options.render(), size);
+          await logger.logOnce(options.render(), size);
         }
         return keyResult;
       }

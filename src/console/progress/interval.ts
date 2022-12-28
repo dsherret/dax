@@ -1,11 +1,10 @@
 import { logger, LoggerRefreshItemKind } from "../logger.ts";
-import { ConsoleSize, safeConsoleSize, TextItem } from "../utils.ts";
+import { ConsoleSize, isInteractiveConsole, TextItem } from "../utils.ts";
 
 export interface RenderIntervalProgressBar {
   render(size: ConsoleSize): TextItem[];
 }
 
-const isEnabled = Deno.isatty(Deno.stdin.rid) && safeConsoleSize() != null;
 const intervalMs = 60;
 const progressBars: RenderIntervalProgressBar[] = [];
 let renderIntervalId: number | undefined;
@@ -16,7 +15,7 @@ export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): Rende
     render,
   };
   progressBars.push(pb);
-  if (renderIntervalId == null && isEnabled) {
+  if (renderIntervalId == null && isInteractiveConsole) {
     renderIntervalId = setInterval(forceRender, intervalMs);
   }
   return pb;
@@ -24,14 +23,16 @@ export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): Rende
 
 export function removeProgressBar(pb: RenderIntervalProgressBar) {
   const index = progressBars.indexOf(pb);
-  if (index >= 0) {
-    progressBars.splice(index, 1);
-    if (progressBars.length === 0) {
-      clearInterval(renderIntervalId);
-      logger.setItems(LoggerRefreshItemKind.ProgressBars, []);
-      renderIntervalId = undefined;
-    }
+  if (index === -1) {
+    return false;
   }
+  progressBars.splice(index, 1);
+  if (progressBars.length === 0) {
+    clearInterval(renderIntervalId);
+    logger.setItems(LoggerRefreshItemKind.ProgressBars, []);
+    renderIntervalId = undefined;
+  }
+  return true;
 }
 
 export function forceRenderIfHasNotInWhile() {
@@ -42,7 +43,7 @@ export function forceRenderIfHasNotInWhile() {
 }
 
 export function forceRender() {
-  if (!isEnabled || progressBars.length === 0) {
+  if (!isInteractiveConsole || progressBars.length === 0) {
     return;
   }
 

@@ -37,7 +37,7 @@ function logAboveStaticText(inner: () => void, providedSize?: ConsoleSize) {
   }
 }
 
-async function renderOnce(items: TextItem[], size?: ConsoleSize) {
+async function logOnce(items: TextItem[], size?: ConsoleSize) {
   const staticText = await getStaticText();
   logAboveStaticText(() => {
     staticText.outputItems(items, size);
@@ -46,7 +46,7 @@ async function renderOnce(items: TextItem[], size?: ConsoleSize) {
 
 const logger = {
   setItems,
-  renderOnce,
+  logOnce,
   logAboveStaticText,
 };
 

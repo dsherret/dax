@@ -4,7 +4,7 @@ export { logger } from "./logger.ts";
 export { maybeMultiSelect, multiSelect } from "./multiSelect.ts";
 export type { MultiSelectOption, MultiSelectOptions } from "./multiSelect.ts";
 export type { ProgressOptions } from "./progress/mod.ts";
-export { progress, ProgressBar } from "./progress/mod.ts";
+export { ProgressBar } from "./progress/mod.ts";
 export { maybePrompt, prompt } from "./prompt.ts";
 export type { PromptOptions } from "./prompt.ts";
 export { maybeSelect, select } from "./select.ts";

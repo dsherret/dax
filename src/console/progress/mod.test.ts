@@ -80,6 +80,26 @@ Deno.test("should render when has length", () => {
     }),
     "[###############################################################] (100/100)",
   );
+
+  assertEquals(
+    getOutput({
+      currentPos: 200, // above the length
+      length: 100,
+    }),
+    "[###############################################################] (200/100)",
+  );
+
+  // completed
+  assertEquals(
+    getOutput({
+      prefix: "Prefix",
+      message: "Message",
+      currentPos: 75,
+      length: 100,
+      hasCompleted: true,
+    }),
+    "Prefix Message",
+  );
 });
 
 function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
@@ -89,6 +109,7 @@ function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
     message: undefined,
     prefix: undefined,
     tickCount: 0,
+    hasCompleted: false,
     ...state,
   }, { columns: 80, rows: 10 });
   return strip_ansi_codes(static_text_render_once(items, 80, 10) ?? "");
