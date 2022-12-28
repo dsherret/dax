@@ -355,7 +355,7 @@ const indexes = await $.multiSelect({
 
 You may wish to indicate that some progress is occurring.
 
-### Indefinite
+### Indeterminate
 
 ```ts
 const pb = $.progress({
@@ -383,7 +383,7 @@ const pb = $.progress({
 pb.finish();
 ```
 
-### Definite
+### Determinate
 
 ```ts
 const items = [/*...*/];

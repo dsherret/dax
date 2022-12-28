@@ -336,7 +336,7 @@ export interface $Type {
    * @returns The inputted text or exits the process if the user pressed ctrl+c.
    */
   prompt(options: PromptOptions): Promise<string>;
-  /** Shows a progress bar. */
+  /** Shows a progress message when indeterminate or bar when determinate. */
   progress(options: ProgressOptions): ProgressBar;
   /**
    * Sets the logger used for info logging.

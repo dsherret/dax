@@ -8,12 +8,21 @@ import {
   RenderIntervalProgressBar,
 } from "./interval.ts";
 
+/** Options for showing progress. */
 export interface ProgressOptions {
+  /** Prefix message/word that will be displayed in green. */
   prefix?: string;
+  /** Message to show after the prefix in white. */
   message?: string;
+  /**
+   * Optional length if known.
+   *
+   * If this is undefined then the progress will be indeterminate.
+   */
   length?: number;
 }
 
+/** A progress bar instance. Create one of these via `$.progress({ ... })`. */
 export class ProgressBar {
   #state: RenderState;
   #pb: RenderIntervalProgressBar;
@@ -33,31 +42,37 @@ export class ProgressBar {
     });
   }
 
+  /** Sets the prefix message/word, which will be displayed in green. */
   setPrefix(prefix: string | undefined) {
     this.#state.prefix = prefix;
     forceRenderIfHasNotInWhile();
   }
 
+  /** Sets the message the progress bar will display after the prefix in white. */
   setMessage(message: string | undefined) {
     this.#state.message = message;
     forceRenderIfHasNotInWhile();
   }
 
+  /** Sets the current position of the progress bar. */
   setPosition(position: number) {
     this.#state.currentPos = position;
     forceRenderIfHasNotInWhile();
   }
 
+  /** Increments the position of the progress bar. */
   increment() {
     this.#state.currentPos++;
     forceRenderIfHasNotInWhile();
   }
 
+  /** Sets the total length of the progress bar. */
   setLength(size: number | undefined) {
     this.#state.length = size;
     forceRenderIfHasNotInWhile();
   }
 
+  /** Forces a render to the console. */
   forceRender() {
     forceRender();
   }
@@ -67,7 +82,14 @@ export class ProgressBar {
     removeProgressBar(this.#pb);
   }
 
+  /**
+   * Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs.
+   *
+   * Since this is the synchronous overload, you should probably call `.forceRender()` to force rendering
+   * every now and again.
+   */
   with<TResult>(action: () => TResult): TResult;
+  /** Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs. */
   with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
   with<TResult>(action: () => Promise<TResult> | TResult) {
     this.#withCount++;
