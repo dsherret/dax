@@ -1,6 +1,12 @@
 import { colors } from "../../deps.ts";
 import { ConsoleSize, TextItem } from "../utils.ts";
-import { addProgressBar, DrawIntervalProgressBar, removeProgressBar } from "./interval.ts";
+import {
+  addProgressBar,
+  forceRender,
+  forceRenderIfHasNotInWhile,
+  removeProgressBar,
+  RenderIntervalProgressBar,
+} from "./interval.ts";
 
 export interface ProgressOptions {
   prefix?: string;
@@ -10,7 +16,7 @@ export interface ProgressOptions {
 
 export class ProgressBar {
   #state: RenderState;
-  #pb: DrawIntervalProgressBar;
+  #pb: RenderIntervalProgressBar;
   #withCount = 0;
 
   constructor(opts: ProgressOptions) {
@@ -29,33 +35,64 @@ export class ProgressBar {
 
   setPrefix(prefix: string | undefined) {
     this.#state.prefix = prefix;
+    forceRenderIfHasNotInWhile();
   }
 
   setMessage(message: string | undefined) {
     this.#state.message = message;
+    forceRenderIfHasNotInWhile();
   }
 
   setPosition(position: number) {
     this.#state.currentPos = position;
+    forceRenderIfHasNotInWhile();
+  }
+
+  increment() {
+    this.#state.currentPos++;
+    forceRenderIfHasNotInWhile();
   }
 
   setLength(size: number | undefined) {
     this.#state.length = size;
+    forceRenderIfHasNotInWhile();
   }
 
+  forceRender() {
+    forceRender();
+  }
+
+  /** Finish showing the progress bar. */
   finish() {
     removeProgressBar(this.#pb);
   }
 
-  async with(action: () => Promise<void>) {
+  with<TResult>(action: () => TResult): TResult;
+  with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
+  with<TResult>(action: () => Promise<TResult> | TResult) {
     this.#withCount++;
+    let wasAsync = false;
     try {
-      await action();
-    } finally {
-      this.#withCount--;
-      if (this.#withCount === 0) {
-        this.finish();
+      const result = action();
+      if (result instanceof Promise) {
+        wasAsync = true;
+        return result.finally(() => {
+          this.#decrementWithCount();
+        });
+      } else {
+        return result;
       }
+    } finally {
+      if (!wasAsync) {
+        this.#decrementWithCount();
+      }
+    }
+  }
+
+  #decrementWithCount() {
+    this.#withCount--;
+    if (this.#withCount === 0) {
+      this.finish();
     }
   }
 }

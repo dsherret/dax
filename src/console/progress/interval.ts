@@ -1,38 +1,47 @@
 import { logger, LoggerRefreshItemKind } from "../logger.ts";
 import { ConsoleSize, safeConsoleSize, TextItem } from "../utils.ts";
 
-export interface DrawIntervalProgressBar {
+export interface RenderIntervalProgressBar {
   render(size: ConsoleSize): TextItem[];
 }
 
 const isEnabled = Deno.isatty(Deno.stdin.rid) && safeConsoleSize() != null;
-let drawIntervalId: number | undefined;
-const progressBars: DrawIntervalProgressBar[] = [];
+const intervalMs = 60;
+const progressBars: RenderIntervalProgressBar[] = [];
+let renderIntervalId: number | undefined;
+let lastRenderTime = Date.now();
 
-export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): DrawIntervalProgressBar {
+export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): RenderIntervalProgressBar {
   const pb = {
     render,
   };
   progressBars.push(pb);
-  if (drawIntervalId == null && isEnabled) {
-    drawIntervalId = setInterval(draw, 60);
+  if (renderIntervalId == null && isEnabled) {
+    renderIntervalId = setInterval(forceRender, intervalMs);
   }
   return pb;
 }
 
-export function removeProgressBar(pb: DrawIntervalProgressBar) {
+export function removeProgressBar(pb: RenderIntervalProgressBar) {
   const index = progressBars.indexOf(pb);
   if (index >= 0) {
     progressBars.splice(index, 1);
     if (progressBars.length === 0) {
-      clearInterval(drawIntervalId);
+      clearInterval(renderIntervalId);
       logger.setItems(LoggerRefreshItemKind.ProgressBars, []);
-      drawIntervalId = undefined;
+      renderIntervalId = undefined;
     }
   }
 }
 
-function draw() {
+export function forceRenderIfHasNotInWhile() {
+  const duration = Date.now() - lastRenderTime;
+  if (duration > intervalMs * 2) {
+    forceRender();
+  }
+}
+
+export function forceRender() {
   if (!isEnabled || progressBars.length === 0) {
     return;
   }
@@ -40,4 +49,5 @@ function draw() {
   const size = Deno.consoleSize();
   const items = progressBars.map((p) => p.render(size)).flat();
   logger.setItems(LoggerRefreshItemKind.ProgressBars, items, size);
+  lastRenderTime = Date.now();
 }

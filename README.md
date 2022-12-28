@@ -351,6 +351,72 @@ const indexes = await $.multiSelect({
 });
 ```
 
+## Progress indicator
+
+You may wish to indicate that some progress is occurring.
+
+### Indefinite
+
+```ts
+const pb = $.progress({
+  // will display in green before process spinner
+  prefix: "Updating",
+  // will display after spinner in the default terminal colour
+  message: "database",
+});
+
+await pb.with(async () => {
+  // do some work here
+});
+```
+
+The `.with(async () => { ... })` API will hide the progress bar when the action completes including hiding it when an error is thrown. If you don't want to bother with this though you can just call `pb.finish()` instead.
+
+```ts
+const pb = $.progress({
+  prefix: "Updating",
+  message: "Database",
+});
+
+// do some work here
+
+pb.finish();
+```
+
+### Definite
+
+```ts
+const items = [/*...*/];
+const pb = $.progress({
+  prefix: "Processing"
+  message: "Items",
+  length: items.length,
+});
+
+await pb.with(async () => {
+  for (const item of items) {
+    await doWork(item);
+    pb.increment(); // or use pb.setPosition(val)
+  }
+});
+```
+
+#### Synchronous work
+
+The progress bars are updated on an interval (via `setInterval`). If you are doing a lot of synchronous work, it will start updating the progress bar on the current execution context, but this only occurs in some cases. Due to this, it's probably best to force a render where you think it would be appropriate by using the `.forceRender()` method:
+
+```ts
+const pb = $.progress({/* ... */});
+
+pb.with(() => {
+  for (const item of items) {
+    doWork(item); // note this does not use `await` so we force rendering below
+    pb.increment();
+    pb.forceRender();
+  }
+});
+```
+
 ## Helper functions
 
 Changing the current working directory of the current process:
