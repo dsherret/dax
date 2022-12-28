@@ -18,6 +18,9 @@ import {
   maybeSelect,
   multiSelect,
   MultiSelectOptions,
+  progress,
+  ProgressBar,
+  ProgressOptions,
   prompt,
   PromptOptions,
   select,
@@ -32,6 +35,8 @@ export type {
   ConfirmOptions,
   MultiSelectOption,
   MultiSelectOptions,
+  ProgressBar,
+  ProgressOptions,
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
@@ -331,6 +336,8 @@ export interface $Type {
    * @returns The inputted text or exits the process if the user pressed ctrl+c.
    */
   prompt(options: PromptOptions): Promise<string>;
+  /** Shows a progress bar. */
+  progress(options: ProgressOptions): ProgressBar;
   /**
    * Sets the logger used for info logging.
    * @default console.error
@@ -598,6 +605,7 @@ function build$FromState(state: $State) {
       multiSelect,
       maybePrompt,
       prompt,
+      progress,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },
