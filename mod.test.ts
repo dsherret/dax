@@ -878,6 +878,27 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
+Deno.test("progress", () => {
+  const logs: string[] = [];
+  $.setInfoLogger((...data) => logs.push(data.join(" ")));
+  const pb = $.progress("Downloading Test");
+  pb.forceRender(); // should not throw;
+  assertEquals(logs, [
+    "Downloading Test",
+  ]);
+  pb.message("Other");
+  assertEquals(logs, [
+    "Downloading Test",
+    "Downloading Other",
+  ]);
+  pb.prefix("Saving");
+  assertEquals(logs, [
+    "Downloading Test",
+    "Downloading Other",
+    "Saving Other",
+  ]);
+});
+
 async function getStdErr(cmd: CommandBuilder) {
   return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
 }
