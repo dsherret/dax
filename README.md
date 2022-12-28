@@ -378,9 +378,11 @@ const pb = $.progress({
   message: "Database",
 });
 
-// do some work here
-
-pb.finish();
+try {
+  // do some work here
+} finally {
+  pb.finish();
+}
 ```
 
 ### Determinate
