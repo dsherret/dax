@@ -7,7 +7,7 @@ import { mkdirCommand } from "./commands/mkdir.ts";
 import { rmCommand } from "./commands/rm.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
-import { delayToMs, TreeBox } from "./common.ts";
+import { delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path } from "./deps.ts";
 import {
@@ -33,7 +33,7 @@ interface CommandBuilderState {
   cwd: string | undefined;
   exportEnv: boolean;
   printCommand: boolean;
-  printCommandLogger: TreeBox<(...args: any[]) => void>;
+  printCommandLogger: LoggerTreeBox;
   timeout: number | undefined;
 }
 
@@ -84,7 +84,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     commands: { ...builtInCommands },
     exportEnv: false,
     printCommand: false,
-    printCommandLogger: new TreeBox(console.error),
+    printCommandLogger: new LoggerTreeBox(console.error),
     timeout: undefined,
   };
 

@@ -1,10 +1,40 @@
 import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
-import { Box, Delay, DelayIterator, delayToIterator, delayToMs, formatMillis, TreeBox } from "./src/common.ts";
+import {
+  Box,
+  Delay,
+  DelayIterator,
+  delayToIterator,
+  delayToMs,
+  formatMillis,
+  LoggerTreeBox,
+  TreeBox,
+} from "./src/common.ts";
+import {
+  confirm,
+  ConfirmOptions,
+  maybeConfirm,
+  maybeMultiSelect,
+  maybePrompt,
+  maybeSelect,
+  multiSelect,
+  MultiSelectOptions,
+  prompt,
+  PromptOptions,
+  select,
+  SelectOptions,
+} from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
+export type {
+  ConfirmOptions,
+  MultiSelectOption,
+  MultiSelectOptions,
+  PromptOptions,
+  SelectOptions,
+} from "./src/console/mod.ts";
 export { RequestBuilder, RequestResult } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -226,6 +256,82 @@ export interface $Type {
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
   /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or `undefined` if the user pressed ctrl+c.
+   */
+  maybeConfirm(message: string): Promise<boolean | undefined>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or `undefined` if the user pressed ctrl+c.
+   */
+  maybeConfirm(options: ConfirmOptions): Promise<boolean | undefined>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or exits the process if the user pressed ctrl+c.
+   */
+  confirm(message: string): Promise<boolean>;
+  /**
+   * Shows a prompt asking the user to answer a yes or no question.
+   *
+   * @returns `true` or `false` if the user made a selection or exits the process if the user pressed ctrl+c.
+   */
+  confirm(options: ConfirmOptions): Promise<boolean>;
+  /**
+   * Shows a prompt selection to the user where there is one possible answer.
+   *
+   * @returns Option index the user selected or `undefined` if the user pressed ctrl+c.
+   */
+  maybeSelect(options: SelectOptions): Promise<number | undefined>;
+  /**
+   * Shows a prompt selection to the user where there is one possible answer.
+   *
+   * @returns Option index the user selected or exits the process if the user pressed ctrl+c.
+   */
+  select(options: SelectOptions): Promise<number>;
+  /**
+   * Shows a prompt selection to the user where there are multiple or zero possible answers.
+   *
+   * @returns Array of selected indexes or `undefined` if the user pressed ctrl+c.
+   */
+  maybeMultiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
+  /**
+   * Shows a prompt selection to the user where there are multiple or zero possible answers.
+   *
+   * @returns Array of selected indexes or exits the process if the user pressed ctrl+c.
+   */
+  multiSelect(options: MultiSelectOptions): Promise<number[]>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param message Message to show.
+   * @returns The inputted text or `undefined` if the user pressed ctrl+c.
+   */
+  maybePrompt(message: string): Promise<string | undefined>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param options Options for the prompt.
+   * @returns The inputted text or `undefined` if the user pressed ctrl+c.
+   */
+  maybePrompt(options: PromptOptions): Promise<string | undefined>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param message Message to show.
+   * @returns The inputted text or exits the process if the user pressed ctrl+c.
+   */
+  prompt(message: string): Promise<string>;
+  /**
+   * Shows an input prompt where the user can enter any text.
+   *
+   * @param options Options for the prompt.
+   * @returns The inputted text or exits the process if the user pressed ctrl+c.
+   */
+  prompt(options: PromptOptions): Promise<string>;
+  /**
    * Sets the logger used for info logging.
    * @default console.error
    */
@@ -341,9 +447,9 @@ function cd(path: string | URL) {
 interface $State {
   commandBuilder: TreeBox<CommandBuilder>;
   requestBuilder: RequestBuilder;
-  infoLogger: TreeBox<(...args: any[]) => void>;
-  warnLogger: TreeBox<(...args: any[]) => void>;
-  errorLogger: TreeBox<(...args: any[]) => void>;
+  infoLogger: LoggerTreeBox;
+  warnLogger: LoggerTreeBox;
+  errorLogger: LoggerTreeBox;
   indentLevel: Box<number>;
 }
 
@@ -351,9 +457,9 @@ function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $Stat
   return {
     commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
-    infoLogger: new TreeBox(console.error),
-    warnLogger: new TreeBox(console.error),
-    errorLogger: new TreeBox(console.error),
+    infoLogger: new LoggerTreeBox(console.error),
+    warnLogger: new LoggerTreeBox(console.error),
+    errorLogger: new LoggerTreeBox(console.error),
     indentLevel: new Box(0),
   };
 }
@@ -484,6 +590,14 @@ function build$FromState(state: $State) {
           state.indentLevel.value--;
         }
       },
+      maybeConfirm,
+      confirm,
+      maybeSelect,
+      select,
+      maybeMultiSelect,
+      multiSelect,
+      maybePrompt,
+      prompt,
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },

@@ -1,12 +1,23 @@
 import { fs, localDataDir, path } from "../deps.ts";
 import { instantiate } from "./rs_lib.generated.js";
 
+export type WasmInstance = Awaited<ReturnType<typeof instantiate>>;
+
+let cachedInstance: WasmInstance | undefined;
+
 export async function instantiateWithCaching() {
-  let url = new URL("rs_lib_bg.wasm", import.meta.url);
-  if (url.protocol !== "file:") {
-    url = (await cacheLocalDir(url)) ?? url;
+  if (cachedInstance == null) {
+    let url = new URL("rs_lib_bg.wasm", import.meta.url);
+    if (url.protocol !== "file:") {
+      url = (await cacheLocalDir(url)) ?? url;
+    }
+    cachedInstance = await instantiate({ url });
   }
-  return instantiate({ url });
+  return cachedInstance;
+}
+
+export function getIfInstantiated() {
+  return cachedInstance;
 }
 
 async function cacheLocalDir(url: URL) {

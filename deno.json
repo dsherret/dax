@@ -6,11 +6,21 @@
     "options": {
       "proseWrap": "preserve",
       "lineWidth": 120
+    },
+    "files": {
+      "exclude": [
+        "target/"
+      ]
     }
   },
   "lint": {
     "rules": {
       "exclude": ["no-explicit-any", "no-this-alias"]
+    },
+    "files": {
+      "exclude": [
+        "target/"
+      ]
     }
   }
 }
