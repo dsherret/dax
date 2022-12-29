@@ -220,6 +220,12 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return response.blob();
   }
 
+  /** Fetches and gets the response as form data. */
+  async formData() {
+    const response = await this.fetch();
+    return response.formData();
+  }
+
   /** Fetches and gets the response as JSON additionally setting
    * a JSON accept header if not set. */
   async json<TResult = any>(): Promise<TResult> {
@@ -324,6 +330,18 @@ export class RequestResult {
       return undefined!;
     }
     return this.#response.blob();
+  }
+
+  /**
+   * Response body as a form data.
+   *
+   * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
+   */
+  formData() {
+    if (this.#response.status === 404) {
+      return undefined!;
+    }
+    return this.#response.formData();
   }
 
   /**
