@@ -282,6 +282,21 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     const response = await this.fetch();
     return response.text();
   }
+
+  /** Pipes the response body to the provided writable stream. */
+  async pipeTo(dest: WritableStream<Uint8Array>) {
+    const response = await this.fetch();
+    return await response.pipeTo(dest);
+  }
+
+  /** Pipes the response body through the provided transform. */
+  async pipeThrough<T>(transform: {
+    writable: WritableStream<Uint8Array>;
+    readable: ReadableStream<T>;
+  }): Promise<ReadableStream<T>> {
+    const response = await this.fetch();
+    return response.pipeThrough(transform);
+  }
 }
 
 /** Result of making a request. */
@@ -297,6 +312,7 @@ export class RequestResult {
   }) {
     this.#originalUrl = opts.originalUrl;
     this.#response = opts.response;
+
     if (opts.progressBar != null) {
       const pb = opts.progressBar;
       this.#downloadResponse = new Response(
@@ -434,6 +450,27 @@ export class RequestResult {
       return undefined!;
     }
     return this.#downloadResponse.text();
+  }
+
+  /** Pipes the response body to the provided writable stream. */
+  pipeTo(dest: WritableStream<Uint8Array>) {
+    const body = this.#downloadResponse.body;
+    if (body == null) {
+      throw new Error("Response had no body.");
+    }
+    return body.pipeTo(dest);
+  }
+
+  /** Pipes the response body through the provided transform. */
+  pipeThrough<T>(transform: {
+    writable: WritableStream<Uint8Array>;
+    readable: ReadableStream<T>;
+  }): ReadableStream<T> {
+    const body = this.#downloadResponse.body;
+    if (body == null) {
+      throw new Error("Response had no body.");
+    }
+    return body.pipeThrough(transform);
   }
 }
 
