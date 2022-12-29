@@ -98,8 +98,8 @@ export class ProgressBar {
   }
 
   /** Increments the position of the progress bar. */
-  increment() {
-    this.#state.currentPos++;
+  increment(inc = 1) {
+    this.#state.currentPos += inc;
     forceRenderIfHasNotInWhile();
     return this;
   }
