@@ -10,14 +10,14 @@ Deno.test("should render when no length", () => {
       message: "Message",
       prefix: "Prefix",
     }),
-    "Prefix ⠋ Message",
+    "⠋ Prefix Message",
   );
   assertEquals(
     getOutput({
       prefix: "Prefix",
       tickCount: 1,
     }),
-    "Prefix ⠙",
+    "⠙ Prefix",
   );
   assertEquals(
     getOutput({

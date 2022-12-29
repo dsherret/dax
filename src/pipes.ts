@@ -1,3 +1,4 @@
+import { logger } from "./console/logger.ts";
 import { Buffer, writeAllSync } from "./deps.ts";
 
 const encoder = new TextEncoder();
@@ -61,5 +62,39 @@ export class CapturingBufferWriter implements Deno.WriterSync {
     const nWritten = this.#innerWriter.writeSync(p);
     this.#buffer.writeSync(p.slice(0, nWritten));
     return nWritten;
+  }
+}
+
+const lineFeedCharCode = "\n".charCodeAt(0);
+
+export class InheritStaticTextBypassWriter implements Deno.WriterSync {
+  #buffer: Buffer;
+  #innerWriter: Deno.WriterSync;
+
+  constructor(innerWriter: Deno.WriterSync) {
+    this.#innerWriter = innerWriter;
+    this.#buffer = new Buffer();
+  }
+
+  writeSync(p: Uint8Array): number {
+    const index = p.findLastIndex((v) => v === lineFeedCharCode);
+    if (index === -1) {
+      this.#buffer.writeSync(p);
+    } else {
+      // todo: seems inefficient
+      this.#buffer.writeSync(p.slice(0, index + 1));
+      this.flush();
+      this.#buffer.writeSync(p.slice(index + 1));
+    }
+    return p.byteLength;
+  }
+
+  flush() {
+    const bytes = this.#buffer.bytes();
+
+    logger.logAboveStaticText(() => {
+      writeAllSync(this.#innerWriter, bytes);
+    });
+    this.#buffer.reset();
   }
 }
