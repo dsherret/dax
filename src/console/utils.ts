@@ -68,8 +68,7 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-const canGetConsoleSize = safeConsoleSize() != null;
-export const isOutputTty = canGetConsoleSize && Deno.isatty(Deno.stderr.rid);
+export const isOutputTty = safeConsoleSize() != null && Deno.isatty(Deno.stderr.rid);
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
