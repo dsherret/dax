@@ -45,7 +45,7 @@ Deno.test("should render when has length", () => {
     }),
     [
       "Message",
-      "[---------------------------------------------------------------] (0/100)",
+      "[---------------------------------------------------------] (0/100)",
     ].join("\n"),
   );
 
@@ -57,7 +57,7 @@ Deno.test("should render when has length", () => {
     }),
     [
       "Prefix",
-      "[##############################>--------------------------------] (50/100)",
+      "[###########################>-----------------------------] (50/100)",
     ].join("\n"),
   );
 
@@ -70,7 +70,7 @@ Deno.test("should render when has length", () => {
     }),
     [
       "Prefix Message",
-      "[##############################################>----------------] (75/100)",
+      "[#########################################>---------------] (75/100)",
     ].join("\n"),
   );
   assertEquals(
@@ -78,7 +78,7 @@ Deno.test("should render when has length", () => {
       currentPos: 100,
       length: 100,
     }),
-    "[###############################################################] (100/100)",
+    "[#########################################################] (100/100)",
   );
 
   assertEquals(
@@ -86,7 +86,7 @@ Deno.test("should render when has length", () => {
       currentPos: 200, // above the length
       length: 100,
     }),
-    "[###############################################################] (200/100)",
+    "[#########################################################] (200/100)",
   );
 
   // completed
@@ -100,6 +100,20 @@ Deno.test("should render when has length", () => {
     }),
     "Prefix Message",
   );
+
+  // bytes
+  assertEquals(
+    getOutput({
+      message: "Message",
+      currentPos: Math.ceil((1024 * 1024) / 10),
+      kind: "bytes",
+      length: 1024 * 1024,
+    }),
+    [
+      "Message",
+      "[##>------------------------------------] (0.10 MiB/1.00 MiB)",
+    ].join("\n"),
+  );
 });
 
 function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
@@ -110,6 +124,7 @@ function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
     prefix: undefined,
     tickCount: 0,
     hasCompleted: false,
+    kind: "raw",
     ...state,
   }, { columns: 80, rows: 10 });
   return strip_ansi_codes(static_text_render_once(items, 80, 10) ?? "");

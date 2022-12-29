@@ -476,6 +476,7 @@ export async function makeRequest(state: RequestBuilderState) {
     }
     return state.progressBarFactory(`Download ${state.url}`)
       .noClear(state.progressOptions.noClear)
+      .kind("bytes")
       .length(getContentLength());
 
     function getContentLength() {
