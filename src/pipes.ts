@@ -77,6 +77,7 @@ export class InheritStaticTextBypassWriter implements Deno.WriterSync {
   }
 
   writeSync(p: Uint8Array): number {
+    // line buffer the output so that we don't conflict with the progress bars
     const index = p.findLastIndex((v) => v === lineFeedCharCode);
     if (index === -1) {
       this.#buffer.writeSync(p);
