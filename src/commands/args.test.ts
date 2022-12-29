@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.130.0/testing/asserts.ts";
+import { assertEquals } from "../deps.test.ts";
 import { parseArgKinds } from "./args.ts";
 
 Deno.test("parses", () => {
