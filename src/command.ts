@@ -13,6 +13,7 @@ import { Delay } from "./common.ts";
 import { Buffer, colors, path } from "./deps.ts";
 import {
   CapturingBufferWriter,
+  InheritStaticTextBypassWriter,
   NullPipeWriter,
   ShellPipeReader,
   ShellPipeWriter,
@@ -20,6 +21,7 @@ import {
 } from "./pipes.ts";
 import { parseArgs, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
+import { isShowingProgressBars } from "./console/progress/interval.ts";
 
 type BufferStdio = "inherit" | "null" | Buffer;
 
@@ -437,8 +439,8 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     }
     return new CommandResult(
       code,
-      stdoutBuffer instanceof CapturingBufferWriter ? stdoutBuffer.getBuffer() : stdoutBuffer,
-      stderrBuffer instanceof CapturingBufferWriter ? stderrBuffer.getBuffer() : stderrBuffer,
+      finalizeCommandResultBuffer(stdoutBuffer),
+      finalizeCommandResultBuffer(stderrBuffer),
       combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
     );
   } finally {
@@ -448,21 +450,10 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function getBuffers() {
-    const stdoutBuffer = state.stdoutKind === "inherit"
-      ? "inherit"
-      : state.stdoutKind === "inheritPiped"
-      ? new CapturingBufferWriter(Deno.stdout, new Buffer())
-      : state.stdoutKind === "null"
-      ? "null"
-      : new Buffer();
-    const stderrBuffer = state.stderrKind === "inherit"
-      ? "inherit"
-      : state.stderrKind === "inheritPiped"
-      ? new CapturingBufferWriter(Deno.stderr, new Buffer())
-      : state.stderrKind === "null"
-      ? "null"
-      : new Buffer();
-    if (typeof stdoutBuffer !== "string" && typeof stderrBuffer !== "string") {
+    const hasProgressBars = isShowingProgressBars();
+    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdoutKind);
+    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderrKind);
+    if (isPipedBuffer(stdoutBuffer) && isPipedBuffer(stderrBuffer)) {
       // if both are piped then create a capturing buffer writer for both
       const combinedBuffer = new Buffer();
       return [
@@ -472,6 +463,46 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
       ] as const;
     }
     return [stdoutBuffer, stderrBuffer, undefined] as const;
+
+    function getOutputBuffer(innerWriter: Deno.WriterSync, kind: ShellPipeWriterKind) {
+      switch (kind) {
+        case "inherit":
+          if (hasProgressBars) {
+            return new InheritStaticTextBypassWriter(innerWriter);
+          } else {
+            return "inherit";
+          }
+        case "piped":
+          return new Buffer();
+        case "inheritPiped":
+          return new CapturingBufferWriter(innerWriter, new Buffer());
+        case "null":
+          return "null";
+        default: {
+          const _assertNever: never = kind;
+          throw new Error("Unhandled.");
+        }
+      }
+    }
+
+    function isPipedBuffer(
+      pipe: Buffer | CapturingBufferWriter | InheritStaticTextBypassWriter | "null" | "inherit",
+    ): pipe is Buffer | CapturingBufferWriter {
+      return pipe instanceof Buffer || pipe instanceof CapturingBufferWriter;
+    }
+  }
+
+  function finalizeCommandResultBuffer(
+    buffer: Buffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+  ) {
+    if (buffer instanceof CapturingBufferWriter) {
+      return buffer.getBuffer();
+    } else if (buffer instanceof InheritStaticTextBypassWriter) {
+      buffer.flush(); // this is line buffered, so flush anything left
+      return "inherit";
+    } else {
+      return buffer;
+    }
   }
 }
 

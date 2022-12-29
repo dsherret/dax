@@ -9,6 +9,8 @@ import {
   RenderIntervalProgressBar,
 } from "./interval.ts";
 
+export { isShowingProgressBars } from "./interval.ts";
+
 /** Options for showing progress. */
 export interface ProgressOptions {
   /** Prefix message/word that will be displayed in green. */
@@ -25,7 +27,7 @@ export interface ProgressOptions {
   noClear?: boolean;
 }
 
-/** A progress bar instance. Create one of these via `$.progress({ ... })`. */
+/** A progress bar instance created via `$.progress(...)`. */
 export class ProgressBar {
   #state: RenderState;
   #pb: RenderIntervalProgressBar;
@@ -206,12 +208,10 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     }
     return text.length > 0 ? [text] : [];
   } else if (state.length == null || state.length === 0) {
-    let text = "";
+    let text = colors.green(tickStrings[Math.abs(state.tickCount) % tickStrings.length]);
     if (state.prefix != null) {
-      text += `${colors.green(state.prefix)} `;
+      text += ` ${colors.green(state.prefix)}`;
     }
-
-    text += colors.green(tickStrings[Math.abs(state.tickCount) % tickStrings.length]);
     if (state.message != null) {
       text += ` ${state.message}`;
     }

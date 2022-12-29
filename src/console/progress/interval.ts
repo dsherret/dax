@@ -52,3 +52,7 @@ export function forceRender() {
   logger.setItems(LoggerRefreshItemKind.ProgressBars, items, size);
   lastRenderTime = Date.now();
 }
+
+export function isShowingProgressBars() {
+  return isInteractiveConsole && progressBars.length > 0;
+}
