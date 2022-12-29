@@ -1,5 +1,6 @@
 import { colors } from "../../deps.ts";
 import { ConsoleSize, isInteractiveConsole, safeConsoleSize, TextItem } from "../utils.ts";
+import { humanDownloadSize } from "./format.ts";
 import {
   addProgressBar,
   forceRender,
@@ -45,6 +46,7 @@ export class ProgressBar {
       currentPos: 0,
       tickCount: 0,
       hasCompleted: false,
+      kind: "raw",
     };
     this.#pb = addProgressBar((size) => {
       this.#state.tickCount++;
@@ -73,6 +75,12 @@ export class ProgressBar {
     if (message != null && message.length > 0) {
       this.#logIfNonInteractive();
     }
+    return this;
+  }
+
+  /** Sets how to format the length values. */
+  kind(kind: "raw" | "bytes") {
+    this.#state.kind = kind;
     return this;
   }
 
@@ -179,7 +187,10 @@ interface RenderState {
   currentPos: number;
   tickCount: number;
   hasCompleted: boolean;
+  kind: "raw" | "bytes";
 }
+
+const tickStrings = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export function renderProgressBar(state: RenderState, size: ConsoleSize | undefined): TextItem[] {
   if (state.hasCompleted) {
@@ -195,11 +206,11 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     }
     return text.length > 0 ? [text] : [];
   } else if (state.length == null || state.length === 0) {
-    const tickStrings = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let text = "";
     if (state.prefix != null) {
       text += `${colors.green(state.prefix)} `;
     }
+
     text += colors.green(tickStrings[Math.abs(state.tickCount) % tickStrings.length]);
     if (state.message != null) {
       text += ` ${state.message}`;
@@ -217,8 +228,12 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
       firstLine += state.message;
     }
     const percent = Math.min(state.currentPos / state.length, 1);
+    const currentPosText = state.kind === "bytes"
+      ? humanDownloadSize(state.currentPos, state.length)
+      : state.currentPos.toString();
+    const lengthText = state.kind === "bytes" ? humanDownloadSize(state.length, state.length) : state.length.toString();
     const maxWidth = size == null ? 75 : Math.max(10, Math.min(75, size.columns - 5));
-    const sameLineTextWidth = 6 + state.length.toString().length * 2;
+    const sameLineTextWidth = 6 + (lengthText.length * 2) + state.length.toString().length * 2;
     const totalBars = Math.max(1, maxWidth - sameLineTextWidth);
     const completedBars = Math.floor(totalBars * percent);
     let secondLine = "";
@@ -232,7 +247,7 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     } else {
       secondLine += colors.cyan("#".repeat(completedBars));
     }
-    secondLine += `] (${state.currentPos}/${state.length})`;
+    secondLine += `] (${currentPosText}/${lengthText})`;
 
     const result = [];
     if (firstLine.length > 0) {
