@@ -26,7 +26,7 @@ import {
   SelectOptions,
 } from "./src/console/mod.ts";
 import { colors, fs, path, which, whichSync } from "./src/deps.ts";
-import { RequestBuilder } from "./src/request.ts";
+import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
@@ -661,6 +661,7 @@ function build$FromState(state: $State) {
   // copy over the get/set accessors for logDepth
   const keyName: keyof typeof logDepthObj = "logDepth";
   Object.defineProperty(result, keyName, Object.getOwnPropertyDescriptor(logDepthObj, keyName)!);
+  state.requestBuilder = state.requestBuilder[withProgressBarFactorySymbol]((message) => result.progress(message));
   return result;
 
   function getLogText(data: any[]) {

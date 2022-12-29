@@ -1,4 +1,5 @@
 import { filterEmptyRecordValues } from "./common.ts";
+import { ProgressBar } from "./console/mod.ts";
 
 interface RequestBuilderState {
   noThrow: boolean | number[];
@@ -10,11 +11,15 @@ interface RequestBuilderState {
   keepalive: boolean | undefined;
   method: string | undefined;
   mode: RequestMode | undefined;
+  progressBarFactory: ((message: string) => ProgressBar) | undefined;
   redirect: RequestRedirect | undefined;
   referrer: string | undefined;
   referrerPolicy: ReferrerPolicy | undefined;
+  progressOptions: { noClear: boolean } | undefined;
   timeout: number | undefined;
 }
+
+export const withProgressBarFactorySymbol = Symbol();
 
 /**
  * Builder API for downloading files.
@@ -42,6 +47,10 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
       redirect: state.redirect,
       referrer: state.referrer,
       referrerPolicy: state.referrerPolicy,
+      progressBarFactory: state.progressBarFactory,
+      progressOptions: state.progressOptions == null ? undefined : {
+        ...state.progressOptions,
+      },
       timeout: state.timeout,
     };
   }
@@ -60,6 +69,8 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
       redirect: undefined,
       referrer: undefined,
       referrerPolicy: undefined,
+      progressBarFactory: undefined,
+      progressOptions: undefined,
       timeout: undefined,
     };
   }
@@ -183,6 +194,13 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     });
   }
 
+  /** @internal */
+  [withProgressBarFactorySymbol](factory: (message: string) => ProgressBar) {
+    return this.#newWithState((state) => {
+      state.progressBarFactory = factory;
+    });
+  }
+
   redirect(value: RequestRedirect) {
     return this.#newWithState((state) => {
       state.redirect = value;
@@ -198,6 +216,24 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   referrerPolicy(value: ReferrerPolicy | undefined) {
     return this.#newWithState((state) => {
       state.referrerPolicy = value;
+    });
+  }
+
+  /** Shows a progress bar while downloading with the provided options. */
+  showProgress(opts: { noClear?: boolean }): RequestBuilder;
+  /** Shows a progress bar while downloading. */
+  showProgress(show?: boolean): RequestBuilder;
+  showProgress(value?: { noClear?: boolean } | boolean) {
+    return this.#newWithState((state) => {
+      if (value === true || value == null) {
+        state.progressOptions = { noClear: false };
+      } else if (value === false) {
+        state.progressOptions = undefined;
+      } else {
+        state.progressOptions = {
+          noClear: value.noClear ?? false,
+        };
+      }
     });
   }
 
@@ -251,14 +287,43 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
 /** Result of making a request. */
 export class RequestResult {
   #response: Response;
+  #downloadResponse: Response;
   #originalUrl: string;
 
-  constructor(
-    response: Response,
-    originalUrl: string,
-  ) {
-    this.#originalUrl = originalUrl;
-    this.#response = response;
+  constructor(opts: {
+    response: Response;
+    originalUrl: string;
+    progressBar: ProgressBar | undefined;
+  }) {
+    this.#originalUrl = opts.originalUrl;
+    this.#response = opts.response;
+    if (opts.progressBar != null) {
+      const pb = opts.progressBar;
+      this.#downloadResponse = new Response(
+        new ReadableStream({
+          async start(controller) {
+            const reader = opts.response.body?.getReader();
+            if (reader == null) {
+              return;
+            }
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done || value == null) break;
+                pb.increment(value.byteLength);
+                controller.enqueue(value);
+              }
+              controller.close();
+            } finally {
+              reader.releaseLock();
+              pb.finish();
+            }
+          },
+        }),
+      );
+    } else {
+      this.#downloadResponse = opts.response;
+    }
   }
 
   /** Raw response. */
@@ -317,7 +382,7 @@ export class RequestResult {
     if (this.#response.status === 404) {
       return undefined!;
     }
-    return this.#response.arrayBuffer();
+    return this.#downloadResponse.arrayBuffer();
   }
 
   /**
@@ -329,7 +394,7 @@ export class RequestResult {
     if (this.#response.status === 404) {
       return undefined!;
     }
-    return this.#response.blob();
+    return this.#downloadResponse.blob();
   }
 
   /**
@@ -341,7 +406,7 @@ export class RequestResult {
     if (this.#response.status === 404) {
       return undefined!;
     }
-    return this.#response.formData();
+    return this.#downloadResponse.formData();
   }
 
   /**
@@ -353,7 +418,7 @@ export class RequestResult {
     if (this.#response.status === 404) {
       return undefined as any;
     }
-    return this.#response.json();
+    return this.#downloadResponse.json();
   }
 
   /**
@@ -368,7 +433,7 @@ export class RequestResult {
       // to make it easier to work with and highlight this behaviour in the jsdocs.
       return undefined!;
     }
-    return this.#response.text();
+    return this.#downloadResponse.text();
   }
 }
 
@@ -391,7 +456,11 @@ export async function makeRequest(state: RequestBuilderState) {
     signal: timeout?.signal,
   });
   timeout?.clear();
-  const result = new RequestResult(response, state.url.toString());
+  const result = new RequestResult({
+    response,
+    originalUrl: state.url.toString(),
+    progressBar: getProgressBar(),
+  });
   if (!state.noThrow) {
     result.throwIfNotOk();
   } else if (state.noThrow instanceof Array) {
@@ -400,6 +469,24 @@ export async function makeRequest(state: RequestBuilderState) {
     }
   }
   return result;
+
+  function getProgressBar() {
+    if (state.progressOptions == null || state.progressBarFactory == null) {
+      return undefined;
+    }
+    return state.progressBarFactory(`Download ${state.url}`)
+      .noClear(state.progressOptions.noClear)
+      .length(getContentLength());
+
+    function getContentLength() {
+      const contentLength = response.headers.get("content-length");
+      if (contentLength == null) {
+        return undefined;
+      }
+      const length = parseInt(contentLength, 10);
+      return isNaN(length) ? undefined : length;
+    }
+  }
 
   function getTimeout() {
     if (state.timeout == null) {

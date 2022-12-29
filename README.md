@@ -495,6 +495,17 @@ console.log(await response.json());
 
 See the [documentation on `RequestBuilder`](https://doc.deno.land/https/deno.land/x/dax/mod.ts) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
+### Showing progress
+
+You can have downloads show a progress bar by using the `.showProgress()` builder method:
+
+```ts
+const url = "https://dl.deno.land/release/v1.29.1/deno-x86_64-unknown-linux-gnu.zip";
+const bytes = await $.request(url)
+  .showProgress()
+  .arrayBuffer();
+```
+
 ## Shell
 
 The shell is cross platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).
