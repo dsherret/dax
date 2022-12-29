@@ -55,3 +55,22 @@ Deno.test("pipeThrough", () => {
     assertEquals(result.value, "text".repeat(1000));
   });
 });
+
+Deno.test("pipeToPath", () => {
+  return withServer(async (serverUrl) => {
+    const testFilePath = Deno.makeTempFileSync();
+    try {
+      await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress()
+        .pipeToPath(testFilePath);
+      assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
+    } finally {
+      try {
+        Deno.removeSync(testFilePath);
+      } catch {
+        // do nothing
+      }
+    }
+  });
+});
