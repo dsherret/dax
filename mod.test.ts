@@ -878,11 +878,11 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
-Deno.test("progress", () => {
+Deno.test("progress", async () => {
   const logs: string[] = [];
   $.setInfoLogger((...data) => logs.push(data.join(" ")));
   const pb = $.progress("Downloading Test");
-  pb.forceRender(); // should not throw;
+  await pb.forceRender(); // should not throw;
   assertEquals(logs, [
     "Downloading Test",
   ]);

@@ -396,16 +396,16 @@ await pb.with(async () => {
 
 #### Synchronous work
 
-The progress bars are updated on an interval (via `setInterval`). If you are doing a lot of synchronous work, it will start updating the progress bar on the current execution context, but this only occurs in some cases. Due to this, it's probably best to force a render where you think it would be appropriate by using the `.forceRender()` method:
+The progress bars are updated on an interval (via `setInterval`). If you are doing a lot of synchronous work the progress bars won't update. Due to this, you can force a render where you think it would be appropriate by using the `.forceRender()` method:
 
 ```ts
 const pb = $.progress("Processing Items");
 
-pb.with(() => {
+await pb.with(async () => {
   for (const item of items) {
-    doWork(item); // note this does not use `await` so we force rendering below
+    doWork(item);
     pb.increment();
-    pb.forceRender();
+    await pb.forceRender();
   }
 });
 ```

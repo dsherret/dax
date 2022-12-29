@@ -1,5 +1,5 @@
 import { logger, LoggerRefreshItemKind } from "../logger.ts";
-import { ConsoleSize, isInteractiveConsole, TextItem } from "../utils.ts";
+import { ConsoleSize, isOutputTty, TextItem } from "../utils.ts";
 
 export interface RenderIntervalProgressBar {
   render(size: ConsoleSize): TextItem[];
@@ -8,15 +8,16 @@ export interface RenderIntervalProgressBar {
 const intervalMs = 60;
 const progressBars: RenderIntervalProgressBar[] = [];
 let renderIntervalId: number | undefined;
-let lastRenderTime = Date.now();
 
 export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): RenderIntervalProgressBar {
   const pb = {
     render,
   };
   progressBars.push(pb);
-  if (renderIntervalId == null && isInteractiveConsole) {
-    renderIntervalId = setInterval(forceRender, intervalMs);
+  if (renderIntervalId == null && isOutputTty) {
+    const _ignore = logger.ensureInitialized()
+      .catch(() => {/* ignore */});
+    renderIntervalId = setInterval(forceRenderSync, intervalMs);
   }
   return pb;
 }
@@ -35,24 +36,31 @@ export function removeProgressBar(pb: RenderIntervalProgressBar) {
   return true;
 }
 
-export function forceRenderIfHasNotInWhile() {
-  const duration = Date.now() - lastRenderTime;
-  if (duration > intervalMs * 2) {
-    forceRender();
+export function forceRender() {
+  if (!isShowingProgressBars()) {
+    return;
+  }
+
+  if (logger.isInitilaized()) {
+    forceRenderSync();
+    return Promise.resolve();
+  } else {
+    return logger.ensureInitialized().then(() => {
+      forceRenderSync();
+    });
   }
 }
 
-export function forceRender() {
-  if (!isInteractiveConsole || progressBars.length === 0) {
+function forceRenderSync() {
+  if (!isShowingProgressBars()) {
     return;
   }
 
   const size = Deno.consoleSize();
   const items = progressBars.map((p) => p.render(size)).flat();
   logger.setItems(LoggerRefreshItemKind.ProgressBars, items, size);
-  lastRenderTime = Date.now();
 }
 
 export function isShowingProgressBars() {
-  return isInteractiveConsole && progressBars.length > 0;
+  return isOutputTty && progressBars.length > 0;
 }

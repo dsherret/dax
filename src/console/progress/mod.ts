@@ -1,13 +1,7 @@
 import { colors } from "../../deps.ts";
-import { ConsoleSize, isInteractiveConsole, safeConsoleSize, TextItem } from "../utils.ts";
+import { ConsoleSize, isOutputTty, safeConsoleSize, TextItem } from "../utils.ts";
 import { humanDownloadSize } from "./format.ts";
-import {
-  addProgressBar,
-  forceRender,
-  forceRenderIfHasNotInWhile,
-  removeProgressBar,
-  RenderIntervalProgressBar,
-} from "./interval.ts";
+import { addProgressBar, forceRender, removeProgressBar, RenderIntervalProgressBar } from "./interval.ts";
 
 export { isShowingProgressBars } from "./interval.ts";
 
@@ -62,7 +56,6 @@ export class ProgressBar {
   /** Sets the prefix message/word, which will be displayed in green. */
   prefix(prefix: string | undefined) {
     this.#state.prefix = prefix;
-    forceRenderIfHasNotInWhile();
     if (prefix != null && prefix.length > 0) {
       this.#logIfNonInteractive();
     }
@@ -72,7 +65,6 @@ export class ProgressBar {
   /** Sets the message the progress bar will display after the prefix in white. */
   message(message: string | undefined) {
     this.#state.message = message;
-    forceRenderIfHasNotInWhile();
 
     if (message != null && message.length > 0) {
       this.#logIfNonInteractive();
@@ -87,7 +79,7 @@ export class ProgressBar {
   }
 
   #logIfNonInteractive() {
-    if (isInteractiveConsole) {
+    if (isOutputTty) {
       return;
     }
     let text = this.#state.prefix ?? "";
@@ -103,21 +95,18 @@ export class ProgressBar {
   /** Sets the current position of the progress bar. */
   position(position: number) {
     this.#state.currentPos = position;
-    forceRenderIfHasNotInWhile();
     return this;
   }
 
   /** Increments the position of the progress bar. */
   increment(inc = 1) {
     this.#state.currentPos += inc;
-    forceRenderIfHasNotInWhile();
     return this;
   }
 
   /** Sets the total length of the progress bar. */
   length(size: number | undefined) {
     this.#state.length = size;
-    forceRenderIfHasNotInWhile();
     return this;
   }
 
@@ -129,7 +118,7 @@ export class ProgressBar {
 
   /** Forces a render to the console. */
   forceRender() {
-    forceRender();
+    return forceRender();
   }
 
   /** Finish showing the progress bar. */
@@ -145,39 +134,16 @@ export class ProgressBar {
     }
   }
 
-  /**
-   * Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs.
-   *
-   * Since this is the synchronous overload, you should probably call `.forceRender()` to force rendering
-   * every now and again.
-   */
-  with<TResult>(action: () => TResult): TResult;
   /** Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs. */
-  with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
-  with<TResult>(action: () => Promise<TResult> | TResult) {
+  async with<TResult>(action: () => Promise<TResult>): Promise<TResult> {
     this.#withCount++;
-    let wasAsync = false;
     try {
-      const result = action();
-      if (result instanceof Promise) {
-        wasAsync = true;
-        return result.finally(() => {
-          this.#decrementWithCount();
-        });
-      } else {
-        return result;
-      }
+      return await action();
     } finally {
-      if (!wasAsync) {
-        this.#decrementWithCount();
+      this.#withCount--;
+      if (this.#withCount === 0) {
+        this.finish();
       }
-    }
-  }
-
-  #decrementWithCount() {
-    this.#withCount--;
-    if (this.#withCount === 0) {
-      this.finish();
     }
   }
 }

@@ -68,13 +68,8 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export function ensureTty(title: string) {
-  if (!Deno.isatty(Deno.stdin.rid)) {
-    throw new Error(`Cannot prompt when not a tty. (Prompt: '${title}')`);
-  }
-}
-
-export const isInteractiveConsole = Deno.isatty(Deno.stdin.rid) && safeConsoleSize() != null;
+const canGetConsoleSize = safeConsoleSize() != null;
+export const isOutputTty = canGetConsoleSize && Deno.isatty(Deno.stderr.rid);
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
@@ -92,27 +87,30 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  ensureTty(options.message);
+  if (!isOutputTty || !Deno.isatty(Deno.stdin.rid)) {
+    throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
+  }
   if (safeConsoleSize() == null) {
     throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
   }
   return ensureSingleSelection(async () => {
-    await logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+    await logger.ensureInitialized();
+    logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
     for await (const key of readKeys()) {
       const keyResult = options.onKey(key);
       if (keyResult != null) {
         const size = Deno.consoleSize();
-        await logger.setItems(LoggerRefreshItemKind.Selection, [], size);
+        logger.setItems(LoggerRefreshItemKind.Selection, [], size);
         if (options.noClear) {
           await logger.logOnce(options.render(), size);
         }
         return keyResult;
       }
-      await logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+      logger.setItems(LoggerRefreshItemKind.Selection, options.render());
     }
 
-    await logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
+    logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
     return undefined;
   });
 }
