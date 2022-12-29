@@ -1,6 +1,5 @@
-import { serve } from "https://deno.land/std@0.167.0/http/server.ts";
 import { Buffer } from "./deps.ts";
-import { assertEquals, writableStreamFromWriter } from "./deps.test.ts";
+import { assertEquals, serve, writableStreamFromWriter } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {
