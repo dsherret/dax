@@ -476,7 +476,9 @@ export class RequestResult {
     } catch (err) {
       try {
         file.close();
-      } catch {}
+      } catch {
+        // do nothing
+      }
       throw err;
     }
 

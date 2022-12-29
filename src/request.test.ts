@@ -68,7 +68,9 @@ Deno.test("pipeToPath", () => {
     } finally {
       try {
         Deno.removeSync(testFilePath);
-      } catch {}
+      } catch {
+        // do nothing
+      }
     }
   });
 });
