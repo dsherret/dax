@@ -91,7 +91,6 @@ export class InheritStaticTextBypassWriter implements Deno.WriterSync {
 
   flush() {
     const bytes = this.#buffer.bytes();
-
     logger.logAboveStaticText(() => {
       writeAllSync(this.#innerWriter, bytes);
     });
