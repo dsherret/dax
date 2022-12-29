@@ -1,4 +1,4 @@
-import { filterEmptyRecordValues } from "./common.ts";
+import { filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 
 interface RequestBuilderState {
@@ -289,10 +289,30 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return await response.pipeTo(dest);
   }
 
-  /** Pipes the response body to the provided file path. */
-  async pipeToPath(path: string | URL, options?: Deno.WriteFileOptions) {
+  /**
+   * Pipes the response body to a file.
+   *
+   * @remarks If no path is provided then it will be derived from the
+   * request's url and downloaded to the current working directory.
+   */
+  async pipeToPath(path?: string | URL, options?: Deno.WriteFileOptions) {
+    // Do not derive from the response url because that could cause the server
+    // to be able to overwrite whatever file it wants locally, which would be
+    // a security issue.
+    path = path ?? getFileNameFromUrlOrThrow(this.#state?.url);
     const response = await this.fetch();
     return await response.pipeToPath(path, options);
+
+    function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
+      const fileName = url == null ? undefined : getFileNameFromUrl(url);
+      if (fileName == null) {
+        throw new Error(
+          "Could not derive the path from the request URL. " +
+            "Please explicitly provide a path.",
+        );
+      }
+      return fileName;
+    }
   }
 
   /** Pipes the response body through the provided transform. */
