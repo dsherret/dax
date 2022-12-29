@@ -289,6 +289,12 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return await response.pipeTo(dest);
   }
 
+  /** Pipes the response body to the provided file path. */
+  async pipeToPath(path: string | URL, options?: Deno.WriteFileOptions) {
+    const response = await this.fetch();
+    return await response.pipeToPath(path, options);
+  }
+
   /** Pipes the response body through the provided transform. */
   async pipeThrough<T>(transform: {
     writable: WritableStream<Uint8Array>;
@@ -454,11 +460,28 @@ export class RequestResult {
 
   /** Pipes the response body to the provided writable stream. */
   pipeTo(dest: WritableStream<Uint8Array>) {
-    const body = this.#downloadResponse.body;
-    if (body == null) {
-      throw new Error("Response had no body.");
+    return this.#getDownloadBody().pipeTo(dest);
+  }
+
+  /** Pipes the response body to the provided file path. */
+  async pipeToPath(path: string | URL, options?: Deno.WriteFileOptions) {
+    const body = this.#getDownloadBody();
+    const file = await Deno.open(path, {
+      write: true,
+      create: true,
+      ...(options ?? {}),
+    });
+    try {
+      await body.pipeTo(file.writable);
+    } catch (err) {
+      try {
+        file.close();
+      } catch {}
+      throw err;
     }
-    return body.pipeTo(dest);
+
+    // It's not necessary to close the file here because
+    // it will be automatically closed via pipeTo
   }
 
   /** Pipes the response body through the provided transform. */
@@ -466,11 +489,15 @@ export class RequestResult {
     writable: WritableStream<Uint8Array>;
     readable: ReadableStream<T>;
   }): ReadableStream<T> {
+    return this.#getDownloadBody().pipeThrough(transform);
+  }
+
+  #getDownloadBody() {
     const body = this.#downloadResponse.body;
     if (body == null) {
       throw new Error("Response had no body.");
     }
-    return body.pipeThrough(transform);
+    return body;
   }
 }
 
