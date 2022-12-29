@@ -1,4 +1,4 @@
-import { delayToIterator, delayToMs, formatMillis, resolvePath, TreeBox } from "./common.ts";
+import { delayToIterator, delayToMs, formatMillis, getFileNameFromUrl, resolvePath, TreeBox } from "./common.ts";
 import { assertEquals } from "./deps.test.ts";
 import { path } from "./deps.ts";
 
@@ -76,4 +76,11 @@ Deno.test("tree box should work storing values in a tree", () => {
   assertEquals(grandChildA2.getValue(), 5);
   assertEquals(box.getValue(), 4);
   assertEquals(childB.getValue(), 4);
+});
+
+Deno.test("gets file name from url", () => {
+  assertEquals(getFileNameFromUrl("https://deno.land/download.zip"), "download.zip");
+  assertEquals(getFileNameFromUrl("https://deno.land/"), undefined);
+  assertEquals(getFileNameFromUrl("https://deno.land/file/other"), "other");
+  assertEquals(getFileNameFromUrl("https://deno.land/file/other/"), undefined);
 });

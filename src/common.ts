@@ -131,3 +131,9 @@ export async function lstat(path: string) {
     }
   }
 }
+
+export function getFileNameFromUrl(url: string | URL) {
+  const parsedUrl = url instanceof URL ? url : new URL(url);
+  const fileName = parsedUrl.pathname.split("/").at(-1);
+  return fileName?.length === 0 ? undefined : fileName;
+}

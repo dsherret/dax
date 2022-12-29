@@ -503,7 +503,7 @@ You can have downloads show a progress bar by using the `.showProgress()` builde
 const url = "https://dl.deno.land/release/v1.29.1/deno-x86_64-unknown-linux-gnu.zip";
 await $.request(url)
   .showProgress()
-  .pipeToPath("./deno-x86_64-unknown-linux-gnu.zip");
+  .pipeToPath();
 ```
 
 ## Shell
