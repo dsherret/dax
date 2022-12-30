@@ -683,8 +683,11 @@ interface ResolvedShebangCommand {
 async function resolveCommand(commandName: string, context: Context): Promise<ResolvedCommand> {
   if (commandName.includes("/") || commandName.includes("\\")) {
     if (!path.isAbsolute(commandName)) {
-      commandName = path.relative(context.getCwd(), commandName);
+      commandName = path.resolve(context.getCwd(), commandName);
     }
+    // only bother checking for a shebang when the path has a slash
+    // in it because for global commands someone on Windows likely
+    // won't have a script with a shebang in it on Windows
     const result = await getExecutableShebangFromPath(commandName);
     if (result === false) {
       throw new Error(`Command not found: ${commandName}`);

@@ -138,19 +138,30 @@ export function getFileNameFromUrl(url: string | URL) {
   return fileName?.length === 0 ? undefined : fileName;
 }
 
+/**
+ * Gets an executable shebang from the provided file path.
+ * @returns
+ * - A string with the shebang.
+ * - `undefined` if the file exists, but doesn't have a shebang.
+ * - `false` if the file does NOT exist.
+ */
 export async function getExecutableShebangFromPath(path: string) {
   try {
     const file = await Deno.open(path, { read: true });
     try {
       return await getExecutableShebang(file);
     } finally {
-      file.close();
+      try {
+        file.close();
+      } catch {
+        // ignore
+      }
     }
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
       return false;
     }
-    return undefined;
+    throw err;
   }
 }
 
