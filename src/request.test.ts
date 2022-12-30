@@ -1,5 +1,5 @@
 import { Buffer } from "./deps.ts";
-import { assertEquals, serve, writableStreamFromWriter } from "./deps.test.ts";
+import { assertEquals, assertRejects, serve, writableStreamFromWriter } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {
@@ -11,8 +11,20 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       if (url.pathname === "/text-file") {
         const data = "text".repeat(1000);
         return new Response(data, { status: 200 });
+      } else if (url.pathname === "/json") {
+        const data = JSON.stringify({
+          value: 5,
+        });
+        return new Response(data, { status: 200 });
+      } else if (url.pathname === "/headers") {
+        const data = JSON.stringify(Object.fromEntries(request.headers.entries()));
+        return new Response(data, { status: 200 });
+      } else if (url.pathname.startsWith("/code/")) {
+        const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
+        return new Response(code.toString(), { status: code });
+      } else {
+        return new Response("Not Found", { status: 404 });
       }
-      return new Response("Not Found", { status: 404 });
     }, {
       hostname: "localhost",
       signal,
@@ -31,45 +43,126 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
   });
 }
 
-Deno.test("pipeTo", () => {
+Deno.test("$.request", (t) => {
   return withServer(async (serverUrl) => {
-    const buffer = new Buffer();
-    await new RequestBuilder()
-      .url(new URL("/text-file", serverUrl))
-      .showProgress()
-      .pipeTo(writableStreamFromWriter(buffer));
-    const text = new TextDecoder().decode(buffer.bytes());
-    assertEquals(text, "text".repeat(1000));
-  });
-});
+    const steps: Promise<boolean>[] = [];
+    const step = (name: string, fn: () => Promise<any>) => {
+      steps.push(t.step({
+        name,
+        fn,
+        sanitizeExit: false,
+        sanitizeOps: false,
+        sanitizeResources: false,
+      }));
+    };
 
-Deno.test("pipeThrough", () => {
-  return withServer(async (serverUrl) => {
-    const readable = await new RequestBuilder()
-      .url(new URL("/text-file", serverUrl))
-      .showProgress()
-      .pipeThrough(new TextDecoderStream());
-    const reader = readable.getReader();
-    const result = await reader.read();
-    assertEquals(result.value, "text".repeat(1000));
-  });
-});
+    step("json", async () => {
+      const data = await new RequestBuilder()
+        .url(new URL("/json", serverUrl))
+        .json();
+      assertEquals(data, { value: 5 });
+    });
 
-Deno.test("pipeToPath", () => {
-  return withServer(async (serverUrl) => {
-    const testFilePath = Deno.makeTempFileSync();
-    try {
+    step("arrayBuffer", async () => {
+      const data = await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .arrayBuffer();
+      assertEquals(new Uint8Array(data), new TextEncoder().encode("text".repeat(1000)));
+    });
+
+    step("blob", async () => {
+      const data = await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .blob();
+      assertEquals(
+        new Uint8Array(await data.arrayBuffer()),
+        new TextEncoder().encode("text".repeat(1000)),
+      );
+    });
+
+    step("text", async () => {
+      const data = await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .text();
+      assertEquals(data, "text".repeat(1000));
+    });
+
+    step("pipeTo", async () => {
+      const buffer = new Buffer();
       await new RequestBuilder()
         .url(new URL("/text-file", serverUrl))
         .showProgress()
-        .pipeToPath(testFilePath);
-      assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
-    } finally {
+        .pipeTo(writableStreamFromWriter(buffer));
+      const text = new TextDecoder().decode(buffer.bytes());
+      assertEquals(text, "text".repeat(1000));
+    });
+
+    step("pipeThrough", async () => {
+      const readable = await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress()
+        .pipeThrough(new TextDecoderStream());
+      const reader = readable.getReader();
+      const result = await reader.read();
+      assertEquals(result.value, "text".repeat(1000));
+    });
+
+    step("pipeToPath", async () => {
+      const testFilePath = Deno.makeTempFileSync();
       try {
-        Deno.removeSync(testFilePath);
-      } catch {
-        // do nothing
+        await new RequestBuilder()
+          .url(new URL("/text-file", serverUrl))
+          .showProgress()
+          .pipeToPath(testFilePath);
+        assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
+      } finally {
+        try {
+          Deno.removeSync(testFilePath);
+        } catch {
+          // do nothing
+        }
       }
-    }
+    });
+
+    step("headers", async () => {
+      const data = {
+        valuea: "a",
+        valueb: "b",
+      };
+      const result = await new RequestBuilder()
+        .url(new URL("/headers", serverUrl))
+        .header(data)
+        .json();
+      assertEquals({
+        valuea: result["valuea"],
+        valueb: result["valueb"],
+      }, data);
+    });
+
+    step("404", async () => {
+      const request404 = new RequestBuilder()
+        .url(new URL("/code/404", serverUrl));
+      assertRejects(async () => {
+        await request404.text();
+      });
+
+      assertEquals(await request404.noThrow(404).blob(), undefined);
+      assertEquals(await request404.noThrow(404).arrayBuffer(), undefined);
+      assertEquals(await request404.noThrow(404).json(), undefined);
+      assertEquals(await request404.noThrow(404).formData(), undefined);
+      assertEquals(await request404.noThrow(404).text(), undefined);
+    });
+
+    step("500", async () => {
+      const request500 = new RequestBuilder()
+        .url(new URL("/code/500", serverUrl));
+      assertRejects(async () => {
+        await request500.text();
+      });
+
+      assertEquals(await request500.noThrow(500).text(), "500");
+    });
+
+    await Promise.all(steps);
   });
 });

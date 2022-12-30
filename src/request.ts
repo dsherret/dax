@@ -406,11 +406,12 @@ export class RequestResult {
   /**
    * Throws if the response doesn't have a 2xx code.
    *
-   * This might be useful if the request was build with `.noThrow()`, but
+   * This might be useful if the request was built with `.noThrow()`, but
    * otherwise this is called automatically for any non-2xx response codes.
    */
   throwIfNotOk() {
     if (!this.ok) {
+      this.#response.body?.cancel();
       throw new Error(`Error making request to ${this.#originalUrl}: ${this.statusText}`);
     }
   }
@@ -422,6 +423,7 @@ export class RequestResult {
    */
   arrayBuffer() {
     if (this.#response.status === 404) {
+      this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.arrayBuffer();
@@ -434,6 +436,7 @@ export class RequestResult {
    */
   blob() {
     if (this.#response.status === 404) {
+      this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.blob();
@@ -446,6 +449,7 @@ export class RequestResult {
    */
   formData() {
     if (this.#response.status === 404) {
+      this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.formData();
@@ -458,6 +462,7 @@ export class RequestResult {
    */
   json<TResult = any>(): Promise<TResult> {
     if (this.#response.status === 404) {
+      this.#response.body?.cancel();
       return undefined as any;
     }
     return this.#downloadResponse.json();
@@ -473,6 +478,7 @@ export class RequestResult {
       // most people don't need to bother with this and if they do, they will
       // need to opt-in with `noThrow()`. So just assert non-nullable
       // to make it easier to work with and highlight this behaviour in the jsdocs.
+      this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.text();
