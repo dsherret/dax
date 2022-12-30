@@ -1,5 +1,5 @@
 import { logger } from "./console/mod.ts";
-import { path } from "./deps.ts";
+import { BufReader, path } from "./deps.ts";
 
 /**
  * Delay used for certain actions.
@@ -136,4 +136,36 @@ export function getFileNameFromUrl(url: string | URL) {
   const parsedUrl = url instanceof URL ? url : new URL(url);
   const fileName = parsedUrl.pathname.split("/").at(-1);
   return fileName?.length === 0 ? undefined : fileName;
+}
+
+export async function getExecutableShebangFromPath(path: string) {
+  try {
+    const file = await Deno.open(path, { read: true });
+    try {
+      return await getExecutableShebang(file);
+    } finally {
+      file.close();
+    }
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    return undefined;
+  }
+}
+
+const decoder = new TextDecoder();
+export async function getExecutableShebang(reader: Deno.Reader) {
+  const text = "#!/usr/bin/env -S ";
+  const buffer = new Uint8Array(text.length);
+  const bytesReadCount = await reader.read(buffer);
+  if (bytesReadCount !== text.length || decoder.decode(buffer) !== text) {
+    return undefined;
+  }
+  const bufReader = new BufReader(reader);
+  const line = await bufReader.readLine();
+  if (line == null) {
+    return undefined;
+  }
+  return decoder.decode(line.line).trim();
 }

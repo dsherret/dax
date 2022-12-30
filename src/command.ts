@@ -19,7 +19,7 @@ import {
   ShellPipeWriter,
   ShellPipeWriterKind,
 } from "./pipes.ts";
-import { parseArgs, spawn } from "./shell.ts";
+import { parseCommand, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 
@@ -419,7 +419,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   try {
-    const list = await parseArgs(state.command);
+    const list = await parseCommand(state.command);
     const code = await spawn(list, {
       stdin: state.stdin,
       stdout,

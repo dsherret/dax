@@ -1,6 +1,7 @@
 export * as colors from "https://deno.land/std@0.170.0/fmt/colors.ts";
 export * as fs from "https://deno.land/std@0.170.0/fs/mod.ts";
 export { Buffer } from "https://deno.land/std@0.170.0/io/buffer.ts";
+export { BufReader } from "https://deno.land/std@0.170.0/io/buf_reader.ts";
 export * as path from "https://deno.land/std@0.170.0/path/mod.ts";
 export { readAll } from "https://deno.land/std@0.170.0/streams/read_all.ts";
 export { writeAllSync } from "https://deno.land/std@0.170.0/streams/write_all.ts";
