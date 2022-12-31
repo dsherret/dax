@@ -578,6 +578,77 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
+Deno.test("shebang support", async (t) => {
+  await withTempDir(async (dir) => {
+    const steps: Promise<boolean>[] = [];
+    const step = (name: string, fn: () => Promise<void>) => {
+      steps.push(t.step({
+        name,
+        fn,
+        sanitizeExit: false,
+        sanitizeOps: false,
+        sanitizeResources: false,
+      }));
+    };
+
+    step("with -S", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "file.ts"),
+        [
+          "#!/usr/bin/env -S deno run",
+          "console.log(5);",
+        ].join("\n"),
+      );
+      const output = await $`./file.ts`
+        .cwd(dir)
+        .text();
+      assertEquals(output, "5");
+    });
+
+    step("without -S and invalid", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "file2.ts"),
+        [
+          "#!/usr/bin/env deno run",
+          "console.log(5);",
+        ].join("\n"),
+      );
+      await assertRejects(
+        async () => {
+          await $`./file2.ts`
+            .cwd(dir)
+            .text();
+        },
+        Error,
+        "Command not found: deno run",
+      );
+    });
+
+    step("without -S, but valid", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "echo_stdin.ts"),
+        [
+          "#!/usr/bin/env -S deno run --unstable --allow-run",
+          "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
+        ].join("\n"),
+      );
+      await Deno.writeTextFile(
+        $.path.join(dir, "file3.ts"),
+        [
+          "#!/usr/bin/env ./echo_stdin.ts",
+          "console.log('Hello')",
+        ].join("\n"),
+      );
+      const output = await $`./file3.ts`
+        .cwd(dir)
+        .text();
+      assertEquals(output, "Hello");
+    });
+
+    await Promise.all(steps);
+  });
+});
+
 Deno.test("basic logging test to ensure no errors", async () => {
   assertEquals($.logDepth, 0);
   $.logGroup();
@@ -720,8 +791,8 @@ Deno.test("test remove", async () => {
 
     await $`rm ${emptyDir}`;
     await $`rm ${someFile}`;
-    assertEquals($.fs.existsSync(dir + "/hello"), false);
-    assertEquals($.fs.existsSync(dir + "/a.txt"), false);
+    assertEquals($.existsSync(dir + "/hello"), false);
+    assertEquals($.existsSync(dir + "/a.txt"), false);
 
     const nonEmptyDir = dir + "/a";
     Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
@@ -734,7 +805,7 @@ Deno.test("test remove", async () => {
     assertEquals(error.substring(0, expectedText.length), expectedText);
 
     await $`rm -r ${nonEmptyDir}`;
-    assertEquals($.fs.existsSync(nonEmptyDir), false);
+    assertEquals($.existsSync(nonEmptyDir), false);
   });
 });
 

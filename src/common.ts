@@ -1,5 +1,5 @@
 import { logger } from "./console/mod.ts";
-import { path } from "./deps.ts";
+import { BufReader, path } from "./deps.ts";
 
 /**
  * Delay used for certain actions.
@@ -136,4 +136,64 @@ export function getFileNameFromUrl(url: string | URL) {
   const parsedUrl = url instanceof URL ? url : new URL(url);
   const fileName = parsedUrl.pathname.split("/").at(-1);
   return fileName?.length === 0 ? undefined : fileName;
+}
+
+/**
+ * Gets an executable shebang from the provided file path.
+ * @returns
+ * - An object outlining information about the shebang.
+ * - `undefined` if the file exists, but doesn't have a shebang.
+ * - `false` if the file does NOT exist.
+ */
+export async function getExecutableShebangFromPath(path: string) {
+  try {
+    const file = await Deno.open(path, { read: true });
+    try {
+      return await getExecutableShebang(file);
+    } finally {
+      try {
+        file.close();
+      } catch {
+        // ignore
+      }
+    }
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+export interface ShebangInfo {
+  stringSplit: boolean;
+  command: string;
+}
+
+const decoder = new TextDecoder();
+export async function getExecutableShebang(reader: Deno.Reader): Promise<ShebangInfo | undefined> {
+  const text = "#!/usr/bin/env ";
+  const buffer = new Uint8Array(text.length);
+  const bytesReadCount = await reader.read(buffer);
+  if (bytesReadCount !== text.length || decoder.decode(buffer) !== text) {
+    return undefined;
+  }
+  const bufReader = new BufReader(reader);
+  const line = await bufReader.readLine();
+  if (line == null) {
+    return undefined;
+  }
+  const result = decoder.decode(line.line).trim();
+  const dashS = "-S ";
+  if (result.startsWith(dashS)) {
+    return {
+      stringSplit: true,
+      command: result.slice(dashS.length),
+    };
+  } else {
+    return {
+      stringSplit: false,
+      command: result,
+    };
+  }
 }

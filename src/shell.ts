@@ -1,4 +1,5 @@
 import { CommandContext, CommandHandler } from "./command_handler.ts";
+import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { instantiateWithCaching } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
@@ -336,7 +337,7 @@ export class Context {
   }
 }
 
-export async function parseArgs(command: string) {
+export async function parseCommand(command: string) {
   const { parse } = await instantiateWithCaching();
   return parse(command) as SequentialList;
 }
@@ -552,7 +553,7 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
   return await executeCommandArgs(commandArgs, context);
 }
 
-async function executeCommandArgs(commandArgs: string[], context: Context) {
+async function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
   // look for a registered command first
   const command = context.getCommand(commandArgs[0]);
   if (command != null) {
@@ -560,9 +561,13 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   }
 
   // fall back to trying to resolve the command on the fs
-  const commandPath = await resolveCommand(commandArgs[0], context);
+  const resolvedCommand = await resolveCommand(commandArgs[0], context);
+  if (resolvedCommand.kind === "shebang") {
+    return executeCommandArgs([...resolvedCommand.args, resolvedCommand.path, ...commandArgs.slice(1)], context);
+  }
+  const _assertIsPath: "path" = resolvedCommand.kind;
   const p = Deno.run({
-    cmd: [commandPath, ...commandArgs.slice(1)],
+    cmd: [resolvedCommand.path, ...commandArgs.slice(1)],
     cwd: context.getCwd(),
     env: context.getEnvVars(),
     stdin: getStdioStringValue(context.stdin),
@@ -576,7 +581,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   try {
     // ignore the result of writing to stdin because it may
     // have not finished before the process finished
-    const _ignore = writeStdin(context.stdin, p, completeSignal);
+    const _ignore = writeStdin(context.stdin, p, completeSignal)
+      .catch(() => {/* ignore */});
     const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
     const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
     const [status] = await Promise.all([
@@ -661,24 +667,54 @@ async function executeCommandArgs(commandArgs: string[], context: Context) {
   }
 }
 
-async function resolveCommand(commandName: string, context: Context) {
-  const realEnvironment = new DenoWhichRealEnvironment();
+type ResolvedCommand = ResolvedPathCommand | ResolvedShebangCommand;
+
+interface ResolvedPathCommand {
+  kind: "path";
+  path: string;
+}
+
+interface ResolvedShebangCommand {
+  kind: "shebang";
+  path: string;
+  args: string[];
+}
+
+async function resolveCommand(commandName: string, context: Context): Promise<ResolvedCommand> {
   if (commandName.includes("/") || commandName.includes("\\")) {
     if (!path.isAbsolute(commandName)) {
-      commandName = path.relative(context.getCwd(), commandName);
+      commandName = path.resolve(context.getCwd(), commandName);
     }
-    if (await realEnvironment.fileExists(commandName)) {
-      return commandName;
-    } else {
+    // only bother checking for a shebang when the path has a slash
+    // in it because for global commands someone on Windows likely
+    // won't have a script with a shebang in it on Windows
+    const result = await getExecutableShebangFromPath(commandName);
+    if (result === false) {
       throw new Error(`Command not found: ${commandName}`);
+    } else if (result != null) {
+      return {
+        kind: "shebang",
+        path: commandName,
+        args: await parseShebangArgs(result, context),
+      };
+    } else {
+      const _assertUndefined: undefined = result;
+      return {
+        kind: "path",
+        path: commandName,
+      };
     }
   }
 
   // always use the current executable for "deno"
   if (commandName.toUpperCase() === "DENO") {
-    return Deno.execPath();
+    return {
+      kind: "path",
+      path: Deno.execPath(),
+    };
   }
 
+  const realEnvironment = new DenoWhichRealEnvironment();
   const commandPath = await which(commandName, {
     os: Deno.build.os,
     fileExists(path: string) {
@@ -691,7 +727,45 @@ async function resolveCommand(commandName: string, context: Context) {
   if (commandPath == null) {
     throw new Error(`Command not found: ${commandName}`);
   }
-  return commandPath;
+  return {
+    kind: "path",
+    path: commandPath,
+  };
+}
+
+async function parseShebangArgs(info: ShebangInfo, context: Context): Promise<string[]> {
+  function throwUnsupported(): never {
+    throw new Error("Unsupported shebang. Please report this as a bug.");
+  }
+
+  if (!info.stringSplit) {
+    return [info.command];
+  }
+
+  // todo: move shebang parsing into deno_task_shell and investigate actual shebang parsing behaviour
+  const command = await parseCommand(info.command);
+  if (command.items.length !== 1) {
+    throwUnsupported();
+  }
+  const item = command.items[0];
+  if (item.sequence.kind !== "pipeline" || item.isAsync) {
+    throwUnsupported();
+  }
+  const sequence = item.sequence;
+  if (sequence.negated) {
+    throwUnsupported();
+  }
+  if (sequence.inner.kind !== "command" || sequence.inner.redirect != null) {
+    throwUnsupported();
+  }
+  const innerCommand = sequence.inner.inner;
+  if (innerCommand.kind !== "simple") {
+    throwUnsupported();
+  }
+  if (innerCommand.envVars.length > 0) {
+    throwUnsupported();
+  }
+  return await evaluateArgs(innerCommand.args, context);
 }
 
 async function evaluateArgs(args: Word[], context: Context) {

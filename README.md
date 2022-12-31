@@ -557,7 +557,7 @@ const result = await $`echo $TEST`.env("TEST", "123").text();
 console.log(result); // 123
 ```
 
-### Custom Cross Platform Shell Commands
+### Custom cross platform shell commands
 
 Currently implemented (though not every option is supported):
 
@@ -578,6 +578,21 @@ Currently implemented (though not every option is supported):
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
+
+### Cross platform shebang support
+
+Users on unix-based platforms often write a script like so:
+
+```ts
+#!/usr/bin/env -S deno run
+console.log("Hello there!");
+```
+
+...which can be executed on the command line by running `./file.ts`. This doesn't work on the command line in Windows, but it does on all platforms in dax:
+
+```ts
+await $`./file.ts`;
+```
 
 ## Builder APIs
 

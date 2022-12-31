@@ -1,6 +1,14 @@
-import { delayToIterator, delayToMs, formatMillis, getFileNameFromUrl, resolvePath, TreeBox } from "./common.ts";
+import {
+  delayToIterator,
+  delayToMs,
+  formatMillis,
+  getExecutableShebang,
+  getFileNameFromUrl,
+  resolvePath,
+  TreeBox,
+} from "./common.ts";
 import { assertEquals } from "./deps.test.ts";
-import { path } from "./deps.ts";
+import { Buffer, path } from "./deps.ts";
 
 Deno.test("should get delay value", () => {
   assertEquals(delayToMs(10), 10);
@@ -83,4 +91,56 @@ Deno.test("gets file name from url", () => {
   assertEquals(getFileNameFromUrl("https://deno.land/"), undefined);
   assertEquals(getFileNameFromUrl("https://deno.land/file/other"), "other");
   assertEquals(getFileNameFromUrl("https://deno.land/file/other/"), undefined);
+});
+
+Deno.test("gets the executable shebang when it exists", async () => {
+  function get(input: string) {
+    const data = new TextEncoder().encode(input);
+    const buffer = new Buffer(data);
+    return getExecutableShebang(buffer);
+  }
+
+  assertEquals(
+    await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=."),
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\n"),
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\ntesting\ntesting"),
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\r\ntesting\ntesting"),
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/usr/bin/env deno run --allow-env=PWD --allow-read=.\r\ntesting\ntesting"),
+    {
+      stringSplit: false,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/bin/sh\r\ntesting\ntesting"),
+    undefined,
+  );
+  assertEquals(
+    await get("testing"),
+    undefined,
+  );
 });
