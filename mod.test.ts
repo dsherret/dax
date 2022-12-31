@@ -578,19 +578,74 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
-Deno.test("shebang support", async () => {
+Deno.test("shebang support", async (t) => {
   await withTempDir(async (dir) => {
-    Deno.writeTextFileSync(
-      $.path.join(dir, "file.ts"),
-      [
-        "#!/usr/bin/env -S deno run",
-        "console.log(5);",
-      ].join("\n"),
-    );
-    const output = await $`./file.ts`
-      .cwd(dir)
-      .text();
-    assertEquals(output, "5");
+    const steps: Promise<boolean>[] = [];
+    const step = (name: string, fn: () => Promise<void>) => {
+      steps.push(t.step({
+        name,
+        fn,
+        sanitizeExit: false,
+        sanitizeOps: false,
+        sanitizeResources: false,
+      }));
+    };
+
+    step("with -S", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "file.ts"),
+        [
+          "#!/usr/bin/env -S deno run",
+          "console.log(5);",
+        ].join("\n"),
+      );
+      const output = await $`./file.ts`
+        .cwd(dir)
+        .text();
+      assertEquals(output, "5");
+    });
+
+    step("without -S and invalid", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "file2.ts"),
+        [
+          "#!/usr/bin/env deno run",
+          "console.log(5);",
+        ].join("\n"),
+      );
+      await assertRejects(
+        async () => {
+          await $`./file2.ts`
+            .cwd(dir)
+            .text();
+        },
+        Error,
+        "Command not found: deno run",
+      );
+    });
+
+    step("without -S, but valid", async () => {
+      await Deno.writeTextFile(
+        $.path.join(dir, "echo_stdin.ts"),
+        [
+          "#!/usr/bin/env -S deno run --unstable --allow-run",
+          "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
+        ].join("\n"),
+      );
+      await Deno.writeTextFile(
+        $.path.join(dir, "file3.ts"),
+        [
+          "#!/usr/bin/env ./echo_stdin.ts",
+          "console.log('Hello')",
+        ].join("\n"),
+      );
+      const output = await $`./file3.ts`
+        .cwd(dir)
+        .text();
+      assertEquals(output, "Hello");
+    });
+
+    await Promise.all(steps);
   });
 });
 

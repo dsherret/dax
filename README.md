@@ -588,7 +588,7 @@ Users on unix-based platforms often write a script like so:
 console.log("Hello there!");
 ```
 
-...which can be run on the command line by executing `./file.ts`. This doesn't work on the command line in Windows, but it does on all platforms in dax:
+...which can be executed on the command line by running `./file.ts`. This doesn't work on the command line in Windows, but it does on all platforms in dax:
 
 ```ts
 await $`./file.ts`;

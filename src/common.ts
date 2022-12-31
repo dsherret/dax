@@ -141,7 +141,7 @@ export function getFileNameFromUrl(url: string | URL) {
 /**
  * Gets an executable shebang from the provided file path.
  * @returns
- * - A string with the shebang.
+ * - An object outlining information about the shebang.
  * - `undefined` if the file exists, but doesn't have a shebang.
  * - `false` if the file does NOT exist.
  */
@@ -165,9 +165,14 @@ export async function getExecutableShebangFromPath(path: string) {
   }
 }
 
+export interface ShebangInfo {
+  stringSplit: boolean;
+  command: string;
+}
+
 const decoder = new TextDecoder();
-export async function getExecutableShebang(reader: Deno.Reader) {
-  const text = "#!/usr/bin/env -S ";
+export async function getExecutableShebang(reader: Deno.Reader): Promise<ShebangInfo | undefined> {
+  const text = "#!/usr/bin/env ";
   const buffer = new Uint8Array(text.length);
   const bytesReadCount = await reader.read(buffer);
   if (bytesReadCount !== text.length || decoder.decode(buffer) !== text) {
@@ -178,5 +183,17 @@ export async function getExecutableShebang(reader: Deno.Reader) {
   if (line == null) {
     return undefined;
   }
-  return decoder.decode(line.line).trim();
+  const result = decoder.decode(line.line).trim();
+  const dashS = "-S ";
+  if (result.startsWith(dashS)) {
+    return {
+      stringSplit: true,
+      command: result.slice(dashS.length),
+    };
+  } else {
+    return {
+      stringSplit: false,
+      command: result,
+    };
+  }
 }

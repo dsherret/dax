@@ -1,5 +1,5 @@
 import { CommandContext, CommandHandler } from "./command_handler.ts";
-import { getExecutableShebangFromPath } from "./common.ts";
+import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { instantiateWithCaching } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
@@ -733,13 +733,17 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
   };
 }
 
-async function parseShebangArgs(text: string, context: Context): Promise<string[]> {
+async function parseShebangArgs(info: ShebangInfo, context: Context): Promise<string[]> {
   function throwUnsupported(): never {
     throw new Error("Unsupported shebang. Please report this as a bug.");
   }
 
+  if (!info.stringSplit) {
+    return [info.command];
+  }
+
   // todo: move shebang parsing into deno_task_shell and investigate actual shebang parsing behaviour
-  const command = await parseCommand(text);
+  const command = await parseCommand(info.command);
   if (command.items.length !== 1) {
     throwUnsupported();
   }

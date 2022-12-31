@@ -142,9 +142,13 @@ Deno.test("$.request", (t) => {
     step("404", async () => {
       const request404 = new RequestBuilder()
         .url(new URL("/code/404", serverUrl));
-      assertRejects(async () => {
-        await request404.text();
-      });
+      assertRejects(
+        async () => {
+          await request404.text();
+        },
+        Error,
+        "Not Found",
+      );
 
       assertEquals(await request404.noThrow(404).blob(), undefined);
       assertEquals(await request404.noThrow(404).arrayBuffer(), undefined);
@@ -156,9 +160,13 @@ Deno.test("$.request", (t) => {
     step("500", async () => {
       const request500 = new RequestBuilder()
         .url(new URL("/code/500", serverUrl));
-      assertRejects(async () => {
-        await request500.text();
-      });
+      assertRejects(
+        async () => {
+          await request500.text();
+        },
+        Error,
+        "500",
+      );
 
       assertEquals(await request500.noThrow(500).text(), "500");
     });

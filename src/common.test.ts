@@ -102,22 +102,45 @@ Deno.test("gets the executable shebang when it exists", async () => {
 
   assertEquals(
     await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=."),
-    "deno run --allow-env=PWD --allow-read=.",
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
   );
   assertEquals(
     await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\n"),
-    "deno run --allow-env=PWD --allow-read=.",
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
   );
   assertEquals(
     await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\ntesting\ntesting"),
-    "deno run --allow-env=PWD --allow-read=.",
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
   );
   assertEquals(
     await get("#!/usr/bin/env -S deno run --allow-env=PWD --allow-read=.\r\ntesting\ntesting"),
-    "deno run --allow-env=PWD --allow-read=.",
+    {
+      stringSplit: true,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
   );
   assertEquals(
     await get("#!/usr/bin/env deno run --allow-env=PWD --allow-read=.\r\ntesting\ntesting"),
+    {
+      stringSplit: false,
+      command: "deno run --allow-env=PWD --allow-read=.",
+    },
+  );
+  assertEquals(
+    await get("#!/bin/sh\r\ntesting\ntesting"),
+    undefined,
+  );
+  assertEquals(
+    await get("testing"),
     undefined,
   );
 });
