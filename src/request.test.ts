@@ -123,7 +123,7 @@ Deno.test("$.request", (t) => {
           .url(new URL("/text-file", serverUrl))
           .showProgress()
           .pipeToPath();
-        assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
+        assertEquals(Deno.readTextFileSync("text-file"), "text".repeat(1000));
         assertEquals(downloadedFilePath2, "text-file");
       } finally {
         try {
