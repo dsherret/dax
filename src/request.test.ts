@@ -129,7 +129,6 @@ Deno.test("$.request", (t) => {
         try {
           Deno.chdir(originDir);
           Deno.removeSync(testFilePath);
-          Deno.removeSync("text-file");
         } catch {
           // do nothing
         }
