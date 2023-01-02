@@ -642,8 +642,11 @@ function resolvePipeToPathParams(
     options = maybeOptions;
   } else if (typeof pathOrOptions === "object") {
     options = pathOrOptions;
+  } else if (pathOrOptions === undefined) {
+    options = maybeOptions;
   }
   filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(originalUrl));
+
   return {
     filePath,
     options,
