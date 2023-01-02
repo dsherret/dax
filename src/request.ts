@@ -304,7 +304,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     // a security issue.
     // Additionally, resolve the path immediately in case the user changes their cwd
     // while the response is being fetched.
-    let filePathOrUrl = filePath ?? getFileNameFromUrlOrThrow(this.#state?.url);
+    const filePathOrUrl = filePath ?? getFileNameFromUrlOrThrow(this.#state?.url);
     filePath = path.resolve(typeof filePathOrUrl === "string" ? filePathOrUrl : path.fromFileUrl(filePathOrUrl));
     const response = await this.fetch();
     await response.pipeToPath(filePath, options);
