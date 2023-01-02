@@ -646,7 +646,6 @@ function resolvePipeToPathParams(
     options = maybeOptions;
   }
   filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(originalUrl));
-
   return {
     filePath,
     options,
