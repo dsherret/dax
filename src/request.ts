@@ -1,5 +1,6 @@
 import { filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
+import { path } from "./deps.ts";
 
 interface RequestBuilderState {
   noThrow: boolean | number[];
@@ -297,14 +298,17 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    *
    * @returns The path of the downloaded file
    */
-  async pipeToPath(path?: string | URL, options?: Deno.WriteFileOptions) {
+  async pipeToPath(filePath?: string | URL, options?: Deno.WriteFileOptions) {
     // Do not derive from the response url because that could cause the server
     // to be able to overwrite whatever file it wants locally, which would be
     // a security issue.
-    path = path ?? getFileNameFromUrlOrThrow(this.#state?.url);
+    // Additionally, resolve the path immediately in case the user changes their cwd
+    // while the response is being fetched.
+    let filePathOrUrl = filePath ?? getFileNameFromUrlOrThrow(this.#state?.url);
+    filePath = path.resolve(typeof filePathOrUrl === "string" ? filePathOrUrl : path.fromFileUrl(filePathOrUrl));
     const response = await this.fetch();
-    await response.pipeToPath(path, options);
-    return path;
+    await response.pipeToPath(filePath, options);
+    return filePath;
 
     function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
       const fileName = url == null ? undefined : getFileNameFromUrl(url);
