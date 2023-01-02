@@ -294,6 +294,8 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    *
    * @remarks If no path is provided then it will be derived from the
    * request's url and downloaded to the current working directory.
+   *
+   * @returns The path of the downloaded file
    */
   async pipeToPath(path?: string | URL, options?: Deno.WriteFileOptions) {
     // Do not derive from the response url because that could cause the server
@@ -301,7 +303,8 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     // a security issue.
     path = path ?? getFileNameFromUrlOrThrow(this.#state?.url);
     const response = await this.fetch();
-    return await response.pipeToPath(path, options);
+    await response.pipeToPath(path, options);
+    return path;
 
     function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
       const fileName = url == null ? undefined : getFileNameFromUrl(url);
