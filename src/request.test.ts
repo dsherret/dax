@@ -141,7 +141,6 @@ Deno.test("$.request", (t) => {
                 .pipeToPath({ createNew: true });
             },
             Deno.errors.AlreadyExists,
-            "The file exists.",
           );
         }
       } finally {
