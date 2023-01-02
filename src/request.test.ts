@@ -111,23 +111,39 @@ Deno.test("$.request", (t) => {
       const testFilePath = Deno.makeTempFileSync();
       const originDir = Deno.cwd();
       try {
-        const downloadedFilePath = await new RequestBuilder()
-          .url(new URL("/text-file", serverUrl))
-          .showProgress()
-          .pipeToPath(testFilePath);
-        // ensure this only returns a string and not string | URL
-        // so that it's easier to work with
-        const _assertString: string = downloadedFilePath;
-        assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
-        assertEquals(downloadedFilePath, path.resolve(testFilePath));
-        // test default path
-        Deno.chdir(Deno.makeTempDirSync()); // change path just to not download to the current dir
-        const downloadedFilePath2 = await new RequestBuilder()
-          .url(new URL("/text-file", serverUrl))
-          .showProgress()
-          .pipeToPath();
-        assertEquals(Deno.readTextFileSync("text-file"), "text".repeat(1000));
-        assertEquals(downloadedFilePath2, path.resolve("text-file"));
+        {
+          const downloadedFilePath = await new RequestBuilder()
+            .url(new URL("/text-file", serverUrl))
+            .showProgress()
+            .pipeToPath(testFilePath);
+          // ensure this only returns a string and not string | URL
+          // so that it's easier to work with
+          const _assertString: string = downloadedFilePath;
+          assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
+          assertEquals(downloadedFilePath, path.resolve(testFilePath));
+        }
+        {
+          // test default path
+          Deno.chdir(Deno.makeTempDirSync()); // change path just to not download to the current dir
+          const downloadedFilePath = await new RequestBuilder()
+            .url(new URL("/text-file", serverUrl))
+            .showProgress()
+            .pipeToPath();
+          assertEquals(Deno.readTextFileSync("text-file"), "text".repeat(1000));
+          assertEquals(downloadedFilePath, path.resolve("text-file"));
+        }
+        {
+          await assertRejects(
+            async () => {
+              await new RequestBuilder()
+                .url(new URL("/text-file", serverUrl))
+                .showProgress()
+                .pipeToPath({ createNew: true });
+            },
+            Deno.errors.AlreadyExists,
+            "The file exists.",
+          );
+        }
       } finally {
         try {
           Deno.chdir(originDir);
