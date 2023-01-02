@@ -293,36 +293,31 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   /**
    * Pipes the response body to a file.
    *
+   * @remarks The path will be derived from the request's url
+   * and downloaded to the current working directory.
+   *
+   * @returns The path of the downloaded file
+   */
+  async pipeToPath(options?: Deno.WriteFileOptions): Promise<string>;
+  /**
+   * Pipes the response body to a file.
+   *
    * @remarks If no path is provided then it will be derived from the
    * request's url and downloaded to the current working directory.
    *
    * @returns The path of the downloaded file
    */
-  async pipeToPath(filePath?: string | URL, options?: Deno.WriteFileOptions) {
+  async pipeToPath(path?: string | URL | undefined, options?: Deno.WriteFileOptions): Promise<string>;
+  async pipeToPath(filePathOrOptions?: string | URL | Deno.WriteFileOptions, maybeOptions?: Deno.WriteFileOptions) {
     // Do not derive from the response url because that could cause the server
     // to be able to overwrite whatever file it wants locally, which would be
     // a security issue.
     // Additionally, resolve the path immediately in case the user changes their cwd
     // while the response is being fetched.
-    filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(this.#state?.url));
+    const { filePath, options } = resolvePipeToPathParams(filePathOrOptions, maybeOptions, this.#state?.url);
     const response = await this.fetch();
     await response.pipeToPath(filePath, options);
     return filePath;
-
-    function resolvePathOrUrl(pathOrUrl: string | URL) {
-      return path.resolve(typeof pathOrUrl === "string" ? pathOrUrl : path.fromFileUrl(pathOrUrl));
-    }
-
-    function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
-      const fileName = url == null ? undefined : getFileNameFromUrl(url);
-      if (fileName == null) {
-        throw new Error(
-          "Could not derive the path from the request URL. " +
-            "Please explicitly provide a path.",
-        );
-      }
-      return fileName;
-    }
   }
 
   /** Pipes the response body through the provided transform. */
@@ -421,7 +416,9 @@ export class RequestResult {
    */
   throwIfNotOk() {
     if (!this.ok) {
-      this.#response.body?.cancel();
+      this.#response.body?.cancel().catch(() => {
+        // ignore
+      });
       throw new Error(`Error making request to ${this.#originalUrl}: ${this.statusText}`);
     }
   }
@@ -431,9 +428,9 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  arrayBuffer() {
+  async arrayBuffer() {
     if (this.#response.status === 404) {
-      this.#response.body?.cancel();
+      await this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.arrayBuffer();
@@ -444,9 +441,9 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  blob() {
+  async blob() {
     if (this.#response.status === 404) {
-      this.#response.body?.cancel();
+      await this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.blob();
@@ -457,9 +454,9 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  formData() {
+  async formData() {
     if (this.#response.status === 404) {
-      this.#response.body?.cancel();
+      await this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.formData();
@@ -470,9 +467,9 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  json<TResult = any>(): Promise<TResult> {
+  async json<TResult = any>(): Promise<TResult> {
     if (this.#response.status === 404) {
-      this.#response.body?.cancel();
+      await this.#response.body?.cancel();
       return undefined as any;
     }
     return this.#downloadResponse.json();
@@ -483,12 +480,12 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  text() {
+  async text() {
     if (this.#response.status === 404) {
       // most people don't need to bother with this and if they do, they will
       // need to opt-in with `noThrow()`. So just assert non-nullable
       // to make it easier to work with and highlight this behaviour in the jsdocs.
-      this.#response.body?.cancel();
+      await this.#response.body?.cancel();
       return undefined!;
     }
     return this.#downloadResponse.text();
@@ -499,27 +496,54 @@ export class RequestResult {
     return this.#getDownloadBody().pipeTo(dest);
   }
 
-  /** Pipes the response body to the provided file path. */
-  async pipeToPath(path: string | URL, options?: Deno.WriteFileOptions) {
+  /**
+   * Pipes the response body to a file.
+   *
+   * @remarks The path will be derived from the request's url
+   * and downloaded to the current working directory.
+   *
+   * @returns The path of the downloaded file
+   */
+  async pipeToPath(options?: Deno.WriteFileOptions): Promise<string>;
+  /**
+   * Pipes the response body to a file.
+   *
+   * @remarks If no path is provided then it will be derived from the
+   * request's url and downloaded to the current working directory.
+   *
+   * @returns The path of the downloaded file
+   */
+  async pipeToPath(path?: string | URL | undefined, options?: Deno.WriteFileOptions): Promise<string>;
+  async pipeToPath(filePathOrOptions?: string | URL | Deno.WriteFileOptions, maybeOptions?: Deno.WriteFileOptions) {
+    // resolve the file path using the original url because it would be a security issue
+    // to allow the server to select which file path to save the file to if using the
+    // response url
+    const { filePath, options } = resolvePipeToPathParams(filePathOrOptions, maybeOptions, this.#originalUrl);
     const body = this.#getDownloadBody();
-    const file = await Deno.open(path, {
-      write: true,
-      create: true,
-      ...(options ?? {}),
-    });
     try {
-      await body.pipeTo(file.writable);
-    } catch (err) {
+      const file = await Deno.open(filePath, {
+        write: true,
+        create: true,
+        ...(options ?? {}),
+      });
       try {
-        file.close();
-      } catch {
-        // do nothing
+        await body.pipeTo(file.writable);
+      } catch (err) {
+        try {
+          file.close();
+        } catch {
+          // do nothing
+        }
+        throw err;
       }
+    } catch (err) {
+      await this.#response.body?.cancel();
       throw err;
     }
 
-    // It's not necessary to close the file here because
+    // It's not necessary to close the file after because
     // it will be automatically closed via pipeTo
+    return filePath;
   }
 
   /** Pipes the response body through the provided transform. */
@@ -603,5 +627,40 @@ export async function makeRequest(state: RequestBuilderState) {
         clearTimeout(timeoutId);
       },
     };
+  }
+}
+
+function resolvePipeToPathParams(
+  pathOrOptions: string | URL | Deno.WriteFileOptions | undefined,
+  maybeOptions: Deno.WriteFileOptions | undefined,
+  originalUrl: string | URL | undefined,
+) {
+  let filePath: string | undefined;
+  let options: Deno.WriteFileOptions | undefined;
+  if (typeof pathOrOptions === "string" || pathOrOptions instanceof URL) {
+    filePath = resolvePathOrUrl(pathOrOptions);
+    options = maybeOptions;
+  } else if (typeof pathOrOptions === "object") {
+    options = pathOrOptions;
+  }
+  filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(originalUrl));
+  return {
+    filePath,
+    options,
+  };
+
+  function resolvePathOrUrl(pathOrUrl: string | URL) {
+    return path.resolve(typeof pathOrUrl === "string" ? pathOrUrl : path.fromFileUrl(pathOrUrl));
+  }
+
+  function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
+    const fileName = url == null ? undefined : getFileNameFromUrl(url);
+    if (fileName == null) {
+      throw new Error(
+        "Could not derive the path from the request URL. " +
+          "Please explicitly provide a path.",
+      );
+    }
+    return fileName;
   }
 }
