@@ -1,4 +1,4 @@
-import { Buffer } from "./deps.ts";
+import { Buffer, path } from "./deps.ts";
 import { assertEquals, assertRejects, serve, writableStreamFromWriter } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
 
@@ -115,8 +115,11 @@ Deno.test("$.request", (t) => {
           .url(new URL("/text-file", serverUrl))
           .showProgress()
           .pipeToPath(testFilePath);
+        // ensure this only returns a string and not string | URL
+        // so that it's easier to work with
+        const _assertString: string = downloadedFilePath;
         assertEquals(Deno.readTextFileSync(testFilePath), "text".repeat(1000));
-        assertEquals(downloadedFilePath, testFilePath);
+        assertEquals(downloadedFilePath, path.resolve(testFilePath));
         // test default path
         Deno.chdir(Deno.makeTempDirSync()); // change path just to not download to the current dir
         const downloadedFilePath2 = await new RequestBuilder()
@@ -124,7 +127,7 @@ Deno.test("$.request", (t) => {
           .showProgress()
           .pipeToPath();
         assertEquals(Deno.readTextFileSync("text-file"), "text".repeat(1000));
-        assertEquals(downloadedFilePath2, "text-file");
+        assertEquals(downloadedFilePath2, path.resolve("text-file"));
       } finally {
         try {
           Deno.chdir(originDir);
