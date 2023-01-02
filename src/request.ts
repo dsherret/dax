@@ -304,11 +304,14 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     // a security issue.
     // Additionally, resolve the path immediately in case the user changes their cwd
     // while the response is being fetched.
-    const filePathOrUrl = filePath ?? getFileNameFromUrlOrThrow(this.#state?.url);
-    filePath = path.resolve(typeof filePathOrUrl === "string" ? filePathOrUrl : path.fromFileUrl(filePathOrUrl));
+    filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(this.#state?.url));
     const response = await this.fetch();
     await response.pipeToPath(filePath, options);
     return filePath;
+
+    function resolvePathOrUrl(pathOrUrl: string | URL) {
+      return path.resolve(typeof pathOrUrl === "string" ? pathOrUrl : path.fromFileUrl(pathOrUrl));
+    }
 
     function getFileNameFromUrlOrThrow(url: string | URL | undefined) {
       const fileName = url == null ? undefined : getFileNameFromUrl(url);
