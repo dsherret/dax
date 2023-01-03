@@ -142,6 +142,15 @@ Deno.test("$.request", (t) => {
             },
             Deno.errors.AlreadyExists,
           );
+          await assertRejects(
+            async () => {
+              await new RequestBuilder()
+                .url(new URL("/text-file", serverUrl))
+                .showProgress()
+                .pipeToPath(undefined, { createNew: true });
+            },
+            Deno.errors.AlreadyExists,
+          );
         }
       } finally {
         try {
