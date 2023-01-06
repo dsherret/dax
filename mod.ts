@@ -477,14 +477,20 @@ const helperObject = {
   path,
   cd,
   escapeArg,
+  async exists(path: string) {
+    return fs.exists(path);
+  },
   existsSync(path: string) {
     return fs.existsSync(path);
   },
-  exists(path: string) {
-    return fs.exists(path);
+  async missing(path: string) {
+    return fs.exists(path).then((exists) => !exists);
+  },
+  missingSync(path: string) {
+    return !fs.existsSync(path);
   },
   sleep,
-  which(commandName: string) {
+  async which(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
       return Promise.resolve(Deno.execPath());
     } else {
@@ -497,6 +503,26 @@ const helperObject = {
     } else {
       return whichSync(commandName);
     }
+  },
+  async commandExists(commandName: string) {
+    return this.which(commandName).then((c) => typeof c !== "undefined");
+  },
+  commandExistsSync(commandName: string) {
+    return typeof this.whichSync(commandName) === "undefined";
+  },
+  async commandMissing(commandName: string) {
+    return this.which(commandName).then((c) => typeof c === "undefined");
+  },
+  commandMissingSync(commandName: string) {
+    return typeof this.whichSync(commandName) !== "undefined";
+  },
+  envExists(envName: string) {
+    const value = Deno.env.get(envName)?.trim() ?? "";
+    return value.length > 0;
+  },
+  envMissing(envName: string) {
+    const value = Deno.env.get(envName)?.trim() ?? "";
+    return value.length === 0;
   },
 };
 
