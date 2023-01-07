@@ -984,7 +984,7 @@ Deno.test("$.missing", async () => {
   assertEquals(await $.missing($.path.fromFileUrl(import.meta.url)), false);
 });
 
-Deno.test("$.missingSync", async () => {
+Deno.test("$.missingSync", () => {
   assertEquals($.missingSync("some-fake-file.json"), true);
   assertEquals($.missingSync($.path.fromFileUrl(import.meta.url)), false);
 });
@@ -994,7 +994,7 @@ Deno.test("$.commandExists", async () => {
   assertEquals(await $.commandExists("deno"), true);
 });
 
-Deno.test("$.commandExistsSync", async () => {
+Deno.test("$.commandExistsSync", () => {
   assertEquals($.commandExistsSync("some-fake-command"), false);
   assertEquals($.commandExistsSync("deno"), true);
 });
@@ -1004,17 +1004,17 @@ Deno.test("$.commandMissing", async () => {
   assertEquals(await $.commandMissing("deno"), false);
 });
 
-Deno.test("$.commandMissingSync", async () => {
+Deno.test("$.commandMissingSync", () => {
   assertEquals($.commandMissingSync("some-fake-command"), true);
   assertEquals($.commandMissingSync("deno"), false);
 });
 
-Deno.test("$.stripAnsi", async () => {
+Deno.test("$.stripAnsi", () => {
   assertEquals($.stripAnsi("\u001B[4mHello World\u001B[0m"), "Hello World");
   assertEquals($.stripAnsi("no ansi escapes here"), "no ansi escapes here");
 });
 
-Deno.test("$.dedent", async () => {
+Deno.test("$.dedent", () => {
   const actual = $.dedent`
         This line will appear without any indentation.
           * This list will appear with 2 spaces more than previous line.

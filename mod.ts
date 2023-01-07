@@ -558,20 +558,20 @@ const helperObject = {
     return wasmInstance.strip_ansi_codes(text);
   },
   dedent: outdent,
-  async exists(path: string) {
+  exists(path: string) {
     return fs.exists(path);
   },
   existsSync(path: string) {
     return fs.existsSync(path);
   },
-  async missing(path: string) {
+  missing(path: string) {
     return fs.exists(path).then((exists) => !exists);
   },
   missingSync(path: string) {
     return !fs.existsSync(path);
   },
   sleep,
-  async which(commandName: string) {
+  which(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
       return Promise.resolve(Deno.execPath());
     } else {
@@ -585,13 +585,13 @@ const helperObject = {
       return whichSync(commandName);
     }
   },
-  async commandExists(commandName: string) {
+  commandExists(commandName: string) {
     return this.which(commandName).then((c) => typeof c !== "undefined");
   },
   commandExistsSync(commandName: string) {
     return typeof this.whichSync(commandName) !== "undefined";
   },
-  async commandMissing(commandName: string) {
+  commandMissing(commandName: string) {
     return this.which(commandName).then((c) => typeof c === "undefined");
   },
   commandMissingSync(commandName: string) {
