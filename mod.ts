@@ -264,7 +264,7 @@ export interface $Type {
    *
    * @returns `true` or `false` if the user made a selection or `undefined` if the user pressed ctrl+c.
    */
-  maybeConfirm(message: string): Promise<boolean | undefined>;
+  maybeConfirm(message: string, options?: Omit<ConfirmOptions, "message">): Promise<boolean | undefined>;
   /**
    * Shows a prompt asking the user to answer a yes or no question.
    *
@@ -276,7 +276,7 @@ export interface $Type {
    *
    * @returns `true` or `false` if the user made a selection or exits the process if the user pressed ctrl+c.
    */
-  confirm(message: string): Promise<boolean>;
+  confirm(message: string, options?: Omit<ConfirmOptions, "message">): Promise<boolean>;
   /**
    * Shows a prompt asking the user to answer a yes or no question.
    *
@@ -311,9 +311,10 @@ export interface $Type {
    * Shows an input prompt where the user can enter any text.
    *
    * @param message Message to show.
+   * @param options Optional additional options.
    * @returns The inputted text or `undefined` if the user pressed ctrl+c.
    */
-  maybePrompt(message: string): Promise<string | undefined>;
+  maybePrompt(message: string, options?: Omit<PromptOptions, "message">): Promise<string | undefined>;
   /**
    * Shows an input prompt where the user can enter any text.
    *
@@ -325,9 +326,10 @@ export interface $Type {
    * Shows an input prompt where the user can enter any text.
    *
    * @param message Message to show.
+   * @param options Optional additional options.
    * @returns The inputted text or exits the process if the user pressed ctrl+c.
    */
-  prompt(message: string): Promise<string>;
+  prompt(message: string, options?: Omit<PromptOptions, "message">): Promise<string>;
   /**
    * Shows an input prompt where the user can enter any text.
    *
@@ -336,7 +338,7 @@ export interface $Type {
    */
   prompt(options: PromptOptions): Promise<string>;
   /** Shows a progress message when indeterminate or bar when determinate. */
-  progress(message: string): ProgressBar;
+  progress(message: string, options?: Omit<ProgressOptions, "message" | "prefix">): ProgressBar;
   /** Shows a progress message when indeterminate or bar when determinate. */
   progress(options: ProgressOptions): ProgressBar;
   /**
@@ -606,19 +608,20 @@ function build$FromState(state: $State) {
       multiSelect,
       maybePrompt,
       prompt,
-      progress(messageOrText: ProgressOptions | string) {
-        const options: ProgressOptions = typeof messageOrText === "string"
+      progress(messageOrText: ProgressOptions | string, options?: Omit<ProgressOptions, "message" | "prefix">) {
+        const opts: ProgressOptions = typeof messageOrText === "string"
           ? (() => {
             const words = messageOrText.split(" ");
             return {
               prefix: words[0],
               message: words.length > 1 ? words.slice(1).join(" ") : undefined,
+              ...options,
             };
           })()
           : messageOrText;
         return new ProgressBar((...data) => {
           state.infoLogger.getValue()(...data);
-        }, options);
+        }, opts);
       },
       setInfoLogger(logger: (args: any[]) => void) {
         state.infoLogger.setValue(logger);

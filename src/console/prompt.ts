@@ -16,14 +16,15 @@ export interface PromptOptions {
   noClear?: boolean;
 }
 
-export function prompt(optsOrMessage: PromptOptions | string) {
-  return maybePrompt(optsOrMessage).then(resultOrExit);
+export function prompt(optsOrMessage: PromptOptions | string, options?: Omit<PromptOptions, "message">) {
+  return maybePrompt(optsOrMessage, options).then(resultOrExit);
 }
 
-export function maybePrompt(optsOrMessage: PromptOptions | string) {
+export function maybePrompt(optsOrMessage: PromptOptions | string, options?: Omit<PromptOptions, "message">) {
   const opts = typeof optsOrMessage === "string"
     ? {
       message: optsOrMessage,
+      ...options,
     }
     : optsOrMessage;
 
