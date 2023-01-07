@@ -391,6 +391,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   async json<TResult = any>(): Promise<TResult> {
     return (await this.quiet("stdout")).stdoutJson;
   }
+
+  /**
+   * @internal
+   * Gets the registered command names.
+   */
+  getRegisteredCommandNames() {
+    return Object.keys(this.#state.commands);
+  }
 }
 
 export async function parseAndSpawnCommand(state: CommandBuilderState) {
