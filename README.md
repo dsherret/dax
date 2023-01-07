@@ -488,6 +488,26 @@ await $.withRetries({
 });
 ```
 
+"Dedent" or remove leading whitespace from a string:
+
+```ts
+console.log($.dedent(`
+    This line will appear without any indentation.
+      * This list will appear with 2 spaces more than previous line.
+      * As will this line.
+
+    Empty lines (like the one above) will not affect the common indentation.
+  `));
+```
+
+```
+This line will appear without any indentation.
+  * This list will appear with 2 spaces more than previous line.
+  * As will this line.
+
+Empty lines (like the one above) will not affect the common indentation.
+```
+
 Re-export of deno_std's path:
 
 ```ts
@@ -500,6 +520,13 @@ Re-export of deno_std's fs:
 for await (const file of $.fs.expandGlob("**/*.ts")) {
   console.log(file);
 }
+```
+
+Re-export of @sindresorhus's strip-ansi:
+
+```ts
+$.stripAnsi("\u001B[4mUnicorn\u001B[0m");
+//=> 'Unicorn'
 ```
 
 ## Making requests
