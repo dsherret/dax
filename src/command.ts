@@ -56,6 +56,7 @@ const builtInCommands = {
   pwd: pwdCommand,
 };
 
+/** @internal */
 export const getRegisteredCommandNamesSymbol = Symbol();
 
 /**
