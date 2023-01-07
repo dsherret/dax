@@ -254,46 +254,6 @@ export interface $Type {
   commandMissing(commandName: string): Promise<boolean>;
   /** Gets if the provided command does not exist synchronously */
   commandMissingSync(commandName: string): boolean;
-  /**
-   * Check if the provided environment variable is defined and
-   * has a non-blank value.
-   *
-   * The following are equivalent:
-   *
-   * ```ts
-   * // use Deno.env directly
-   * const maybeHome = Deno.env.get('HOME')
-   * if(typeof maybeHome === 'string' && maybeHome.trim().length > 0) {
-   *   console.log('$HOME is well defined')
-   * }
-   *
-   * // use $.envExists
-   * if($.envExists('HOME')) {
-   *   console.log('$HOME is well defined')
-   * }
-   * ```
-   */
-  envExists(envName: string): boolean;
-  /**
-   * Check if the provided environment variable is not defined or
-   * is defined but has a blank value.
-   *
-   * The following are equivalent:
-   *
-   * ```ts
-   * // use Deno.env directly
-   * const homeOrDefault = Deno.env.get('HOME') ?? ""
-   * if(homeOrDefault.trim().length === 0) {
-   *   console.log('$HOME is not well defined')
-   * }
-   *
-   * // use $.envMissing
-   * if($.envMissing('HOME')) {
-   *   console.log('$HOME is not well defined')
-   * }
-   * ```
-   */
-  envMissing(envName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -642,14 +602,6 @@ const helperObject = {
   },
   commandMissingSync(commandName: string) {
     return typeof this.whichSync(commandName) === "undefined";
-  },
-  envExists(envName: string) {
-    const value = Deno.env.get(envName)?.trim() ?? "";
-    return value.length > 0;
-  },
-  envMissing(envName: string) {
-    const value = Deno.env.get(envName)?.trim() ?? "";
-    return value.length === 0;
   },
 };
 

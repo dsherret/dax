@@ -463,18 +463,6 @@ console.log(await $.commandMissing("deno"));
 console.log($.commandMissingSync("deno"));
 ```
 
-Check if an environment variable is set (and is not blank):
-
-```ts
-console.log($.envExists("HOME"));
-```
-
-Check if an environment variable is not set (or is blank):
-
-```ts
-console.log($.envMissing("HOME"));
-```
-
 Attempting to do an action until it succeeds or hits the maximum number of retries:
 
 ```ts

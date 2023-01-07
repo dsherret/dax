@@ -1009,16 +1009,6 @@ Deno.test("$.commandMissingSync", async () => {
   assertEquals($.commandMissingSync("deno"), false);
 });
 
-Deno.test("$.envExists", async () => {
-  assertEquals($.envExists("PATH"), true);
-  assertEquals($.envExists("SOME_FAKE_ENV"), false);
-});
-
-Deno.test("$.envMissing", async () => {
-  assertEquals($.envMissing("PATH"), false);
-  assertEquals($.envMissing("SOME_FAKE_ENV"), true);
-});
-
 Deno.test("$.stripAnsi", async () => {
   assertEquals($.stripAnsi("\u001B[4mUnicorn\u001B[0m"), "Unicorn");
   assertEquals($.stripAnsi("no ansi escapes here"), "no ansi escapes here");
