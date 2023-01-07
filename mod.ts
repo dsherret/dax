@@ -1,4 +1,4 @@
-import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
+import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -638,13 +638,13 @@ function build$FromState(state: $State) {
         }
       },
       commandExists(commandName: string) {
-        if (state.commandBuilder.getValue().getRegisteredCommandNames().includes(commandName)) {
+        if (state.commandBuilder.getValue()[getRegisteredCommandNamesSymbol]().includes(commandName)) {
           return Promise.resolve(true);
         }
         return helperObject.which(commandName).then((c) => c != null);
       },
       commandExistsSync(commandName: string) {
-        if (state.commandBuilder.getValue().getRegisteredCommandNames().includes(commandName)) {
+        if (state.commandBuilder.getValue()[getRegisteredCommandNamesSymbol]().includes(commandName)) {
           return true;
         }
         return helperObject.whichSync(commandName) != null;
