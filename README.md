@@ -441,6 +441,13 @@ Getting path to an executable based on a command name:
 console.log(await $.which("deno")); // outputs the path to deno executable
 ```
 
+Check if a command exists:
+
+```ts
+console.log(await $.commandExists("deno"));
+console.log($.commandExistsSync("deno"));
+```
+
 Attempting to do an action until it succeeds or hits the maximum number of retries:
 
 ```ts
@@ -452,6 +459,26 @@ await $.withRetries({
     await $`cargo publish`;
   },
 });
+```
+
+"Dedent" or remove leading whitespace from a string:
+
+```ts
+console.log($.dedent`
+    This line will appear without any indentation.
+      * This list will appear with 2 spaces more than previous line.
+      * As will this line.
+
+    Empty lines (like the one above) will not affect the common indentation.
+  `);
+```
+
+```
+This line will appear without any indentation.
+  * This list will appear with 2 spaces more than previous line.
+  * As will this line.
+
+Empty lines (like the one above) will not affect the common indentation.
 ```
 
 Re-export of deno_std's path:
@@ -466,6 +493,13 @@ Re-export of deno_std's fs:
 for await (const file of $.fs.expandGlob("**/*.ts")) {
   console.log(file);
 }
+```
+
+Remove ansi escape sequences from a string:
+
+```ts
+$.stripAnsi("\u001B[4mHello World\u001B[0m");
+//=> 'Hello World'
 ```
 
 ## Making requests

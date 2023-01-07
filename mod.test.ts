@@ -978,3 +978,37 @@ async function isDir(path: string) {
   const info = await lstat(path);
   return info?.isDirectory ? true : false;
 }
+
+Deno.test("$.commandExists", async () => {
+  assertEquals(await $.commandExists("some-fake-command"), false);
+  assertEquals(await $.commandExists("deno"), true);
+});
+
+Deno.test("$.commandExistsSync", () => {
+  assertEquals($.commandExistsSync("some-fake-command"), false);
+  assertEquals($.commandExistsSync("deno"), true);
+});
+
+Deno.test("$.stripAnsi", () => {
+  assertEquals($.stripAnsi("\u001B[4mHello World\u001B[0m"), "Hello World");
+  assertEquals($.stripAnsi("no ansi escapes here"), "no ansi escapes here");
+});
+
+Deno.test("$.dedent", () => {
+  const actual = $.dedent`
+        This line will appear without any indentation.
+          * This list will appear with 2 spaces more than previous line.
+          * As will this line.
+
+        Empty lines (like the one above) will not affect the common indentation.
+  `;
+
+  const expected = `
+This line will appear without any indentation.
+  * This list will appear with 2 spaces more than previous line.
+  * As will this line.
+
+Empty lines (like the one above) will not affect the common indentation.`.trim();
+
+  assertEquals(actual, expected);
+});

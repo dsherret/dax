@@ -25,7 +25,8 @@ import {
   select,
   SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, fs, path, which, whichSync } from "./src/deps.ts";
+import { colors, fs, outdent, path, which, whichSync } from "./src/deps.ts";
+import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
@@ -158,6 +159,27 @@ export interface $Type {
    * ```
    */
   escapeArg(arg: string): string;
+  /** Strip ANSI escape codes from a string */
+  stripAnsi(text: string): string;
+  /**
+   * De-indent (a.k.a. dedent/outdent) template literal strings
+   *
+   * Re-export of https://deno.land/x/outdent
+   *
+   * Removes the leading whitespace from each line,
+   * allowing you to break the string into multiple
+   * lines with indentation. If lines have an uneven
+   * amount of indentation, then only the common
+   * whitespace is removed.
+   *
+   * The opening and closing lines (which contain
+   * the ` marks) must be on their own line. The
+   * opening line must be empty, and the closing
+   * line may contain whitespace. The opening and
+   * closing line will be removed from the output,
+   * so that only the content in between remains.
+   */
+  dedent: typeof outdent;
   /**
    * Gets if the provided path exists asynchronously.
    *
@@ -169,6 +191,28 @@ export interface $Type {
   exists(path: string): Promise<boolean>;
   /** Gets if the provided path exists synchronously. */
   existsSync(path: string): boolean;
+  /**
+   * Using `$.which`, determine if the provided command exists
+   * resolving to `true` if `$.which` finds the specified
+   * command and to `false` otherwise.
+   *
+   * The following are equivalent:
+   *
+   * ```ts
+   * // use $.which directly
+   * if(typeof (await $.which('deno')) !== 'undefined') {
+   *   console.log('deno found');
+   * }
+   *
+   * // use $.commandExists
+   * if(await $.commandExists('deno')) {
+   *   console.log('deno found')
+   * }
+   * ```
+   */
+  commandExists(commandName: string): Promise<boolean>;
+  /** Gets if the provided command exists synchronously */
+  commandExistsSync(commandName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -477,11 +521,15 @@ const helperObject = {
   path,
   cd,
   escapeArg,
-  existsSync(path: string) {
-    return fs.existsSync(path);
+  stripAnsi(text: string) {
+    return wasmInstance.strip_ansi_codes(text);
   },
+  dedent: outdent,
   exists(path: string) {
     return fs.exists(path);
+  },
+  existsSync(path: string) {
+    return fs.existsSync(path);
   },
   sleep,
   which(commandName: string) {
@@ -497,6 +545,12 @@ const helperObject = {
     } else {
       return whichSync(commandName);
     }
+  },
+  commandExists(commandName: string) {
+    return this.which(commandName).then((c) => typeof c !== "undefined");
+  },
+  commandExistsSync(commandName: string) {
+    return typeof this.whichSync(commandName) !== "undefined";
   },
 };
 
