@@ -25,7 +25,8 @@ import {
   select,
   SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, dedent, fs, path, stripAnsi, which, whichSync } from "./src/deps.ts";
+import { colors, dedent, fs, path, which, whichSync } from "./src/deps.ts";
+import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
@@ -158,13 +159,7 @@ export interface $Type {
    * ```
    */
   escapeArg(arg: string): string;
-  /**
-   * Strip ANSI escape codes from a string
-   *
-   * Re-export of https://www.npmjs.com/package/strip-ansi
-   *
-   * @see https://github.com/chalk/strip-ansi
-   */
+  /** Strip ANSI escape codes from a string */
   stripAnsi(text: string): string;
   /**
    * De-indents (dedents) passed in strings
@@ -562,7 +557,9 @@ const helperObject = {
   path,
   cd,
   escapeArg,
-  stripAnsi,
+  stripAnsi(text: string) {
+    return wasmInstance.strip_ansi_codes(text);
+  },
   dedent,
   async exists(path: string) {
     return fs.exists(path);
