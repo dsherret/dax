@@ -1,4 +1,4 @@
-import { getIfInstantiated, instantiateWithCaching, WasmInstance } from "../lib/mod.ts";
+import { wasmInstance } from "../lib/mod.ts";
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 const encoder = new TextEncoder();
@@ -15,7 +15,7 @@ export enum Keys {
 }
 
 export async function* readKeys() {
-  const { strip_ansi_codes } = await instantiateWithCaching();
+  const { strip_ansi_codes } = wasmInstance;
   while (true) {
     const buf = new Uint8Array(8);
     const byteCount = await Deno.read(Deno.stdin.rid, buf);
@@ -93,7 +93,6 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
     throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
   }
   return ensureSingleSelection(async () => {
-    await logger.ensureInitialized();
     logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
     for await (const key of readKeys()) {
@@ -102,7 +101,7 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
         const size = Deno.consoleSize();
         logger.setItems(LoggerRefreshItemKind.Selection, [], size);
         if (options.noClear) {
-          await logger.logOnce(options.render(), size);
+          logger.logOnce(options.render(), size);
         }
         return keyResult;
       }
@@ -159,42 +158,30 @@ export function safeConsoleSize(): ConsoleSize | undefined {
   }
 }
 
-export async function getStaticText() {
-  const instance = await instantiateWithCaching();
-  return createStaticTextFromInstance(instance);
-}
+export const staticText = {
+  set(items: TextItem[], size?: ConsoleSize) {
+    if (items.length === 0) {
+      return this.clear(size);
+    }
 
-export function getStaticTextIfCreated() {
-  const instance = getIfInstantiated();
-  return instance == null ? undefined : createStaticTextFromInstance(instance);
-}
-
-function createStaticTextFromInstance(instance: WasmInstance) {
-  return {
-    set(items: TextItem[], size?: ConsoleSize) {
-      if (items.length === 0) {
-        return this.clear(size);
-      }
-
-      const { columns, rows } = size ?? Deno.consoleSize();
-      const newText = instance.static_text_render_text(items, columns, rows);
-      if (newText != null) {
-        Deno.stderr.writeSync(encoder.encode(newText));
-      }
-    },
-    outputItems(items: TextItem[], size?: ConsoleSize) {
-      const { columns, rows } = size ?? Deno.consoleSize();
-      const newText = instance.static_text_render_once(items, columns, rows);
-      if (newText != null) {
-        Deno.stderr.writeSync(encoder.encode(newText + "\n"));
-      }
-    },
-    clear(size?: ConsoleSize) {
-      const { columns, rows } = size ?? Deno.consoleSize();
-      const newText = instance.static_text_clear_text(columns, rows);
-      if (newText != null) {
-        Deno.stderr.writeSync(encoder.encode(newText));
-      }
-    },
-  };
-}
+    const { columns, rows } = size ?? Deno.consoleSize();
+    const newText = wasmInstance.static_text_render_text(items, columns, rows);
+    if (newText != null) {
+      Deno.stderr.writeSync(encoder.encode(newText));
+    }
+  },
+  outputItems(items: TextItem[], size?: ConsoleSize) {
+    const { columns, rows } = size ?? Deno.consoleSize();
+    const newText = wasmInstance.static_text_render_once(items, columns, rows);
+    if (newText != null) {
+      Deno.stderr.writeSync(encoder.encode(newText + "\n"));
+    }
+  },
+  clear(size?: ConsoleSize) {
+    const { columns, rows } = size ?? Deno.consoleSize();
+    const newText = wasmInstance.static_text_clear_text(columns, rows);
+    if (newText != null) {
+      Deno.stderr.writeSync(encoder.encode(newText));
+    }
+  },
+};

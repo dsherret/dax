@@ -1,7 +1,7 @@
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
-import { instantiateWithCaching } from "./lib/mod.ts";
+import { wasmInstance } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
 
@@ -337,9 +337,8 @@ export class Context {
   }
 }
 
-export async function parseCommand(command: string) {
-  const { parse } = await instantiateWithCaching();
-  return parse(command) as SequentialList;
+export function parseCommand(command: string) {
+  return wasmInstance.parse(command) as SequentialList;
 }
 
 export interface SpawnOpts {
@@ -743,7 +742,7 @@ async function parseShebangArgs(info: ShebangInfo, context: Context): Promise<st
   }
 
   // todo: move shebang parsing into deno_task_shell and investigate actual shebang parsing behaviour
-  const command = await parseCommand(info.command);
+  const command = parseCommand(info.command);
   if (command.items.length !== 1) {
     throwUnsupported();
   }

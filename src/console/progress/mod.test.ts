@@ -1,8 +1,8 @@
 import { assertEquals } from "../../deps.test.ts";
-import { instantiateWithCaching } from "../../lib/mod.ts";
+import { wasmInstance } from "../../lib/mod.ts";
 import { renderProgressBar } from "./mod.ts";
 
-const { strip_ansi_codes, static_text_render_once } = await instantiateWithCaching();
+const { strip_ansi_codes, static_text_render_once } = wasmInstance;
 
 Deno.test("should render when no length", () => {
   assertEquals(

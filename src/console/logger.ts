@@ -1,4 +1,4 @@
-import { ConsoleSize, getStaticText, getStaticTextIfCreated, safeConsoleSize, TextItem } from "./utils.ts";
+import { ConsoleSize, isOutputTty, safeConsoleSize, staticText, TextItem } from "./utils.ts";
 
 export enum LoggerRefreshItemKind {
   ProgressBars,
@@ -16,47 +16,34 @@ function setItems(kind: LoggerRefreshItemKind, items: TextItem[] | undefined, si
 }
 
 function refresh(size?: ConsoleSize) {
-  const staticText = getStaticTextIfCreated();
-  if (staticText) {
-    refreshWithStaticText(staticText, size);
+  if (!isOutputTty) {
+    return;
   }
-}
-
-function refreshWithStaticText(staticText: Awaited<ReturnType<typeof getStaticText>>, size?: ConsoleSize) {
   const items = Object.values(refreshItems).flatMap((items) => items ?? []);
   staticText.set(items, size);
 }
 
 function logAboveStaticText(inner: () => void, providedSize?: ConsoleSize) {
-  const staticText = getStaticTextIfCreated();
-  const size = staticText == null ? undefined : providedSize ?? safeConsoleSize();
-  if (staticText != null && size != null) {
+  if (!isOutputTty) {
+    inner();
+    return;
+  }
+
+  const size = providedSize ?? safeConsoleSize();
+  if (size != null) {
     staticText.clear(size);
   }
   inner();
-  if (staticText != null && size != null) {
-    refreshWithStaticText(staticText, size);
-  }
+  refresh(size);
 }
 
-async function logOnce(items: TextItem[], size?: ConsoleSize) {
-  const staticText = await getStaticText();
+function logOnce(items: TextItem[], size?: ConsoleSize) {
   logAboveStaticText(() => {
     staticText.outputItems(items, size);
   }, size);
 }
 
-async function ensureInitialized() {
-  await getStaticText();
-}
-
-function isInitilaized() {
-  return getStaticTextIfCreated() != null;
-}
-
 const logger = {
-  ensureInitialized,
-  isInitilaized,
   setItems,
   logOnce,
   logAboveStaticText,

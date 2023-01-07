@@ -3,8 +3,8 @@ import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 
-Deno.test("should render", async () => {
-  const tester = await createTester(innerPrompt({
+Deno.test("should render", () => {
+  const tester = createTester(innerPrompt({
     message: "Some question?",
   }));
 
@@ -23,8 +23,8 @@ Deno.test("should render", async () => {
   assertEquals(tester.getText(), "Some question? Ac d");
 });
 
-Deno.test("should render with default", async () => {
-  const tester = await createTester(innerPrompt({
+Deno.test("should render with default", () => {
+  const tester = createTester(innerPrompt({
     message: "Some question?",
     default: "test",
   }));

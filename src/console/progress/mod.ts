@@ -135,15 +135,32 @@ export class ProgressBar {
   }
 
   /** Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs. */
-  async with<TResult>(action: () => Promise<TResult>): Promise<TResult> {
+  with<TResult>(action: () => TResult): TResult;
+  async with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
+  with<TResult>(action: () => Promise<TResult> | TResult): Promise<TResult> | TResult {
     this.#withCount++;
+    let wasAsync = false;
     try {
-      return await action();
-    } finally {
-      this.#withCount--;
-      if (this.#withCount === 0) {
-        this.finish();
+      const result = action();
+      if (result instanceof Promise) {
+        wasAsync = true;
+        return result.finally(() => {
+          this.#decrementWith();
+        });
+      } else {
+        return result;
       }
+    } finally {
+      if (!wasAsync) {
+        this.#decrementWith();
+      }
+    }
+  }
+
+  #decrementWith() {
+    this.#withCount--;
+    if (this.#withCount === 0) {
+      this.finish();
     }
   }
 }

@@ -1,10 +1,10 @@
-import { instantiateWithCaching } from "../lib/mod.ts";
+import { wasmInstance } from "../lib/mod.ts";
 import { Keys, SelectionOptions } from "./utils.ts";
 
-export async function createTester<TReturn>(
+export function createTester<TReturn>(
   renderer: Pick<SelectionOptions<TReturn | undefined>, "render" | "onKey">,
 ) {
-  const { static_text_render_once, strip_ansi_codes } = await instantiateWithCaching();
+  const { static_text_render_once, strip_ansi_codes } = wasmInstance;
   return {
     onKey(key: string | Keys) {
       return renderer.onKey(key);

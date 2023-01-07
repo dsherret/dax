@@ -419,7 +419,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   try {
-    const list = await parseCommand(state.command);
+    const list = parseCommand(state.command);
     const code = await spawn(list, {
       stdin: state.stdin,
       stdout,

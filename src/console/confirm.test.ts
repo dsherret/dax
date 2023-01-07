@@ -3,8 +3,8 @@ import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 
-Deno.test("should render when default is false", async () => {
-  const tester = await createTester(innerConfirm({
+Deno.test("should render when default is false", () => {
+  const tester = createTester(innerConfirm({
     message: "Some question?",
     default: false,
   }));
@@ -24,8 +24,8 @@ Deno.test("should render when default is false", async () => {
   assertEquals(tester.getText(), "Some question? N");
 });
 
-Deno.test("should render when default is true", async () => {
-  const tester = await createTester(innerConfirm({
+Deno.test("should render when default is true", () => {
+  const tester = createTester(innerConfirm({
     message: "Some question?",
     default: true,
   }));
@@ -39,8 +39,8 @@ Deno.test("should render when default is true", async () => {
   assertEquals(tester.getText(), "Some question? Y");
 });
 
-Deno.test("should render when default is undefined", async () => {
-  const tester = await createTester(innerConfirm({
+Deno.test("should render when default is undefined", () => {
+  const tester = createTester(innerConfirm({
     message: "Some question?",
   }));
 

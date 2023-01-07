@@ -3,8 +3,8 @@ import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 
-Deno.test("should render", async () => {
-  const tester = await createTester(innerSelect({
+Deno.test("should render", () => {
+  const tester = createTester(innerSelect({
     message: "Some question?",
     options: [
       "Option 1",
