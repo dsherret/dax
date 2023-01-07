@@ -982,11 +982,25 @@ async function isDir(path: string) {
 Deno.test("$.commandExists", async () => {
   assertEquals(await $.commandExists("some-fake-command"), false);
   assertEquals(await $.commandExists("deno"), true);
+
+  const $new = build$({
+    commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
+      return Promise.resolve({ code: 0, kind: "continue" });
+    }),
+  });
+  assertEquals(await $new.commandExists("some-fake-command"), true);
 });
 
 Deno.test("$.commandExistsSync", () => {
   assertEquals($.commandExistsSync("some-fake-command"), false);
   assertEquals($.commandExistsSync("deno"), true);
+
+  const $new = build$({
+    commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
+      return Promise.resolve({ code: 0, kind: "continue" });
+    }),
+  });
+  assertEquals($new.commandExistsSync("some-fake-command"), true);
 });
 
 Deno.test("$.stripAnsi", () => {

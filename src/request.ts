@@ -20,6 +20,7 @@ interface RequestBuilderState {
   timeout: number | undefined;
 }
 
+/** @internal */
 export const withProgressBarFactorySymbol = Symbol();
 
 /**

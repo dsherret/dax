@@ -1,4 +1,4 @@
-import { CommandBuilder, CommandResult, escapeArg } from "./src/command.ts";
+import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -160,10 +160,10 @@ export interface $Type {
    * ```
    */
   escapeArg(arg: string): string;
-  /** Strip ANSI escape codes from a string */
+  /** Strips ANSI escape codes from a string */
   stripAnsi(text: string): string;
   /**
-   * De-indent (a.k.a. dedent/outdent) template literal strings
+   * De-indents (a.k.a. dedent/outdent) template literal strings
    *
    * Re-export of https://deno.land/x/outdent
    *
@@ -193,26 +193,14 @@ export interface $Type {
   /** Gets if the provided path exists synchronously. */
   existsSync(path: string): boolean;
   /**
-   * Using `$.which`, determine if the provided command exists
-   * resolving to `true` if `$.which` finds the specified
-   * command and to `false` otherwise.
-   *
-   * The following are equivalent:
-   *
-   * ```ts
-   * // use $.which directly
-   * if(typeof (await $.which('deno')) !== 'undefined') {
-   *   console.log('deno found');
-   * }
-   *
-   * // use $.commandExists
-   * if(await $.commandExists('deno')) {
-   *   console.log('deno found')
-   * }
-   * ```
+   * Determines if the provided command exists resolving to `true` if the command
+   * will be resolved by the shell of the current `$` or false otherwise.
    */
   commandExists(commandName: string): Promise<boolean>;
-  /** Gets if the provided command exists synchronously */
+  /**
+   * Determines if the provided command exists resolving to `true` if the command
+   * will be resolved by the shell of the current `$` or false otherwise.
+   */
   commandExistsSync(commandName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
@@ -549,12 +537,6 @@ const helperObject = {
       return whichSync(commandName);
     }
   },
-  commandExists(commandName: string) {
-    return this.which(commandName).then((c) => typeof c !== "undefined");
-  },
-  commandExistsSync(commandName: string) {
-    return typeof this.whichSync(commandName) !== "undefined";
-  },
 };
 
 /** Options for creating a custom `$`. */
@@ -654,6 +636,18 @@ function build$FromState(state: $State) {
         if (state.indentLevel.value > 0) {
           state.indentLevel.value--;
         }
+      },
+      commandExists(commandName: string) {
+        if (state.commandBuilder.getValue()[getRegisteredCommandNamesSymbol]().includes(commandName)) {
+          return Promise.resolve(true);
+        }
+        return helperObject.which(commandName).then((c) => c != null);
+      },
+      commandExistsSync(commandName: string) {
+        if (state.commandBuilder.getValue()[getRegisteredCommandNamesSymbol]().includes(commandName)) {
+          return true;
+        }
+        return helperObject.whichSync(commandName) != null;
       },
       maybeConfirm,
       confirm,

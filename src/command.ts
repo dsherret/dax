@@ -56,6 +56,9 @@ const builtInCommands = {
   pwd: pwdCommand,
 };
 
+/** @internal */
+export const getRegisteredCommandNamesSymbol = Symbol();
+
 /**
  * Underlying builder API for executing commands.
  *
@@ -390,6 +393,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    */
   async json<TResult = any>(): Promise<TResult> {
     return (await this.quiet("stdout")).stdoutJson;
+  }
+
+  /** @internal */
+  [getRegisteredCommandNamesSymbol]() {
+    return Object.keys(this.#state.commands);
   }
 }
 
