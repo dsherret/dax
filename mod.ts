@@ -159,6 +159,36 @@ export interface $Type {
    */
   escapeArg(arg: string): string;
   /**
+   * Strip ANSI escape codes from a string
+   *
+   * Re-export of https://www.npmjs.com/package/strip-ansi
+   *
+   * @see https://github.com/chalk/strip-ansi
+   */
+  stripAnsi(text: string): string;
+  /**
+   * De-indents (dedents) passed in strings
+   *
+   * Re-export of https://www.npmjs.com/package/string-dedent
+   *
+   * Removes the leading whitespace from each line,
+   * allowing you to break the string into multiple
+   * lines with indentation. If lines have an uneven
+   * amount of indentation, then only the common
+   * whitespace is removed.
+   *
+   * The opening and closing lines (which contain
+   * the ` marks) must be on their own line. The
+   * opening line must be empty, and the closing
+   * line may contain whitespace. The opening and
+   * closing line will be removed from the output,
+   * so that only the content in between remains.
+   *
+   * @see https://github.com/jridgewell/string-dedent
+   * @see https://github.com/tc39/proposal-string-dedent
+   */
+  dedent(text: string): string;
+  /**
    * Gets if the provided path exists asynchronously.
    *
    * Although there is a potential for a race condition between the
@@ -169,6 +199,101 @@ export interface $Type {
   exists(path: string): Promise<boolean>;
   /** Gets if the provided path exists synchronously. */
   existsSync(path: string): boolean;
+  /**
+   * Gets if the provided path does not exist asynchronously.
+   *
+   * Although there is a potential for a race condition between the
+   * time this check is made and the time some code is used, it may
+   * not be a big deal to use this in some scenarios and simplify
+   * the code a lot.
+   */
+  missing(path: string): Promise<boolean>;
+  /** Gets if the provided path does not exist synchronously. */
+  missingSync(path: string): boolean;
+  /**
+   * Using `$.which`, determine if the provided command exists
+   * resolving to `true` if `$.which` finds the specified
+   * command and to `false` otherwise.
+   *
+   * The following are equivalent:
+   *
+   * ```ts
+   * // use $.which directly
+   * if(typeof (await $.which('deno')) !== 'undefined') {
+   *   console.log('deno found');
+   * }
+   *
+   * // use $.commandExists
+   * if(await $.commandExists('deno')) {
+   *   console.log('deno found')
+   * }
+   * ```
+   */
+  commandExists(commandName: string): Promise<boolean>;
+  /** Gets if the provided command exists synchronously */
+  commandExistsSync(commandName: string): boolean;
+  /**
+   * Using `$.which`, determine if the provided command does
+   * not exist, resolving to `true` if `$.which` does not find
+   * the specified command and to `false` otherwise.
+   *
+   * The following are equivalent:
+   *
+   * ```ts
+   * // use $.which directly
+   * if(typeof (await $.which('deno')) === 'undefined') {
+   *   console.log('deno was not found');
+   * }
+   *
+   * // use $.commandMissing
+   * if(await $.commandMissing('deno')) {
+   *   console.log('deno was not found')
+   * }
+   * ```
+   */
+  commandMissing(commandName: string): Promise<boolean>;
+  /** Gets if the provided command does not exist synchronously */
+  commandMissingSync(commandName: string): boolean;
+  /**
+   * Check if the provided environment variable is defined and
+   * has a non-blank value.
+   *
+   * The following are equivalent:
+   *
+   * ```ts
+   * // use Deno.env directly
+   * const maybeHome = Deno.env.get('HOME')
+   * if(typeof maybeHome === 'string' && maybeHome.trim().length > 0) {
+   *   console.log('$HOME is well defined')
+   * }
+   *
+   * // use $.envExists
+   * if($.envExists('HOME')) {
+   *   console.log('$HOME is well defined')
+   * }
+   * ```
+   */
+  envExists(envName: string): boolean;
+  /**
+   * Check if the provided environment variable is not defined or
+   * is defined but has a blank value.
+   *
+   * The following are equivalent:
+   *
+   * ```ts
+   * // use Deno.env directly
+   * const homeOrDefault = Deno.env.get('HOME') ?? ""
+   * if(homeOrDefault.trim().length === 0) {
+   *   console.log('$HOME is not well defined')
+   * }
+   *
+   * // use $.envMissing
+   * if($.envMissing('HOME')) {
+   *   console.log('$HOME is not well defined')
+   * }
+   * ```
+   */
+  envMissing(envName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -478,11 +603,7 @@ const helperObject = {
   cd,
   escapeArg,
   stripAnsi,
-  dedent(text: string) {
-    // not a re-export because use as a tagged template can be problematic if
-    // it is used inside of _another_ tagged template (i.e. in $.log, etc)
-    return dedent(text);
-  },
+  dedent,
   async exists(path: string) {
     return fs.exists(path);
   },
