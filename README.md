@@ -427,14 +427,6 @@ await $.exists("./file.txt");
 $.existsSync("./file.txt");
 ```
 
-Checking if a path does not exist:
-
-```ts
-// Note: beware of "time of check to time of use" race conditions when using this
-await $.missing("./file.txt");
-$.missingSync("./file.txt");
-```
-
 Sleeping asynchronously for a specified amount of time:
 
 ```ts
@@ -454,13 +446,6 @@ Check if a command exists:
 ```ts
 console.log(await $.commandExists("deno"));
 console.log($.commandExistsSync("deno"));
-```
-
-Check if a command does not exist:
-
-```ts
-console.log(await $.commandMissing("deno"));
-console.log($.commandMissingSync("deno"));
 ```
 
 Attempting to do an action until it succeeds or hits the maximum number of retries:

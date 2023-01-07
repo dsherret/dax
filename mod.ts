@@ -192,17 +192,6 @@ export interface $Type {
   /** Gets if the provided path exists synchronously. */
   existsSync(path: string): boolean;
   /**
-   * Gets if the provided path does not exist asynchronously.
-   *
-   * Although there is a potential for a race condition between the
-   * time this check is made and the time some code is used, it may
-   * not be a big deal to use this in some scenarios and simplify
-   * the code a lot.
-   */
-  missing(path: string): Promise<boolean>;
-  /** Gets if the provided path does not exist synchronously. */
-  missingSync(path: string): boolean;
-  /**
    * Using `$.which`, determine if the provided command exists
    * resolving to `true` if `$.which` finds the specified
    * command and to `false` otherwise.
@@ -224,28 +213,6 @@ export interface $Type {
   commandExists(commandName: string): Promise<boolean>;
   /** Gets if the provided command exists synchronously */
   commandExistsSync(commandName: string): boolean;
-  /**
-   * Using `$.which`, determine if the provided command does
-   * not exist, resolving to `true` if `$.which` does not find
-   * the specified command and to `false` otherwise.
-   *
-   * The following are equivalent:
-   *
-   * ```ts
-   * // use $.which directly
-   * if(typeof (await $.which('deno')) === 'undefined') {
-   *   console.log('deno was not found');
-   * }
-   *
-   * // use $.commandMissing
-   * if(await $.commandMissing('deno')) {
-   *   console.log('deno was not found')
-   * }
-   * ```
-   */
-  commandMissing(commandName: string): Promise<boolean>;
-  /** Gets if the provided command does not exist synchronously */
-  commandMissingSync(commandName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
   /** Re-export of deno_std's `path` module. */
@@ -564,12 +531,6 @@ const helperObject = {
   existsSync(path: string) {
     return fs.existsSync(path);
   },
-  missing(path: string) {
-    return fs.exists(path).then((exists) => !exists);
-  },
-  missingSync(path: string) {
-    return !fs.existsSync(path);
-  },
   sleep,
   which(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
@@ -590,12 +551,6 @@ const helperObject = {
   },
   commandExistsSync(commandName: string) {
     return typeof this.whichSync(commandName) !== "undefined";
-  },
-  commandMissing(commandName: string) {
-    return this.which(commandName).then((c) => typeof c === "undefined");
-  },
-  commandMissingSync(commandName: string) {
-    return typeof this.whichSync(commandName) === "undefined";
   },
 };
 

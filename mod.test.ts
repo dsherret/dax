@@ -979,16 +979,6 @@ async function isDir(path: string) {
   return info?.isDirectory ? true : false;
 }
 
-Deno.test("$.missing", async () => {
-  assertEquals(await $.missing("some-fake-file.json"), true);
-  assertEquals(await $.missing($.path.fromFileUrl(import.meta.url)), false);
-});
-
-Deno.test("$.missingSync", () => {
-  assertEquals($.missingSync("some-fake-file.json"), true);
-  assertEquals($.missingSync($.path.fromFileUrl(import.meta.url)), false);
-});
-
 Deno.test("$.commandExists", async () => {
   assertEquals(await $.commandExists("some-fake-command"), false);
   assertEquals(await $.commandExists("deno"), true);
@@ -997,16 +987,6 @@ Deno.test("$.commandExists", async () => {
 Deno.test("$.commandExistsSync", () => {
   assertEquals($.commandExistsSync("some-fake-command"), false);
   assertEquals($.commandExistsSync("deno"), true);
-});
-
-Deno.test("$.commandMissing", async () => {
-  assertEquals(await $.commandMissing("some-fake-command"), true);
-  assertEquals(await $.commandMissing("deno"), false);
-});
-
-Deno.test("$.commandMissingSync", () => {
-  assertEquals($.commandMissingSync("some-fake-command"), true);
-  assertEquals($.commandMissingSync("deno"), false);
 });
 
 Deno.test("$.stripAnsi", () => {
