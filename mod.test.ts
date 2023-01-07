@@ -1015,13 +1015,13 @@ Deno.test("$.stripAnsi", async () => {
 });
 
 Deno.test("$.dedent", async () => {
-  const actual = $.dedent(`
+  const actual = $.dedent`
         This line will appear without any indentation.
           * This list will appear with 2 spaces more than previous line.
           * As will this line.
 
         Empty lines (like the one above) will not affect the common indentation.
-  `);
+  `;
 
   const expected = `
 This line will appear without any indentation.

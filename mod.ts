@@ -25,7 +25,7 @@ import {
   select,
   SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, dedent, fs, path, which, whichSync } from "./src/deps.ts";
+import { colors, fs, outdent, path, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 
@@ -162,9 +162,9 @@ export interface $Type {
   /** Strip ANSI escape codes from a string */
   stripAnsi(text: string): string;
   /**
-   * De-indents (dedents) passed in strings
+   * De-indent (a.k.a. dedent/outdent) template literal strings
    *
-   * Re-export of https://www.npmjs.com/package/string-dedent
+   * Re-export of https://deno.land/x/outdent
    *
    * Removes the leading whitespace from each line,
    * allowing you to break the string into multiple
@@ -178,11 +178,8 @@ export interface $Type {
    * line may contain whitespace. The opening and
    * closing line will be removed from the output,
    * so that only the content in between remains.
-   *
-   * @see https://github.com/jridgewell/string-dedent
-   * @see https://github.com/tc39/proposal-string-dedent
    */
-  dedent(text: string): string;
+  dedent: typeof outdent;
   /**
    * Gets if the provided path exists asynchronously.
    *
@@ -560,7 +557,7 @@ const helperObject = {
   stripAnsi(text: string) {
     return wasmInstance.strip_ansi_codes(text);
   },
-  dedent,
+  dedent: outdent,
   async exists(path: string) {
     return fs.exists(path);
   },

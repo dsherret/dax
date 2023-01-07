@@ -479,13 +479,13 @@ await $.withRetries({
 "Dedent" or remove leading whitespace from a string:
 
 ```ts
-console.log($.dedent(`
+console.log($.dedent`
     This line will appear without any indentation.
       * This list will appear with 2 spaces more than previous line.
       * As will this line.
 
     Empty lines (like the one above) will not affect the common indentation.
-  `));
+  `);
 ```
 
 ```
