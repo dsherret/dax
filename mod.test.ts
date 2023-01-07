@@ -978,3 +978,43 @@ async function isDir(path: string) {
   const info = await lstat(path);
   return info?.isDirectory ? true : false;
 }
+
+Deno.test("$.missing", async () => {
+  assertEquals(await $.missing("some-fake-file.json"), true);
+  assertEquals(await $.missing($.path.fromFileUrl(import.meta.url)), false);
+});
+
+Deno.test("$.missingSync", async () => {
+  assertEquals($.missingSync("some-fake-file.json"), true);
+  assertEquals($.missingSync($.path.fromFileUrl(import.meta.url)), false);
+});
+
+Deno.test("$.commandExists", async () => {
+  assertEquals(await $.commandExists("some-fake-command"), false);
+  assertEquals(await $.commandExists("deno"), true);
+});
+
+Deno.test("$.commandExistsSync", async () => {
+  assertEquals($.commandExistsSync("some-fake-command"), false);
+  assertEquals($.commandExistsSync("deno"), true);
+});
+
+Deno.test("$.commandMissing", async () => {
+  assertEquals(await $.commandMissing("some-fake-command"), true);
+  assertEquals(await $.commandMissing("deno"), false);
+});
+
+Deno.test("$.commandMissingSync", async () => {
+  assertEquals($.commandMissingSync("some-fake-command"), true);
+  assertEquals($.commandMissingSync("deno"), false);
+});
+
+Deno.test("$.envExists", async () => {
+  assertEquals($.envExists("PATH"), true);
+  assertEquals($.envExists("SOME_FAKE_ENV"), false);
+});
+
+Deno.test("$.envMissing", async () => {
+  assertEquals($.envMissing("PATH"), false);
+  assertEquals($.envMissing("SOME_FAKE_ENV"), true);
+});
