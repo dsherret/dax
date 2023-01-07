@@ -513,8 +513,8 @@ for await (const file of $.fs.expandGlob("**/*.ts")) {
 Remove ansi escape sequences from a string:
 
 ```ts
-$.stripAnsi("\u001B[4mUnicorn\u001B[0m");
-//=> 'Unicorn'
+$.stripAnsi("\u001B[4mHello World\u001B[0m");
+//=> 'Hello World'
 ```
 
 ## Making requests

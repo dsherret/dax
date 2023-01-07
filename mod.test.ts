@@ -1010,7 +1010,7 @@ Deno.test("$.commandMissingSync", async () => {
 });
 
 Deno.test("$.stripAnsi", async () => {
-  assertEquals($.stripAnsi("\u001B[4mUnicorn\u001B[0m"), "Unicorn");
+  assertEquals($.stripAnsi("\u001B[4mHello World\u001B[0m"), "Hello World");
   assertEquals($.stripAnsi("no ansi escapes here"), "no ansi escapes here");
 });
 
