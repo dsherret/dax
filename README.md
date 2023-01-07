@@ -427,6 +427,14 @@ await $.exists("./file.txt");
 $.existsSync("./file.txt");
 ```
 
+Checking if a path does not exist:
+
+```ts
+// Note: beware of "time of check to time of use" race conditions when using this
+await $.missing("./file.txt");
+$.missingSync("./file.txt");
+```
+
 Sleeping asynchronously for a specified amount of time:
 
 ```ts
@@ -439,6 +447,32 @@ Getting path to an executable based on a command name:
 
 ```ts
 console.log(await $.which("deno")); // outputs the path to deno executable
+```
+
+Check if a command exists:
+
+```ts
+console.log(await $.commandExists("deno"));
+console.log($.commandExistsSync("deno"));
+```
+
+Check if a command does not exist:
+
+```ts
+console.log(await $.commandMissing("deno"));
+console.log($.commandMissingSync("deno"));
+```
+
+Check if an environment variable is set (and is not blank):
+
+```ts
+console.log($.envExists("HOME"));
+```
+
+Check if an environment variable is not set (or is blank):
+
+```ts
+console.log($.envMissing("HOME"));
 ```
 
 Attempting to do an action until it succeeds or hits the maximum number of retries:
