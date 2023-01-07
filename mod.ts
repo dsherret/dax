@@ -25,7 +25,7 @@ import {
   select,
   SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, fs, path, which, whichSync } from "./src/deps.ts";
+import { colors, dedent, fs, path, stripAnsi, which, whichSync } from "./src/deps.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
@@ -477,6 +477,12 @@ const helperObject = {
   path,
   cd,
   escapeArg,
+  stripAnsi,
+  dedent(text: string) {
+    // not a re-export because use as a tagged template can be problematic if
+    // it is used inside of _another_ tagged template (i.e. in $.log, etc)
+    return dedent(text);
+  },
   async exists(path: string) {
     return fs.exists(path);
   },

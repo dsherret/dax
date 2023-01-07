@@ -7,3 +7,6 @@ export { readAll } from "https://deno.land/std@0.170.0/streams/read_all.ts";
 export { writeAllSync } from "https://deno.land/std@0.170.0/streams/write_all.ts";
 export { default as localDataDir } from "https://deno.land/x/dir@1.5.1/data_local_dir/mod.ts";
 export { RealEnvironment as DenoWhichRealEnvironment, which, whichSync } from "https://deno.land/x/which@0.2.1/mod.ts";
+export { default as stripAnsi } from "npm:strip-ansi@7.0.1";
+import dedentImport from "npm:string-dedent@3.0.1";
+export const dedent = dedentImport as any as typeof dedentImport["default"];
