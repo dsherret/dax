@@ -635,13 +635,13 @@ const helperObject = {
     return this.which(commandName).then((c) => typeof c !== "undefined");
   },
   commandExistsSync(commandName: string) {
-    return typeof this.whichSync(commandName) === "undefined";
+    return typeof this.whichSync(commandName) !== "undefined";
   },
   async commandMissing(commandName: string) {
     return this.which(commandName).then((c) => typeof c === "undefined");
   },
   commandMissingSync(commandName: string) {
-    return typeof this.whichSync(commandName) !== "undefined";
+    return typeof this.whichSync(commandName) === "undefined";
   },
   envExists(envName: string) {
     const value = Deno.env.get(envName)?.trim() ?? "";
