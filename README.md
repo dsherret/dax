@@ -510,7 +510,7 @@ for await (const file of $.fs.expandGlob("**/*.ts")) {
 }
 ```
 
-Re-export of @sindresorhus's strip-ansi:
+Remove ansi escape sequences from a string:
 
 ```ts
 $.stripAnsi("\u001B[4mUnicorn\u001B[0m");
