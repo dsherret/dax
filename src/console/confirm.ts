@@ -17,12 +17,12 @@ export interface ConfirmOptions {
   noClear?: boolean;
 }
 
-export function confirm(optsOrMessage: ConfirmOptions | string) {
-  return maybeConfirm(optsOrMessage).then(resultOrExit);
+export function confirm(optsOrMessage: ConfirmOptions | string, options?: Omit<ConfirmOptions, "message">) {
+  return maybeConfirm(optsOrMessage, options).then(resultOrExit);
 }
 
-export function maybeConfirm(optsOrMessage: ConfirmOptions | string) {
-  const opts = typeof optsOrMessage === "string" ? { message: optsOrMessage } : optsOrMessage;
+export function maybeConfirm(optsOrMessage: ConfirmOptions | string, options?: Omit<ConfirmOptions, "message">) {
+  const opts = typeof optsOrMessage === "string" ? { message: optsOrMessage, ...options } : optsOrMessage;
 
   return createSelection({
     message: opts.message,

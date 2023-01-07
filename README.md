@@ -11,7 +11,8 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 1. Minimal globals or global configuration.
    - Only a default instance of `$`, but it's not mandatory to use this.
 1. No custom CLI.
-1. Cross platform shell to help the code work on Windows.
+1. Cross platform shell.
+   - Makes more code work on Windows.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
    - Allows exporting the shell's environment to the current process.
 1. Good for application code in addition to use as a shell script replacement.
@@ -300,6 +301,11 @@ const name = await $.prompt({
   default: "Dax", // prefilled value
   noClear: true, // don't clear the text on result
 });
+
+// or hybrid
+const name = await $.prompt("What's your name?", {
+  default: "Dax",
+});
 ```
 
 Again, you can use `$.maybePrompt("What's your name?")` to get a nullable return value for when the user presses `ctrl+c`.
@@ -315,6 +321,12 @@ const result = await $.confirm("Would you like to continue?");
 const result = await $.confirm({
   message: "Would you like to continue?",
   default: true,
+});
+
+// or hybrid
+const result = await $.confirm("Would you like to continue?", {
+  default: false,
+  noClear: true,
 });
 ```
 
@@ -383,8 +395,9 @@ Set a length to be determinate, which will display a progress bar:
 
 ```ts
 const items = [/*...*/];
-const pb = $.progress("Processing Items")
-  .length(items.length);
+const pb = $.progress("Processing Items", {
+  length: items.length,
+});
 
 await pb.with(async () => {
   for (const item of items) {
@@ -396,10 +409,12 @@ await pb.with(async () => {
 
 #### Synchronous work
 
-The progress bars are updated on an interval (via `setInterval`). If you are doing a lot of synchronous work the progress bars won't update. Due to this, you can force a render where you think it would be appropriate by using the `.forceRender()` method:
+The progress bars are updated on an interval (via `setInterval`) to prevent rendering more than necessary. If you are doing a lot of synchronous work the progress bars won't update. Due to this, you can force a render where you think it would be appropriate by using the `.forceRender()` method:
 
 ```ts
-const pb = $.progress("Processing Items");
+const pb = $.progress("Processing Items", {
+  length: items.length,
+});
 
 pb.with(() => {
   for (const item of items) {
