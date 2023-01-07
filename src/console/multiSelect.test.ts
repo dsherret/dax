@@ -3,8 +3,8 @@ import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 
-Deno.test("should render", async () => {
-  const tester = await createTester(innerMultiSelect({
+Deno.test("should render", () => {
+  const tester = createTester(innerMultiSelect({
     message: "Some question?",
     options: [
       "Option 1",
@@ -83,8 +83,8 @@ Deno.test("should render", async () => {
   );
 });
 
-Deno.test("should render when nothing selected", async () => {
-  const tester = await createTester(innerMultiSelect({
+Deno.test("should render when nothing selected", () => {
+  const tester = createTester(innerMultiSelect({
     message: "Some question?",
     options: ["Option 1", "Option 2", "Option 3"],
   }));

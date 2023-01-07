@@ -15,9 +15,7 @@ export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): Rende
   };
   progressBars.push(pb);
   if (renderIntervalId == null && isOutputTty) {
-    const _ignore = logger.ensureInitialized()
-      .catch(() => {/* ignore */});
-    renderIntervalId = setInterval(forceRenderSync, intervalMs);
+    renderIntervalId = setInterval(forceRender, intervalMs);
   }
   return pb;
 }
@@ -37,21 +35,6 @@ export function removeProgressBar(pb: RenderIntervalProgressBar) {
 }
 
 export function forceRender() {
-  if (!isShowingProgressBars()) {
-    return;
-  }
-
-  if (logger.isInitilaized()) {
-    forceRenderSync();
-    return Promise.resolve();
-  } else {
-    return logger.ensureInitialized().then(() => {
-      forceRenderSync();
-    });
-  }
-}
-
-function forceRenderSync() {
   if (!isShowingProgressBars()) {
     return;
   }

@@ -401,11 +401,11 @@ The progress bars are updated on an interval (via `setInterval`). If you are doi
 ```ts
 const pb = $.progress("Processing Items");
 
-await pb.with(async () => {
+pb.with(() => {
   for (const item of items) {
     doWork(item);
     pb.increment();
-    await pb.forceRender();
+    pb.forceRender();
   }
 });
 ```

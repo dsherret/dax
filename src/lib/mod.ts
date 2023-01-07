@@ -3,21 +3,12 @@ import { instantiate } from "./rs_lib.generated.js";
 
 export type WasmInstance = Awaited<ReturnType<typeof instantiate>>;
 
-let cachedInstance: WasmInstance | undefined;
-
-export async function instantiateWithCaching() {
-  if (cachedInstance == null) {
-    let url = new URL("rs_lib_bg.wasm", import.meta.url);
-    if (url.protocol !== "file:") {
-      url = (await cacheLocalDir(url)) ?? url;
-    }
-    cachedInstance = await instantiate({ url });
+async function getWasmFileUrl() {
+  const url = new URL("rs_lib_bg.wasm", import.meta.url);
+  if (url.protocol !== "file:") {
+    return (await cacheLocalDir(url)) ?? url;
   }
-  return cachedInstance;
-}
-
-export function getIfInstantiated() {
-  return cachedInstance;
+  return url;
 }
 
 async function cacheLocalDir(url: URL) {
@@ -67,3 +58,7 @@ async function getUrlBytes(url: URL) {
   }
   return await response.arrayBuffer();
 }
+
+export const wasmInstance = await instantiate({
+  url: await getWasmFileUrl(),
+});
