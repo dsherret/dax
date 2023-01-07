@@ -1018,3 +1018,27 @@ Deno.test("$.envMissing", async () => {
   assertEquals($.envMissing("PATH"), false);
   assertEquals($.envMissing("SOME_FAKE_ENV"), true);
 });
+
+Deno.test("$.stripAnsi", async () => {
+  assertEquals($.stripAnsi("\u001B[4mUnicorn\u001B[0m"), "Unicorn");
+  assertEquals($.stripAnsi("no ansi escapes here"), "no ansi escapes here");
+});
+
+Deno.test("$.dedent", async () => {
+  const actual = $.dedent(`
+        This line will appear without any indentation.
+          * This list will appear with 2 spaces more than previous line.
+          * As will this line.
+
+        Empty lines (like the one above) will not affect the common indentation.
+  `);
+
+  const expected = `
+This line will appear without any indentation.
+  * This list will appear with 2 spaces more than previous line.
+  * As will this line.
+
+Empty lines (like the one above) will not affect the common indentation.`.trim();
+
+  assertEquals(actual, expected);
+});
