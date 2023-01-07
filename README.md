@@ -768,3 +768,32 @@ Outputs:
 Logging...
 Hello!
 ```
+
+#### Extending `$` with additional helpers
+
+There are a number of convenient helpers available on the `$` object ([see here](#helper-functions)),
+but if you wish, you can easily add your own, e.g.:
+
+```ts
+import { type $Type, build$ } from "https://deno.land/x/dax/mod.ts";
+
+const basic$ = build$();
+const $helpers = {
+  /** Echo 'Hello World' */
+  sayHi() {
+    return basic$`echo Hello World`;
+  },
+  /** Time when this $helpers object was created */
+  createdAt: Date.now(),
+} as const;
+
+type Extended$Type = $Type & typeof $helpers;
+const $ = Object.assign(basic$, $helpers) satisfies Extended$Type;
+
+await $.sayHi(); // => echoes "Hello World"
+```
+
+> Note that this example takes advantage of the Typescript `satisfies` operator,
+> which is available in Typescript 4.9 (and thus Deno 1.29.0 or greater). A
+> similar (but slightly less type-safe) effect can be obtained using the `as` operator
+> for earlier Typescript versions.
