@@ -247,10 +247,22 @@ Deno.test("build with extras", () => {
       },
     },
   });
-  local$3.add("test", "other");
+
+  const result = local$3.add("test", "other");
+  assertEquals(result, "testother");
+  // @ts-expect-error should error for non-string
+  const _assertStringFail: number = result;
+  const _assertStringPass: string = result;
   const _noExecute = () => {
     // @ts-expect-error should overwrite previous declaration
     local$3.add(2, 2);
+
+    build$({
+      extras: {
+        // @ts-expect-error only supports functions at the moment
+        prop: 5,
+      },
+    });
   };
 });
 

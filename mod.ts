@@ -503,7 +503,7 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
-type ExtrasObject = Record<string, unknown>;
+type ExtrasObject = Record<string, (...args: any[]) => unknown>;
 
 interface $State<TExtras extends ExtrasObject> {
   commandBuilder: TreeBox<CommandBuilder>;
