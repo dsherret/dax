@@ -275,6 +275,20 @@ Deno.test("build with extras", () => {
   assertEquals(local$3.recursive(3), 3);
 });
 
+Deno.test("build with extras overriding the defaults", () => {
+  const local$ = build$({
+    extras: {
+      escapeArg(a: number, b: number) {
+        return a + b;
+      },
+    },
+  });
+  // @ts-expect-error should overwrite previous declaration
+  local$.escapeArg("test");
+
+  assertEquals(local$.escapeArg(1, 2), 3);
+});
+
 Deno.test("should handle boolean list 'or'", async () => {
   {
     const output = await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`.text();

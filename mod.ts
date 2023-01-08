@@ -91,10 +91,17 @@ export interface RetryOptions<TReturn> {
 }
 
 /** Type of `$` instances. */
-export type $Type<TExtras extends ExtrasObject = {}> = Base$Type<TExtras> & TExtras;
+export type $Type<TExtras extends ExtrasObject = {}> =
+  & $Template
+  & (string extends keyof TExtras ? $BuiltInProperties<TExtras>
+    : Omit<$BuiltInProperties<TExtras>, keyof TExtras>)
+  & TExtras;
 
-export interface Base$Type<TExtras extends ExtrasObject = {}> {
+export interface $Template {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
+}
+
+export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /**
    * Makes a request to the provided URL throwing by default if the
    * response is not successful.
@@ -148,7 +155,7 @@ export interface Base$Type<TExtras extends ExtrasObject = {}> {
    * console.log(new$.add(1, 2));
    * ```
    */
-  build$<TNewExtras extends ExtrasObject>(
+  build$<TNewExtras extends ExtrasObject = {}>(
     options?: Create$Options<TNewExtras>,
   ): $Type<Omit<TExtras, keyof TNewExtras> & TNewExtras>;
   /** Changes the directory of the current process. */
@@ -822,7 +829,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
  * console.log($.add(1, 2));
  * ```
  */
-export function build$<TExtras extends ExtrasObject>(
+export function build$<TExtras extends ExtrasObject = {}>(
   options: Create$Options<TExtras> = {},
 ) {
   return build$FromState(buildInitial$State({
