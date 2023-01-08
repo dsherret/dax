@@ -13,8 +13,8 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 1. No custom CLI.
 1. Cross platform shell.
    - Makes more code work on Windows.
-   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
    - Allows exporting the shell's environment to the current process.
+   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
@@ -116,7 +116,6 @@ console.log(finalText); // 1
 ...though it's probably more straightforward to just collect the output text of a command and provide that:
 
 ```ts
-// alternatively though, calling `.text()` like so is probably easier
 const result = await $`echo 1`.text();
 const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1
@@ -705,7 +704,7 @@ const result = await requestBuilder
 
 ### Custom `$`
 
-You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself:
+You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
 import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax/mod.ts";
@@ -717,13 +716,24 @@ const requestBuilder = new RequestBuilder()
   .header("SOME_NAME", "some value");
 
 // creates a $ object with the starting environment as shown above
-const $ = build$({ commandBuilder, requestBuilder });
+const $ = build$({
+  commandBuilder,
+  requestBuilder,
+  extras: {
+    add(a: number, b: number) {
+      return a + b;
+    },
+  },
+});
 
 // this command will use the env described above, but the main
 // process won't have its environment changed
 await $`deno run my_script.ts`;
 
 const data = await $.request("https://plugins.dprint.dev/info.json").json();
+
+// use your custom function
+console.log($.add(1, 2));
 ```
 
 This may be useful also if you want to change the default configuration. Another example:

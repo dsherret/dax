@@ -220,6 +220,76 @@ Deno.test("command builder should build", async () => {
   }
 });
 
+Deno.test("build with extras", () => {
+  const local$ = build$({
+    extras: {
+      add(a: number, b: number) {
+        return a + b;
+      },
+    },
+  });
+  assertEquals(local$.add(1, 2), 3);
+
+  const local$2 = local$.build$({
+    extras: {
+      subtract(a: number, b: number) {
+        return a - b;
+      },
+    },
+  });
+  assertEquals(local$2.add(1, 2), 3);
+  assertEquals(local$2.subtract(1, 2), -1);
+
+  const local$3 = local$2.build$({
+    extras: {
+      add(a: string, b: string) {
+        return a + b;
+      },
+      recursive(a: number, times = 0): number {
+        if (a === 0) {
+          return times;
+        } else {
+          return local$3.recursive(a - 1, times + 1);
+        }
+      },
+    },
+  });
+
+  const result = local$3.add("test", "other");
+  assertEquals(result, "testother");
+  // @ts-expect-error should error for non-string
+  const _assertStringFail: number = result;
+  const _assertStringPass: string = result;
+  const _noExecute = () => {
+    // @ts-expect-error should overwrite previous declaration
+    local$3.add(2, 2);
+
+    build$({
+      extras: {
+        // @ts-expect-error only supports functions at the moment
+        prop: 5,
+      },
+    });
+  };
+
+  assertEquals(local$3.recursive(3), 3);
+});
+
+Deno.test("build with extras overriding the defaults", () => {
+  const local$ = build$({
+    extras: {
+      escapeArg(a: number, b: number) {
+        return a + b;
+      },
+    },
+  });
+  // @ts-expect-error should overwrite previous declaration
+  local$.escapeArg("test");
+  $.escapeArg("test");
+
+  assertEquals(local$.escapeArg(1, 2), 3);
+});
+
 Deno.test("should handle boolean list 'or'", async () => {
   {
     const output = await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`.text();

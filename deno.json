@@ -15,7 +15,7 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any", "no-this-alias"]
+      "exclude": ["ban-types", "no-explicit-any", "no-this-alias"]
     },
     "files": {
       "exclude": [
