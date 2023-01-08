@@ -13,8 +13,8 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 1. No custom CLI.
 1. Cross platform shell.
    - Makes more code work on Windows.
-   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
    - Allows exporting the shell's environment to the current process.
+   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
@@ -116,7 +116,6 @@ console.log(finalText); // 1
 ...though it's probably more straightforward to just collect the output text of a command and provide that:
 
 ```ts
-// alternatively though, calling `.text()` like so is probably easier
 const result = await $`echo 1`.text();
 const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1

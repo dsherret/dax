@@ -285,6 +285,7 @@ Deno.test("build with extras overriding the defaults", () => {
   });
   // @ts-expect-error should overwrite previous declaration
   local$.escapeArg("test");
+  $.escapeArg("test");
 
   assertEquals(local$.escapeArg(1, 2), 3);
 });

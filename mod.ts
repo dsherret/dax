@@ -161,7 +161,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /** Changes the directory of the current process. */
   cd(path: string | URL): void;
   /**
-   * Escapes an argument for the shell when not using the template
+   * Escapes an argument for the shell when NOT using the template
    * literal.
    *
    * This is done by default in the template literal, so you most likely
