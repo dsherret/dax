@@ -220,6 +220,40 @@ Deno.test("command builder should build", async () => {
   }
 });
 
+Deno.test("build with extras", () => {
+  const local$ = build$({
+    extras: {
+      add(a: number, b: number) {
+        return a + b;
+      },
+    },
+  });
+  assertEquals(local$.add(1, 2), 3);
+
+  const local$2 = local$.build$({
+    extras: {
+      subtract(a: number, b: number) {
+        return a - b;
+      },
+    },
+  });
+  assertEquals(local$2.add(1, 2), 3);
+  assertEquals(local$2.subtract(1, 2), -1);
+
+  const local$3 = local$2.build$({
+    extras: {
+      add(a: string, b: string) {
+        return a + b;
+      },
+    },
+  });
+  local$3.add("test", "other");
+  const _noExecute = () => {
+    // @ts-expect-error should overwrite previous declaration
+    local$3.add(2, 2);
+  };
+});
+
 Deno.test("should handle boolean list 'or'", async () => {
   {
     const output = await $`deno eval 'Deno.exit(1)' || deno eval 'console.log(5)'`.text();

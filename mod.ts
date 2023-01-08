@@ -91,7 +91,9 @@ export interface RetryOptions<TReturn> {
 }
 
 /** Type of `$` instances. */
-export interface $Type {
+export type $Type<TExtras extends ExtrasObject = {}> = Base$Type<TExtras> & TExtras;
+
+export interface Base$Type<TExtras extends ExtrasObject = {}> {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
   /**
    * Makes a request to the provided URL throwing by default if the
@@ -134,7 +136,9 @@ export interface $Type {
    * const data = await $.request("https://plugins.dprint.dev/info.json").json();
    * ```
    */
-  build$(options?: Create$Options): $Type;
+  build$<TNewExtras extends ExtrasObject>(
+    options?: Create$Options<TNewExtras>,
+  ): $Type<Omit<TExtras, keyof TNewExtras> & TNewExtras>;
   /** Changes the directory of the current process. */
   cd(path: string | URL): void;
   /**
@@ -487,16 +491,21 @@ function cd(path: string | URL) {
   Deno.chdir(path);
 }
 
-interface $State {
+type ExtrasObject = Record<string, unknown>;
+
+interface $State<TExtras extends ExtrasObject> {
   commandBuilder: TreeBox<CommandBuilder>;
   requestBuilder: RequestBuilder;
   infoLogger: LoggerTreeBox;
   warnLogger: LoggerTreeBox;
   errorLogger: LoggerTreeBox;
   indentLevel: Box<number>;
+  extras: TExtras | undefined;
 }
 
-function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $State {
+function buildInitial$State<TExtras extends ExtrasObject>(
+  opts: Create$Options<TExtras> & { isGlobal: boolean },
+): $State<TExtras> {
   return {
     commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
@@ -504,6 +513,7 @@ function buildInitial$State(opts: Create$Options & { isGlobal: boolean }): $Stat
     warnLogger: new LoggerTreeBox(console.error),
     errorLogger: new LoggerTreeBox(console.error),
     indentLevel: new Box(0),
+    extras: opts.extras,
   };
 }
 
@@ -540,14 +550,15 @@ const helperObject = {
 };
 
 /** Options for creating a custom `$`. */
-export interface Create$Options {
+export interface Create$Options<TExtras extends ExtrasObject> {
   /** Uses the state of this command builder as a starting point. */
   commandBuilder?: CommandBuilder;
   /** Uses the state of this request builder as a starting point. */
   requestBuilder?: RequestBuilder;
+  extras?: TExtras;
 }
 
-function build$FromState(state: $State) {
+function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtras>): $Type<TExtras> {
   const logDepthObj = {
     get logDepth() {
       return state.indentLevel.value;
@@ -575,7 +586,7 @@ function build$FromState(state: $State) {
     helperObject,
     logDepthObj,
     {
-      build$(opts: Create$Options = {}) {
+      build$<TNewExtras extends ExtrasObject>(opts: Create$Options<TNewExtras> = {}) {
         return build$FromState({
           commandBuilder: opts.commandBuilder != null
             ? new TreeBox(opts.commandBuilder)
@@ -585,6 +596,10 @@ function build$FromState(state: $State) {
           infoLogger: state.infoLogger.createChild(),
           warnLogger: state.warnLogger.createChild(),
           indentLevel: state.indentLevel,
+          extras: {
+            ...state.extras,
+            ...opts.extras,
+          },
         });
       },
       log(...data: any[]) {
@@ -709,6 +724,7 @@ function build$FromState(state: $State) {
         return withRetries(result, state.errorLogger.getValue(), opts);
       },
     },
+    state.extras,
   );
   // copy over the get/set accessors for logDepth
   const keyName: keyof typeof logDepthObj = "logDepth";
@@ -772,7 +788,16 @@ function build$FromState(state: $State) {
  * const requestBuilder = new RequestBuilder()
  *   .header("SOME_VALUE", "value");
  *
- * const $ = build$({ commandBuilder, requestBuilder });
+ * const $ = build$({
+ *   commandBuilder,
+ *   requestBuilder,
+ *   // optional extras
+ *   extras: {
+ *     sayHi() {
+ *       console.log("Hi!");
+ *     },
+ *   },
+ * });
  *
  * // this command will use the env described above, but the main
  * // process and default `$` won't have its environment changed
@@ -780,9 +805,14 @@ function build$FromState(state: $State) {
  *
  * // similarly, this will have the headers that were set in the request builder
  * const data = await $.request("https://plugins.dprint.dev/info.json").json();
+ *
+ * // use the extra function we defined
+ * $.sayHi(); // outputs: Hi!
  * ```
  */
-export function build$(options: Create$Options = {}) {
+export function build$<TExtras extends ExtrasObject>(
+  options: Create$Options<TExtras> = {},
+) {
   return build$FromState(buildInitial$State({
     isGlobal: false,
     ...options,
