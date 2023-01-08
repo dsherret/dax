@@ -705,7 +705,7 @@ const result = await requestBuilder
 
 ### Custom `$`
 
-You may wish to create your own `$` function that has a certain setup context (for example, custom commands, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself:
+You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
 import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax/mod.ts";
@@ -717,13 +717,24 @@ const requestBuilder = new RequestBuilder()
   .header("SOME_NAME", "some value");
 
 // creates a $ object with the starting environment as shown above
-const $ = build$({ commandBuilder, requestBuilder });
+const $ = build$({
+  commandBuilder,
+  requestBuilder,
+  extras: {
+    add(a: number, b: number) {
+      return a + b;
+    },
+  },
+});
 
 // this command will use the env described above, but the main
 // process won't have its environment changed
 await $`deno run my_script.ts`;
 
 const data = await $.request("https://plugins.dprint.dev/info.json").json();
+
+// use your custom function
+console.log($.add(1, 2));
 ```
 
 This may be useful also if you want to change the default configuration. Another example:

@@ -118,7 +118,7 @@ export interface Base$Type<TExtras extends ExtrasObject = {}> {
    * Example:
    *
    * ```ts
-   * import dax from "https://deno.land/x/dax/mod.ts";
+   * import $ from "https://deno.land/x/dax/mod.ts";
    *
    * const commandBuilder = new CommandBuilder()
    *   .cwd("./subDir")
@@ -126,14 +126,26 @@ export interface Base$Type<TExtras extends ExtrasObject = {}> {
    * const requestBuilder = new RequestBuilder()
    *   .header("SOME_VALUE", "value");
    *
-   * const $ = dax.build$({ commandBuilder, requestBuilder });
+   * const new$ = $.build$({
+   *   commandBuilder,
+   *   requestBuilder,
+   *   // optional additional functions to add to `$`
+   *   extras: {
+   *     add(a: number, b: number) {
+   *       return a + b;
+   *     },
+   *   },
+   * });
    *
    * // this command will use the env described above, but the main
    * // process and default `$` won't have its environment changed
-   * await $`deno run my_script.ts`;
+   * await new$`deno run my_script.ts`;
    *
    * // similarly, this will have the headers that were set in the request builder
-   * const data = await $.request("https://plugins.dprint.dev/info.json").json();
+   * const data = await new$.request("https://plugins.dprint.dev/info.json").json();
+   *
+   * // use the extra function we defined
+   * console.log(new$.add(1, 2));
    * ```
    */
   build$<TNewExtras extends ExtrasObject>(
@@ -791,10 +803,10 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
  * const $ = build$({
  *   commandBuilder,
  *   requestBuilder,
- *   // optional extras
+ *   // optional additional functions to add to `$`
  *   extras: {
- *     sayHi() {
- *       console.log("Hi!");
+ *     add(a: number, b: number) {
+ *       return a + b;
  *     },
  *   },
  * });
@@ -807,7 +819,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
  * const data = await $.request("https://plugins.dprint.dev/info.json").json();
  *
  * // use the extra function we defined
- * $.sayHi(); // outputs: Hi!
+ * console.log($.add(1, 2));
  * ```
  */
 export function build$<TExtras extends ExtrasObject>(
