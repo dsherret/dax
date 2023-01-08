@@ -245,6 +245,13 @@ Deno.test("build with extras", () => {
       add(a: string, b: string) {
         return a + b;
       },
+      recursive(a: number, times = 0): number {
+        if (a === 0) {
+          return times;
+        } else {
+          return local$3.recursive(a - 1, times + 1);
+        }
+      },
     },
   });
 
@@ -264,6 +271,8 @@ Deno.test("build with extras", () => {
       },
     });
   };
+
+  assertEquals(local$3.recursive(3), 3);
 });
 
 Deno.test("should handle boolean list 'or'", async () => {
