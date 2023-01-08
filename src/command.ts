@@ -28,6 +28,7 @@ type BufferStdio = "inherit" | "null" | Buffer;
 interface CommandBuilderState {
   command: string | undefined;
   stdin: ShellPipeReader;
+  combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
   noThrow: boolean;
@@ -82,6 +83,7 @@ export const getRegisteredCommandNamesSymbol = Symbol();
 export class CommandBuilder implements PromiseLike<CommandResult> {
   #state: Readonly<CommandBuilderState> = {
     command: undefined,
+    combinedStdoutStderr: false,
     stdin: "inherit",
     stdoutKind: "inherit",
     stderrKind: "inherit",
@@ -100,6 +102,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return {
       // be explicit here in order to evaluate each property on a case by case basis
       command: state.command,
+      combinedStdoutStderr: state.combinedStdoutStderr,
       stdin: state.stdin,
       stdoutKind: state.stdoutKind,
       stderrKind: state.stderrKind,
@@ -189,6 +192,26 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /**
+   * Whether to capture a combined buffer of both stdout and stderr.
+   *
+   * This will set both stdout and stderr to "piped" if not already "piped"
+   * or "inheritPiped".
+   */
+  captureCombined(value = true) {
+    return this.#newWithState((state) => {
+      state.combinedStdoutStderr = value;
+      if (value) {
+        if (state.stdoutKind !== "piped" && state.stdoutKind !== "inheritPiped") {
+          state.stdoutKind = "piped";
+        }
+        if (state.stderrKind !== "piped" && state.stderrKind !== "inheritPiped") {
+          state.stderrKind = "piped";
+        }
+      }
+    });
+  }
+
   /** Sets the stdin to use for the command. */
   stdin(reader: ShellPipeReader | string | Uint8Array) {
     return this.#newWithState((state) => {
@@ -208,6 +231,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind) {
     return this.#newWithState((state) => {
+      if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
+        throw new Error(
+          "Cannot set stdout's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
+        );
+      }
       state.stdoutKind = kind;
     });
   }
@@ -215,6 +243,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind) {
     return this.#newWithState((state) => {
+      if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
+        throw new Error(
+          "Cannot set stderr's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
+        );
+      }
       state.stderrKind = kind;
     });
   }
@@ -461,8 +494,10 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
     const hasProgressBars = isShowingProgressBars();
     const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdoutKind);
     const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderrKind);
-    if (isPipedBuffer(stdoutBuffer) && isPipedBuffer(stderrBuffer)) {
-      // if both are piped then create a capturing buffer writer for both
+    if (state.combinedStdoutStderr) {
+      if (typeof stdoutBuffer === "string" || typeof stderrBuffer === "string") {
+        throw new Error("Internal programming error. Expected writers for stdout and stderr.");
+      }
       const combinedBuffer = new Buffer();
       return [
         new CapturingBufferWriter(stdoutBuffer, combinedBuffer),
@@ -491,12 +526,6 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
           throw new Error("Unhandled.");
         }
       }
-    }
-
-    function isPipedBuffer(
-      pipe: Buffer | CapturingBufferWriter | InheritStaticTextBypassWriter | "null" | "inherit",
-    ): pipe is Buffer | CapturingBufferWriter {
-      return pipe instanceof Buffer || pipe instanceof CapturingBufferWriter;
     }
   }
 
@@ -558,7 +587,7 @@ export class CommandResult {
   get stdoutBytes(): Uint8Array {
     if (typeof this.#stdout === "string") {
       throw new Error(
-        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") on the process.`,
+        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") when building the command.`,
       );
     }
     return this.#stdout.bytes();
@@ -592,7 +621,7 @@ export class CommandResult {
   get stderrBytes(): Uint8Array {
     if (typeof this.#stderr === "string") {
       throw new Error(
-        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") on the process.`,
+        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") when building the command.`,
       );
     }
     return this.#stderr.bytes();
@@ -611,11 +640,7 @@ export class CommandResult {
   /** Raw combined stdout and stderr bytes. */
   get combinedBytes(): Uint8Array {
     if (this.#combined == null) {
-      // one of these won't be piped, and accessing
-      // them will throw the appropriate exception
-      this.stdoutBytes;
-      this.stderrBytes;
-      throw new Error("unreachable");
+      throw new Error("Stdout and stderr were not combined. Call .captureCombined() when building the command.");
     }
     return this.#combined.bytes();
   }
