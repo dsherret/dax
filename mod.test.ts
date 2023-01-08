@@ -44,7 +44,7 @@ Deno.test("should not get stderr when inherited only (default)", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") on the process.`,
+    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") when building the command.`,
   );
 });
 
@@ -54,7 +54,7 @@ Deno.test("should not get stderr when null", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("capture") on the process.`,
+    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("capture") when building the command.`,
   );
 });
 
@@ -70,30 +70,39 @@ Deno.test("should capture stderr when inherited and piped", async () => {
   assertEquals(output.stderr, "5\n");
 });
 
-Deno.test("should get combined stdout and stderr when both piped", async () => {
-  const output = await $`echo 1 ; sleep 0.5 ; deno eval 'console.error(2);'`.stdout("piped").stderr("piped");
+Deno.test("should get combined stdout and stderr when specified", async () => {
+  const output = await $`echo 1 ; sleep 0.5 ; deno eval 'console.error(2);'`.captureCombined();
   assertEquals(output.code, 0);
   assertEquals(output.combined, "1\n2\n");
 });
 
-Deno.test("should not get combined stdout and stderr when stdout is inherited (default)", async () => {
-  const output = await $`deno eval 'console.error("should output");'`;
+Deno.test("should not get combined stdout and stderr when not calling combined output", async () => {
+  const output = await $`deno eval 'console.error("should output");'`.stdout("piped").stderr("piped");
   assertEquals(output.code, 0);
   assertThrows(
     () => output.combined,
     Error,
-    `Stdout was not piped (was inherit). Call .stdout("piped") or .stdout("capture") on the process.`,
+    `Stdout and stderr were not combined. Call .captureCombined() when building the command.`,
   );
 });
 
-Deno.test("should not get combined stdout and stderr when stderr is inherited", async () => {
-  const output = await $`deno eval 'console.error("should output");'`.stdout("piped");
-  assertEquals(output.code, 0);
-  assertThrows(
-    () => output.combined,
-    Error,
-    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") on the process.`,
-  );
+Deno.test("should error setting stdout after getting combined output", () => {
+  for (const value of ["null", "inherit"] as const) {
+    assertThrows(
+      () => {
+        $``.captureCombined(true).stdout(value);
+      },
+      Error,
+      "Cannot set stdout's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
+    );
+    assertThrows(
+      () => {
+        $``.captureCombined(true).stderr(value);
+      },
+      Error,
+      "Cannot set stderr's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
+    );
+  }
 });
 
 Deno.test("should throw when exit code is non-zero", async () => {

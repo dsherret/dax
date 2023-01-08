@@ -74,6 +74,15 @@ const output = await $`echo '{ "test": 5 }'`.stdout("piped");
 console.log(output.stdoutJson);
 ```
 
+Getting the combined output:
+
+```ts
+const result = await $`deno eval 'console.log(1); console.error(2); console.log(3);'`
+  .captureCombined();
+
+console.log(result.combined); // 1\n2\n3\n
+```
+
 ### Providing arguments to a command
 
 Use an expression in a template literal to provide a single argument to a command:
