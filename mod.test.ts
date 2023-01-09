@@ -122,6 +122,23 @@ Deno.test("should throw when exit code is non-zero", async () => {
     Error,
     "Exited with code: 2",
   );
+
+  await assertRejects(
+    async () => {
+      await $`exit 3 && echo 1 && echo 2`;
+    },
+    Error,
+    "Exited with code: 3",
+  );
+
+  // regression test for previous bug
+  await assertRejects(
+    async () => {
+      await $`echo 1 && echo 2 && exit 3`;
+    },
+    Error,
+    "Exited with code: 3",
+  );
 });
 
 Deno.test("should change the cwd, but only in the shell", async () => {
