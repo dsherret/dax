@@ -461,7 +461,7 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
     );
     switch (nextResult.kind) {
       case "exit":
-        return firstResult;
+        return nextResult;
       case "continue":
         if (nextResult.changes) {
           changes.push(...nextResult.changes);
