@@ -583,6 +583,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     // have not finished before the process finished
     const _ignore = writeStdin(context.stdin, p, completeSignal)
       .catch((err) => {
+        context.stderr.writeLine(`stdin pipe broken. ${err}`);
         stdinError = err;
         // kill the sub process
         // todo(THIS PR): race condition here where the process doesn't exist? add some tests
@@ -596,7 +597,6 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       readStderrTask,
     ]);
     if (stdinError != null) {
-      context.stderr.writeLine(`stdin pipe broken. ${stdinError}`);
       return {
         code: 1,
         kind: "exit",
