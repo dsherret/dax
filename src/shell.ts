@@ -461,7 +461,7 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
     );
     switch (nextResult.kind) {
       case "exit":
-        return firstResult;
+        return nextResult;
       case "continue":
         if (nextResult.changes) {
           changes.push(...nextResult.changes);
@@ -577,11 +577,17 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
   context.signal.addEventListener("abort", abortListener);
   const completeController = new AbortController();
   const completeSignal = completeController.signal;
+  let stdinError: unknown | undefined;
   try {
     // ignore the result of writing to stdin because it may
     // have not finished before the process finished
     const _ignore = writeStdin(context.stdin, p, completeSignal)
-      .catch(() => {/* ignore */});
+      .catch((err) => {
+        stdinError = err;
+        // kill the sub process
+        // todo(THIS PR): race condition here where the process doesn't exist? add some tests
+        p.kill("SIGKILL");
+      });
     const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
     const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
     const [status] = await Promise.all([
@@ -589,7 +595,13 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       readStdoutTask,
       readStderrTask,
     ]);
-    if (context.signal.aborted) {
+    if (stdinError != null) {
+      context.stderr.writeLine(`stdin pipe broken. ${stdinError}`);
+      return {
+        code: 1,
+        kind: "exit",
+      };
+    } else if (context.signal.aborted) {
       return getAbortedResult();
     } else {
       return resultFromCode(status.code);
@@ -598,8 +610,21 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     completeController.abort();
     context.signal.removeEventListener("abort", abortListener);
     p.close();
-    p.stdout?.close();
-    p.stderr?.close();
+    try {
+      p.stdin?.close();
+    } catch {
+      // ignore
+    }
+    try {
+      p.stdout?.close();
+    } catch {
+      // ignore
+    }
+    try {
+      p.stderr?.close();
+    } catch {
+      // ignore
+    }
   }
 
   async function writeStdin(stdin: ShellPipeReader, p: Deno.Process, signal: AbortSignal) {

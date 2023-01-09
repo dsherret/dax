@@ -1,7 +1,8 @@
+import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
 import { lstat, rustJoin } from "./src/common.ts";
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
-import { Buffer, colors, path } from "./src/deps.ts";
+import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -639,6 +640,150 @@ Deno.test("piping to stdin", async () => {
         .stdin(new TextEncoder().encode("test\n"))
         .text();
     assertEquals(result, "test");
+  }
+
+  // readable stream
+  {
+    const child = $`echo 1 && echo 2`.stdout("piped").spawn();
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child.stdout())
+      .text();
+    assertEquals(result, "1\n2");
+  }
+});
+
+Deno.test("streaming api not piped", async () => {
+  const child = $`echo 1 && echo 2`.spawn();
+  assertThrows(
+    () => child.stdout(),
+    Error,
+    `No pipe available. Ensure stdout is "piped" (not "inheritPiped") and combinedOutput is not enabled.`,
+  );
+  assertThrows(
+    () => child.stderr(),
+    Error,
+    `No pipe available. Ensure stderr is "piped" (not "inheritPiped") and combinedOutput is not enabled.`,
+  );
+  await child;
+});
+
+Deno.test("streaming api then non-streaming should error", async () => {
+  const child = $`echo 1 && echo 2`.stdout("piped").stderr("piped").spawn();
+  const stdout = readerFromStreamReader(child.stdout().getReader());
+  const stderr = readerFromStreamReader(child.stderr().getReader());
+  const result = await child;
+  // ensure these are all read to prevent issues with sanitizers
+  await readAll(stdout);
+  await readAll(stderr);
+
+  assertThrows(
+    () => {
+      result.stdout;
+    },
+    Error,
+    "Stdout was streamed to another source and is no longer available.",
+  );
+  assertThrows(
+    () => {
+      result.stderr;
+    },
+    Error,
+    "Stderr was streamed to another source and is no longer available.",
+  );
+});
+
+Deno.test("streaming api", async () => {
+  // stdout
+  {
+    const child = $`echo 1 && echo 2`.stdout("piped").spawn();
+    const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child.stdout())
+      .text();
+    assertEquals(text, "1\n2");
+  }
+
+  // stderr
+  {
+    const child = $`deno eval 'console.error(1); console.error(2)'`.stderr("piped").spawn();
+    const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child.stderr())
+      .text();
+    assertEquals(text, "1\n2");
+  }
+
+  // both
+  {
+    const child = $`deno eval 'console.log(1); setTimeout(() => console.error(2), 10)'`
+      .stdout("piped")
+      .stderr("piped")
+      .spawn();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let hasClosed = false;
+        read(child.stdout().getReader());
+        read(child.stderr().getReader());
+
+        async function read(reader: ReadableStreamDefaultReader<Uint8Array>) {
+          while (true) {
+            const v = await reader.read();
+            if (v.value != null) {
+              controller.enqueue(v.value);
+            } else if (v.done) {
+              if (!hasClosed) {
+                controller.close();
+                hasClosed = true;
+              }
+              return;
+            }
+          }
+        }
+      },
+    });
+    const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(stream)
+      .text();
+    assertEquals(text, "1\n2");
+  }
+});
+
+Deno.test("streaming api errors while streaming", async () => {
+  {
+    const child = $`echo 1 && echo 2 && exit 1`.stdout("piped").spawn();
+    const stdout = child.stdout();
+
+    // todo(THIS PR): this shouldn't be necessary... only surface this if someone
+    // subscribes to the promise (but only when piping obviously)
+    // prevent top level await
+    child.catch(() => {/* ignore */});
+
+    await assertRejects(
+      async () => {
+        await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+          .stdin(stdout)
+          .text();
+      },
+      Error,
+      "Exited with code: 1",
+    );
+  }
+
+  {
+    const child = $`echo 1 && echo 2 && sleep 0.1 && exit 1`.stdout("piped").spawn();
+    const stdout = child.stdout();
+
+    // todo(THIS PR): this shouldn't be necessary... only surface this if someone
+    // subscribes to the promise (but only when piping obviously)
+    // prevent top level await
+    child.catch(() => {/* ignore */});
+
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(stdout)
+      .noThrow()
+      .stdout("piped")
+      .stderr("piped")
+      .spawn();
+    assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+    assertEquals(result.stdout, "1\n2\n");
   }
 });
 

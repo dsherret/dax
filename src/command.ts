@@ -10,11 +10,12 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
   CapturingBufferWriter,
   InheritStaticTextBypassWriter,
   NullPipeWriter,
+  PipedBuffer,
   ShellPipeReader,
   ShellPipeWriter,
   ShellPipeWriterKind,
@@ -23,11 +24,11 @@ import { parseCommand, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 
-type BufferStdio = "inherit" | "null" | Buffer;
+type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
 interface CommandBuilderState {
   command: string | undefined;
-  stdin: ShellPipeReader;
+  stdin: ShellPipeReader | ReadableStream<Uint8Array>;
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
@@ -137,7 +138,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * This is an alias for awaiting the command builder or calling `.then(...)`
    */
-  spawn(): Promise<CommandResult> {
+  spawn(): CommandChild {
     // store a snapshot of the current command
     // in case someone wants to spawn multiple
     // commands with different state
@@ -213,7 +214,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the stdin to use for the command. */
-  stdin(reader: ShellPipeReader | string | Uint8Array) {
+  stdin(reader: ShellPipeReader | string | Uint8Array | ReadableStream<Uint8Array>) {
     return this.#newWithState((state) => {
       if (typeof reader === "string") {
         // todo: support cloning these buffers so that
@@ -434,7 +435,68 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 }
 
-export async function parseAndSpawnCommand(state: CommandBuilderState) {
+export class CommandChild extends Promise<CommandResult> {
+  #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
+  #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
+
+  /** @internal */
+  constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
+    pipedStdoutBuffer: PipedBuffer | undefined;
+    pipedStderrBuffer: PipedBuffer | undefined;
+  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined }) {
+    super(executor);
+    this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
+    this.#pipedStderrBuffer = options.pipedStderrBuffer;
+  }
+
+  stdout() {
+    const buffer = this.#pipedStdoutBuffer;
+    this.#assertBufferStreamable("stdout", buffer);
+    this.#pipedStdoutBuffer = "consumed";
+    return this.#bufferToStream(buffer);
+  }
+
+  stderr() {
+    const buffer = this.#pipedStderrBuffer;
+    this.#assertBufferStreamable("stderr", buffer);
+    this.#pipedStderrBuffer = "consumed";
+    return this.#bufferToStream(buffer);
+  }
+
+  #assertBufferStreamable(name: string, buffer: PipedBuffer | "consumed" | undefined): asserts buffer is PipedBuffer {
+    if (buffer == null) {
+      throw new Error(
+        `No pipe available. Ensure ${name} is "piped" (not "inheritPiped") and combinedOutput is not enabled.`,
+      );
+    }
+    if (buffer === "consumed") {
+      throw new Error(`Streamable ${name} was already consumed. Use the previously acquired stream instead.`);
+    }
+  }
+
+  #bufferToStream(buffer: PipedBuffer) {
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        buffer.setListener({
+          writeSync(data) {
+            // todo: investigate if it's safe to not make a
+            // copy here then add a test for that
+            controller.enqueue(data.slice()); // make a copy
+            return data.length;
+          },
+          setError(err: Error) {
+            controller.error(err);
+          },
+          close() {
+            controller.close();
+          },
+        });
+      },
+    });
+  }
+}
+
+export function parseAndSpawnCommand(state: CommandBuilderState) {
   if (state.command == null) {
     throw new Error("A command must be set before it can be spawned.");
   }
@@ -458,37 +520,54 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   if (state.timeout != null) {
     timeoutId = setTimeout(() => abortController.abort(), state.timeout);
   }
+  const command = state.command;
 
-  try {
-    const list = parseCommand(state.command);
-    const code = await spawn(list, {
-      stdin: state.stdin,
-      stdout,
-      stderr,
-      env: buildEnv(state.env),
-      commands: state.commands,
-      cwd: state.cwd ?? Deno.cwd(),
-      exportEnv: state.exportEnv,
-      signal: abortController.signal,
-    });
-    if (code !== 0 && !state.noThrow) {
-      if (abortController.signal.aborted) {
-        throw new Error(`Timed out with exit code: ${code}`);
-      } else {
-        throw new Error(`Exited with code: ${code}`);
+  return new CommandChild(async (resolve, reject) => {
+    try {
+      const list = parseCommand(command);
+      const code = await spawn(list, {
+        stdin: state.stdin instanceof ReadableStream ? readerFromStreamReader(state.stdin.getReader()) : state.stdin,
+        stdout,
+        stderr,
+        env: buildEnv(state.env),
+        commands: state.commands,
+        cwd: state.cwd ?? Deno.cwd(),
+        exportEnv: state.exportEnv,
+        signal: abortController.signal,
+      });
+      if (code !== 0 && !state.noThrow) {
+        if (state.stdin instanceof ReadableStream) {
+          if (!state.stdin.locked) {
+            state.stdin.cancel();
+          }
+        }
+        if (abortController.signal.aborted) {
+          throw new Error(`Timed out with exit code: ${code}`);
+        } else {
+          throw new Error(`Exited with code: ${code}`);
+        }
+      }
+      resolve(
+        new CommandResult(
+          code,
+          finalizeCommandResultBuffer(stdoutBuffer),
+          finalizeCommandResultBuffer(stderrBuffer),
+          combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
+        ),
+      );
+    } catch (err) {
+      finalizeCommandResultBufferForError(stdoutBuffer, err as Error);
+      finalizeCommandResultBufferForError(stderrBuffer, err as Error);
+      reject(err);
+    } finally {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
       }
     }
-    return new CommandResult(
-      code,
-      finalizeCommandResultBuffer(stdoutBuffer),
-      finalizeCommandResultBuffer(stderrBuffer),
-      combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
-    );
-  } finally {
-    if (timeoutId != null) {
-      clearTimeout(timeoutId);
-    }
-  }
+  }, {
+    pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
+    pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
+  });
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();
@@ -516,7 +595,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
             return "inherit";
           }
         case "piped":
-          return new Buffer();
+          return new PipedBuffer();
         case "inheritPiped":
           return new CapturingBufferWriter(innerWriter, new Buffer());
         case "null":
@@ -530,15 +609,29 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: Buffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
-  ) {
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+  ): BufferStdio {
     if (buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
     } else if (buffer instanceof InheritStaticTextBypassWriter) {
       buffer.flush(); // this is line buffered, so flush anything left
       return "inherit";
+    } else if (buffer instanceof PipedBuffer) {
+      buffer.close();
+      return buffer.getBuffer() ?? "streamed";
     } else {
       return buffer;
+    }
+  }
+
+  function finalizeCommandResultBufferForError(
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+    error: Error,
+  ) {
+    if (buffer instanceof InheritStaticTextBypassWriter) {
+      buffer.flush(); // this is line buffered, so flush anything left
+    } else if (buffer instanceof PipedBuffer) {
+      buffer.setError(error);
     }
   }
 }
@@ -585,12 +678,17 @@ export class CommandResult {
 
   /** Raw stdout bytes. */
   get stdoutBytes(): Uint8Array {
+    if (this.#stdout === "streamed") {
+      throw new Error(
+        `Stdout was streamed to another source and is no longer available.`,
+      );
+    }
     if (typeof this.#stdout === "string") {
       throw new Error(
         `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") when building the command.`,
       );
     }
-    return this.#stdout.bytes();
+    return this.#stdout.bytes({ copy: false });
   }
 
   #memoizedStderr: string | undefined;
@@ -619,12 +717,17 @@ export class CommandResult {
 
   /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
+    if (this.#stdout === "streamed") {
+      throw new Error(
+        `Stderr was streamed to another source and is no longer available.`,
+      );
+    }
     if (typeof this.#stderr === "string") {
       throw new Error(
         `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") when building the command.`,
       );
     }
-    return this.#stderr.bytes();
+    return this.#stderr.bytes({ copy: false });
   }
 
   #memoizedCombined: string | undefined;
@@ -642,7 +745,7 @@ export class CommandResult {
     if (this.#combined == null) {
       throw new Error("Stdout and stderr were not combined. Call .captureCombined() when building the command.");
     }
-    return this.#combined.bytes();
+    return this.#combined.bytes({ copy: false });
   }
 }
 
