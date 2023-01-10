@@ -3,7 +3,7 @@ import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
-import { EnvChange, ExecuteResult, resultFromCode } from "./result.ts";
+import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -321,6 +321,9 @@ export class Context {
       get stderr() {
         return context.stderr;
       },
+      get signal() {
+        return context.signal;
+      },
     };
   }
 
@@ -577,11 +580,26 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
   context.signal.addEventListener("abort", abortListener);
   const completeController = new AbortController();
   const completeSignal = completeController.signal;
+  let stdinError: unknown | undefined;
+  const stdinPromise = writeStdin(context.stdin, p, completeSignal)
+    .catch((err) => {
+      // don't surface anything because it's already been aborted
+      if (completeSignal.aborted) {
+        return;
+      }
+
+      context.stderr.writeLine(`stdin pipe broken. ${err}`);
+      stdinError = err;
+      // kill the sub process
+      try {
+        p.kill("SIGKILL");
+      } catch (err) {
+        if (!(err instanceof Deno.errors.PermissionDenied || err instanceof Deno.errors.NotFound)) {
+          throw err;
+        }
+      }
+    });
   try {
-    // ignore the result of writing to stdin because it may
-    // have not finished before the process finished
-    const _ignore = writeStdin(context.stdin, p, completeSignal)
-      .catch(() => {/* ignore */});
     const readStdoutTask = readStdOutOrErr(p.stdout, context.stdout);
     const readStderrTask = readStdOutOrErr(p.stderr, context.stderr);
     const [status] = await Promise.all([
@@ -589,7 +607,12 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       readStdoutTask,
       readStderrTask,
     ]);
-    if (context.signal.aborted) {
+    if (stdinError != null) {
+      return {
+        code: 1,
+        kind: "exit",
+      };
+    } else if (context.signal.aborted) {
       return getAbortedResult();
     } else {
       return resultFromCode(status.code);
@@ -598,8 +621,24 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     completeController.abort();
     context.signal.removeEventListener("abort", abortListener);
     p.close();
-    p.stdout?.close();
-    p.stderr?.close();
+    try {
+      p.stdin?.close();
+    } catch {
+      // ignore
+    }
+    try {
+      p.stdout?.close();
+    } catch {
+      // ignore
+    }
+    try {
+      p.stderr?.close();
+    } catch {
+      // ignore
+    }
+
+    // ensure this is done before exiting... it should never throw and it should exit quickly
+    await stdinPromise;
   }
 
   async function writeStdin(stdin: ShellPipeReader, p: Deno.Process, signal: AbortSignal) {
@@ -607,7 +646,11 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       return;
     }
     await pipeReaderToWriter(stdin, p.stdin!, signal);
-    p.stdin!.close();
+    try {
+      p.stdin!.close();
+    } catch {
+      // ignore
+    }
   }
 
   async function readStdOutOrErr(reader: Deno.Reader | null, writer: ShellPipeWriter) {
@@ -620,9 +663,16 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
   }
 
   async function pipeReaderToWriter(reader: Deno.Reader, writer: Deno.Writer, signal: AbortSignal) {
+    const abortedPromise = new Promise<void>((resolve) => {
+      signal.addEventListener("abort", listener);
+      function listener() {
+        signal.removeEventListener("abort", listener);
+        resolve();
+      }
+    });
     while (!signal.aborted) {
       const buffer = new Uint8Array(1024);
-      const length = await reader.read(buffer);
+      const length = await Promise.race([abortedPromise, reader.read(buffer)]);
       if (length === 0 || length == null) {
         break;
       }
@@ -827,11 +877,4 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
     result.push(currentText);
   }
   return result;
-}
-
-function getAbortedResult(): ExecuteResult {
-  return {
-    kind: "exit",
-    code: 124, // same as timeout command
-  };
 }

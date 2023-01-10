@@ -8,6 +8,13 @@ export function resultFromCode(code: number): ContinueExecuteResult {
   };
 }
 
+export function getAbortedResult(): ExecuteResult {
+  return {
+    kind: "exit",
+    code: 124, // same as timeout command
+  };
+}
+
 /** Tells the shell it should exit immediately with the provided exit code. */
 export interface ExitExecuteResult {
   kind: "exit";

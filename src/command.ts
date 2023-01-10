@@ -8,13 +8,14 @@ import { rmCommand } from "./commands/rm.ts";
 import { pwdCommand } from "./commands/pwd.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
-import { delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
   CapturingBufferWriter,
   InheritStaticTextBypassWriter,
   NullPipeWriter,
+  PipedBuffer,
   ShellPipeReader,
   ShellPipeWriter,
   ShellPipeWriterKind,
@@ -23,11 +24,11 @@ import { parseCommand, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 
-type BufferStdio = "inherit" | "null" | Buffer;
+type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
 interface CommandBuilderState {
   command: string | undefined;
-  stdin: ShellPipeReader;
+  stdin: "inherit" | "null" | Box<Deno.Reader | ReadableStream<Uint8Array> | "consumed">;
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
@@ -137,7 +138,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * This is an alias for awaiting the command builder or calling `.then(...)`
    */
-  spawn(): Promise<CommandResult> {
+  spawn(): CommandChild {
     // store a snapshot of the current command
     // in case someone wants to spawn multiple
     // commands with different state
@@ -212,20 +213,33 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
-  /** Sets the stdin to use for the command. */
-  stdin(reader: ShellPipeReader | string | Uint8Array) {
+  /**
+   * Sets the stdin to use for the command.
+   *
+   * @remarks If multiple launches of a command occurs, then stdin will only be
+   * read from the first consumed reader or readable stream and error otherwise.
+   * For this reason, if you are setting stdin to something other than "inherit" or
+   * "null", then it's recommended to set this each time you spawn a command.
+   */
+  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>) {
     return this.#newWithState((state) => {
-      if (typeof reader === "string") {
-        // todo: support cloning these buffers so that
-        // the state is immutable when creating a new
-        // builder... this is a bug
-        state.stdin = new Buffer(new TextEncoder().encode(reader));
-      } else if (reader instanceof Uint8Array) {
-        state.stdin = new Buffer(reader);
-      } else {
+      if (reader === "inherit" || reader === "null") {
         state.stdin = reader;
+      } else if (reader instanceof Uint8Array) {
+        state.stdin = new Box(new Buffer(reader));
+      } else {
+        state.stdin = new Box(reader);
       }
     });
+  }
+
+  /**
+   * Sets the stdin string to use for a command.
+   *
+   * @remarks See the remarks on stdin. The same applies here.
+   */
+  stdinText(text: string) {
+    return this.stdin(new TextEncoder().encode(text));
   }
 
   /** Set the stdout kind. */
@@ -434,7 +448,80 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 }
 
-export async function parseAndSpawnCommand(state: CommandBuilderState) {
+export class CommandChild extends Promise<CommandResult> {
+  #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
+  #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
+  #abortController: AbortController | undefined;
+
+  /** @internal */
+  constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
+    pipedStdoutBuffer: PipedBuffer | undefined;
+    pipedStderrBuffer: PipedBuffer | undefined;
+    abortController: AbortController | undefined;
+  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, abortController: undefined }) {
+    super(executor);
+    this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
+    this.#pipedStderrBuffer = options.pipedStderrBuffer;
+    this.#abortController = options.abortController;
+  }
+
+  /** Cancels the executing command if able. */
+  abort() {
+    this.#abortController?.abort();
+  }
+
+  stdout() {
+    const buffer = this.#pipedStdoutBuffer;
+    this.#assertBufferStreamable("stdout", buffer);
+    this.#pipedStdoutBuffer = "consumed";
+    this.catch(() => {
+      // observe and ignore
+    });
+    return this.#bufferToStream(buffer);
+  }
+
+  stderr() {
+    const buffer = this.#pipedStderrBuffer;
+    this.#assertBufferStreamable("stderr", buffer);
+    this.#pipedStderrBuffer = "consumed";
+    this.catch(() => {
+      // observe and ignore
+    });
+    return this.#bufferToStream(buffer);
+  }
+
+  #assertBufferStreamable(name: string, buffer: PipedBuffer | "consumed" | undefined): asserts buffer is PipedBuffer {
+    if (buffer == null) {
+      throw new Error(
+        `No pipe available. Ensure ${name} is "piped" (not "inheritPiped") and combinedOutput is not enabled.`,
+      );
+    }
+    if (buffer === "consumed") {
+      throw new Error(`Streamable ${name} was already consumed. Use the previously acquired stream instead.`);
+    }
+  }
+
+  #bufferToStream(buffer: PipedBuffer) {
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        buffer.setListener({
+          writeSync(data) {
+            controller.enqueue(data);
+            return data.length;
+          },
+          setError(err: Error) {
+            controller.error(err);
+          },
+          close() {
+            controller.close();
+          },
+        });
+      },
+    });
+  }
+}
+
+export function parseAndSpawnCommand(state: CommandBuilderState) {
   if (state.command == null) {
     throw new Error("A command must be set before it can be spawned.");
   }
@@ -454,39 +541,76 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   );
 
   const abortController = new AbortController();
+  const abortSignal = abortController.signal;
   let timeoutId: number | undefined;
+  let timedOut = false;
   if (state.timeout != null) {
-    timeoutId = setTimeout(() => abortController.abort(), state.timeout);
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+    }, state.timeout);
   }
+  const command = state.command;
 
-  try {
-    const list = parseCommand(state.command);
-    const code = await spawn(list, {
-      stdin: state.stdin,
-      stdout,
-      stderr,
-      env: buildEnv(state.env),
-      commands: state.commands,
-      cwd: state.cwd ?? Deno.cwd(),
-      exportEnv: state.exportEnv,
-      signal: abortController.signal,
-    });
-    if (code !== 0 && !state.noThrow) {
-      if (abortController.signal.aborted) {
-        throw new Error(`Timed out with exit code: ${code}`);
-      } else {
-        throw new Error(`Exited with code: ${code}`);
+  return new CommandChild(async (resolve, reject) => {
+    try {
+      const list = parseCommand(command);
+      const stdin = takeStdin();
+      const code = await spawn(list, {
+        stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
+        stdout,
+        stderr,
+        env: buildEnv(state.env),
+        commands: state.commands,
+        cwd: state.cwd ?? Deno.cwd(),
+        exportEnv: state.exportEnv,
+        signal: abortSignal,
+      });
+      if (code !== 0 && !state.noThrow) {
+        if (stdin instanceof ReadableStream) {
+          if (!stdin.locked) {
+            stdin.cancel();
+          }
+        }
+        if (abortSignal.aborted) {
+          throw new Error(`${timedOut ? "Timed out" : "Aborted"} with exit code: ${code}`);
+        } else {
+          throw new Error(`Exited with code: ${code}`);
+        }
+      }
+      resolve(
+        new CommandResult(
+          code,
+          finalizeCommandResultBuffer(stdoutBuffer),
+          finalizeCommandResultBuffer(stderrBuffer),
+          combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
+        ),
+      );
+    } catch (err) {
+      finalizeCommandResultBufferForError(stdoutBuffer, err as Error);
+      finalizeCommandResultBufferForError(stderrBuffer, err as Error);
+      reject(err);
+    } finally {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
       }
     }
-    return new CommandResult(
-      code,
-      finalizeCommandResultBuffer(stdoutBuffer),
-      finalizeCommandResultBuffer(stderrBuffer),
-      combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
-    );
-  } finally {
-    if (timeoutId != null) {
-      clearTimeout(timeoutId);
+  }, {
+    pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
+    pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
+    abortController,
+  });
+
+  function takeStdin() {
+    if (state.stdin instanceof Box) {
+      const stdin = state.stdin.value;
+      if (stdin === "consumed") {
+        throw new Error("Stdin was already consumed when a previous command using the same stdin was spawned.");
+      }
+      state.stdin.value = "consumed";
+      return stdin;
+    } else {
+      return state.stdin;
     }
   }
 
@@ -516,7 +640,7 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
             return "inherit";
           }
         case "piped":
-          return new Buffer();
+          return new PipedBuffer();
         case "inheritPiped":
           return new CapturingBufferWriter(innerWriter, new Buffer());
         case "null":
@@ -530,15 +654,29 @@ export async function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: Buffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
-  ) {
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+  ): BufferStdio {
     if (buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
     } else if (buffer instanceof InheritStaticTextBypassWriter) {
       buffer.flush(); // this is line buffered, so flush anything left
       return "inherit";
+    } else if (buffer instanceof PipedBuffer) {
+      buffer.close();
+      return buffer.getBuffer() ?? "streamed";
     } else {
       return buffer;
+    }
+  }
+
+  function finalizeCommandResultBufferForError(
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+    error: Error,
+  ) {
+    if (buffer instanceof InheritStaticTextBypassWriter) {
+      buffer.flush(); // this is line buffered, so flush anything left
+    } else if (buffer instanceof PipedBuffer) {
+      buffer.setError(error);
     }
   }
 }
@@ -585,12 +723,17 @@ export class CommandResult {
 
   /** Raw stdout bytes. */
   get stdoutBytes(): Uint8Array {
+    if (this.#stdout === "streamed") {
+      throw new Error(
+        `Stdout was streamed to another source and is no longer available.`,
+      );
+    }
     if (typeof this.#stdout === "string") {
       throw new Error(
         `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") when building the command.`,
       );
     }
-    return this.#stdout.bytes();
+    return this.#stdout.bytes({ copy: false });
   }
 
   #memoizedStderr: string | undefined;
@@ -619,12 +762,17 @@ export class CommandResult {
 
   /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
+    if (this.#stdout === "streamed") {
+      throw new Error(
+        `Stderr was streamed to another source and is no longer available.`,
+      );
+    }
     if (typeof this.#stderr === "string") {
       throw new Error(
         `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") when building the command.`,
       );
     }
-    return this.#stderr.bytes();
+    return this.#stderr.bytes({ copy: false });
   }
 
   #memoizedCombined: string | undefined;
@@ -642,7 +790,7 @@ export class CommandResult {
     if (this.#combined == null) {
       throw new Error("Stdout and stderr were not combined. Call .captureCombined() when building the command.");
     }
-    return this.#combined.bytes();
+    return this.#combined.bytes({ copy: false });
   }
 }
 

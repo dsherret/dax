@@ -133,9 +133,23 @@ console.log(finalText); // 1
 ### Providing stdin
 
 ```ts
-await $`command`.stdin("some value");
+await $`command`.stdin("inherit"); // default
+await $`command`.stdin("null");
 await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
-await $`command`.stdin(someReader);
+await $`command`.stdin(someReaderOrReadableStream);
+await $`command`.stdinText("some value");
+```
+
+## Streaming API
+
+Awaiting a command will get the `CommandResult`, but calling `.spawn()` on a command without `await` will return a `CommandChild`. This has some methods on it to get readable streams of stdout and stderr of the executing command if the corresponding pipe is set to `"piped"`. These can then be piped wherever you'd like such as another command's stdin:
+
+```ts
+const child = $`echo 1 && sleep 1 && echo 2`
+  .stdout("piped")
+  .spawn();
+await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+  .stdin(child.stdout());
 ```
 
 ### Setting environment variables
@@ -204,9 +218,25 @@ await $`echo ${text}`; // will output `> echo example` before running the comman
 
 ### Timeout a command
 
+This will exit with code 124.
+
 ```ts
 // timeout a command after a specified time
-await $`some_command`.timeout("1s");
+await $`echo 1 && sleep 100 && echo 2`.timeout("1s");
+```
+
+### Aborting a command
+
+Instead of awaiting the template literal, you can get a command child by calling the `.spawn()` method:
+
+```ts
+const child = $`echo 1 && sleep 100 && echo 2`.spawn();
+
+// abort the child after 1s
+await $.sleep("1s");
+child.abort();
+
+await child; // Error: Aborted with exit code: 124
 ```
 
 ### Exporting the environment of the shell to JavaScript

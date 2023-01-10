@@ -17,6 +17,7 @@ export interface CommandContext {
   get stdin(): CommandPipeReader;
   get stdout(): CommandPipeWriter;
   get stderr(): CommandPipeWriter;
+  get signal(): AbortSignal;
 }
 
 /** Handler for executing a command. */
