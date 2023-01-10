@@ -687,6 +687,20 @@ Deno.test("piping to stdin", async () => {
   }
 });
 
+Deno.test("spawning a command twice that has stdin set to a Deno.Reader should error", async () => {
+  const bytes = new TextEncoder().encode("test\n");
+  const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+    .stdin(new Buffer(bytes));
+  const result = await command.text();
+  assertEquals(result, "test");
+  await assertRejects(
+    () => command.text(),
+    Error,
+    "Cannot spawn command. Stdin was already consumed when a previous command using the same stdin " +
+      "was spawned. You need to call `.stdin(...)` again with a new value before spawning.",
+  );
+});
+
 Deno.test("streaming api not piped", async () => {
   const child = $`echo 1 && echo 2`.spawn();
   assertThrows(

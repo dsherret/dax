@@ -605,7 +605,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     if (state.stdin instanceof Box) {
       const stdin = state.stdin.value;
       if (stdin === "consumed") {
-        throw new Error("Stdin was already consumed when a previous command using the same stdin was spawned.");
+        throw new Error(
+          "Cannot spawn command. Stdin was already consumed when a previous command using " +
+            "the same stdin was spawned. You need to call `.stdin(...)` again with a new " +
+            "value before spawning.",
+        );
       }
       state.stdin.value = "consumed";
       return stdin;
