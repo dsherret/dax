@@ -142,7 +142,7 @@ await $`command`.stdinText("some value");
 
 ## Streaming API
 
-Awaiting a command will get the `CommandResult`, but calling `.spawn()` on a command without `await` will return a `CommandChild`. This has some methods on it to get web streams (readable streams) of stdout and stderr of the executing command if the corresponding pipe is set to `"piped"`. These can then be piped wherever you'd like, such as to the body of a `$.request` or another command's stdin.
+Awaiting a command will get the `CommandResult`, but calling `.spawn()` on a command without `await` will return a `CommandChild`. This has some methods on it to get web streams of stdout and stderr of the executing command if the corresponding pipe is set to `"piped"`. These can then be sent wherever you'd like, such as to the body of a `$.request` or another command's stdin.
 
 For example, the following will output 1, wait 2 seconds, then output 2 to the current process' stderr:
 
