@@ -8,7 +8,7 @@ import { rmCommand } from "./commands/rm.ts";
 import { pwdCommand } from "./commands/pwd.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
-import { delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
@@ -28,7 +28,7 @@ type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
 interface CommandBuilderState {
   command: string | undefined;
-  stdin: ShellPipeReader | ReadableStream<Uint8Array>;
+  stdin: "inherit" | "null" | Box<Deno.Reader | ReadableStream<Uint8Array> | "consumed">;
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
@@ -213,20 +213,33 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
-  /** Sets the stdin to use for the command. */
-  stdin(reader: ShellPipeReader | string | Uint8Array | ReadableStream<Uint8Array>) {
+  /**
+   * Sets the stdin to use for the command.
+   *
+   * @remarks If multiple launches of a command occurs, then stdin will only be
+   * read from the first consumed reader or readable stream and error otherwise.
+   * For this reason, if you are setting stdin to something other than "inherit" or
+   * "null", then it's recommended to set this each time you spawn a command.
+   */
+  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>) {
     return this.#newWithState((state) => {
-      if (typeof reader === "string") {
-        // todo: support cloning these buffers so that
-        // the state is immutable when creating a new
-        // builder... this is a bug
-        state.stdin = new Buffer(new TextEncoder().encode(reader));
-      } else if (reader instanceof Uint8Array) {
-        state.stdin = new Buffer(reader);
-      } else {
+      if (reader === "inherit" || reader === "null") {
         state.stdin = reader;
+      } else if (reader instanceof Uint8Array) {
+        state.stdin = new Box(new Buffer(reader));
+      } else {
+        state.stdin = new Box(reader);
       }
     });
+  }
+
+  /**
+   * Sets the stdin string to use for a command.
+   *
+   * @remarks See the remarks on stdin. The same applies here.
+   */
+  stdinText(text: string) {
+    return this.stdin(new TextEncoder().encode(text));
   }
 
   /** Set the stdout kind. */
@@ -438,21 +451,32 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 export class CommandChild extends Promise<CommandResult> {
   #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
   #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
+  #abortController: AbortController | undefined;
 
   /** @internal */
   constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
     pipedStdoutBuffer: PipedBuffer | undefined;
     pipedStderrBuffer: PipedBuffer | undefined;
-  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined }) {
+    abortController: AbortController | undefined;
+  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, abortController: undefined }) {
     super(executor);
     this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
     this.#pipedStderrBuffer = options.pipedStderrBuffer;
+    this.#abortController = options.abortController;
+  }
+
+  /** Cancels the executing command if able. */
+  abort() {
+    this.#abortController?.abort();
   }
 
   stdout() {
     const buffer = this.#pipedStdoutBuffer;
     this.#assertBufferStreamable("stdout", buffer);
     this.#pipedStdoutBuffer = "consumed";
+    this.catch(() => {
+      // observe and ignore
+    });
     return this.#bufferToStream(buffer);
   }
 
@@ -460,6 +484,9 @@ export class CommandChild extends Promise<CommandResult> {
     const buffer = this.#pipedStderrBuffer;
     this.#assertBufferStreamable("stderr", buffer);
     this.#pipedStderrBuffer = "consumed";
+    this.catch(() => {
+      // observe and ignore
+    });
     return this.#bufferToStream(buffer);
   }
 
@@ -479,9 +506,7 @@ export class CommandChild extends Promise<CommandResult> {
       start(controller) {
         buffer.setListener({
           writeSync(data) {
-            // todo: investigate if it's safe to not make a
-            // copy here then add a test for that
-            controller.enqueue(data.slice()); // make a copy
+            controller.enqueue(data);
             return data.length;
           },
           setError(err: Error) {
@@ -516,33 +541,39 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   );
 
   const abortController = new AbortController();
+  const abortSignal = abortController.signal;
   let timeoutId: number | undefined;
+  let timedOut = false;
   if (state.timeout != null) {
-    timeoutId = setTimeout(() => abortController.abort(), state.timeout);
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+    }, state.timeout);
   }
   const command = state.command;
 
   return new CommandChild(async (resolve, reject) => {
     try {
       const list = parseCommand(command);
+      const stdin = takeStdin();
       const code = await spawn(list, {
-        stdin: state.stdin instanceof ReadableStream ? readerFromStreamReader(state.stdin.getReader()) : state.stdin,
+        stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
         stdout,
         stderr,
         env: buildEnv(state.env),
         commands: state.commands,
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
-        signal: abortController.signal,
+        signal: abortSignal,
       });
       if (code !== 0 && !state.noThrow) {
-        if (state.stdin instanceof ReadableStream) {
-          if (!state.stdin.locked) {
-            state.stdin.cancel();
+        if (stdin instanceof ReadableStream) {
+          if (!stdin.locked) {
+            stdin.cancel();
           }
         }
-        if (abortController.signal.aborted) {
-          throw new Error(`Timed out with exit code: ${code}`);
+        if (abortSignal.aborted) {
+          throw new Error(`${timedOut ? "Timed out" : "Aborted"} with exit code: ${code}`);
         } else {
           throw new Error(`Exited with code: ${code}`);
         }
@@ -567,7 +598,21 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }, {
     pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
     pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
+    abortController,
   });
+
+  function takeStdin() {
+    if (state.stdin instanceof Box) {
+      const stdin = state.stdin.value;
+      if (stdin === "consumed") {
+        throw new Error("Stdin was already consumed when a previous command using the same stdin was spawned.");
+      }
+      state.stdin.value = "consumed";
+      return stdin;
+    } else {
+      return state.stdin;
+    }
+  }
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();

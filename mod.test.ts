@@ -630,6 +630,24 @@ Deno.test("timeout", async () => {
   assertEquals(result.code, 124);
 });
 
+Deno.test("abort", async () => {
+  const command = $`echo 1 && sleep 100 && echo 2`;
+  await assertRejects(
+    async () => {
+      const child = command.spawn();
+      child.abort();
+      await child;
+    },
+    Error,
+    "Aborted with exit code: 124",
+  );
+
+  const child = command.noThrow().spawn();
+  child.abort();
+  const result = await child;
+  assertEquals(result.code, 124);
+});
+
 Deno.test("piping to stdin", async () => {
   // Deno.Reader
   {
@@ -645,7 +663,7 @@ Deno.test("piping to stdin", async () => {
   {
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
-        .stdin("test\n")
+        .stdinText("test\n")
         .text();
     assertEquals(result, "test");
   }
@@ -768,11 +786,6 @@ Deno.test("streaming api errors while streaming", async () => {
     const child = $`echo 1 && echo 2 && exit 1`.stdout("piped").spawn();
     const stdout = child.stdout();
 
-    // todo(THIS PR): this shouldn't be necessary... only surface this if someone
-    // subscribes to the promise (but only when piping obviously)
-    // prevent top level await
-    child.catch(() => {/* ignore */});
-
     await assertRejects(
       async () => {
         await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
@@ -788,11 +801,6 @@ Deno.test("streaming api errors while streaming", async () => {
     const child = $`echo 1 && echo 2 && sleep 0.1 && exit 1`.stdout("piped").spawn();
     const stdout = child.stdout();
 
-    // todo(THIS PR): this shouldn't be necessary... only surface this if someone
-    // subscribes to the promise (but only when piping obviously)
-    // prevent top level await
-    child.catch(() => {/* ignore */});
-
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(stdout)
       .noThrow()
@@ -802,6 +810,38 @@ Deno.test("streaming api errors while streaming", async () => {
     assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
     assertEquals(result.stdout, "1\n2\n");
   }
+});
+
+Deno.test("streaming api stdin not used in provided command", async () => {
+  const child = $`echo 1 && sleep 90 && exit 1`.stdout("piped").spawn();
+  const stdout = child.stdout();
+
+  const text = await $`deno eval 'console.log(1)'`
+    .stdin(stdout)
+    .text();
+  assertEquals(text, "1");
+  child.abort();
+  await assertRejects(
+    async () => {
+      await child;
+    },
+    Error,
+    "Aborted with exit code: 124",
+  );
+});
+
+Deno.test("streaming api no buffers overwrite", async () => {
+  const child = $`echo 1 && sleep 0.1 && echo 2 && echo 3`.stdout("piped").spawn();
+  const stdout = child.stdout();
+  // wait for the child to finish so the stream fills up
+  await child;
+
+  // now start reading it. The data should not be corrupted
+  let text = "";
+  for await (const chunk of stdout.pipeThrough(new TextDecoderStream())) {
+    text += chunk;
+  }
+  assertEquals(text, "1\n2\n3\n");
 });
 
 Deno.test("command args", async () => {
