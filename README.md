@@ -142,13 +142,13 @@ await $`command`.stdinText("some value");
 
 ## Streaming API
 
-Awaiting a command will get the `CommandResult`, but calling `.spawn()` on a command without `await` will return a `CommandChild`. This has some methods on it to get readable streams of stdout and stderr of the executing command if the corresponding pipe is set to `"piped"`. These can then be piped wherever you'd like such as another command's stdin:
+Awaiting a command will get the `CommandResult`, but calling `.spawn()` on a command without `await` will return a `CommandChild`. This has some methods on it to get web streams of stdout and stderr of the executing command if the corresponding pipe is set to `"piped"`. These can then be sent wherever you'd like, such as to the body of a `$.request` or another command's stdin.
+
+For example, the following will output 1, wait 2 seconds, then output 2 to the current process' stderr:
 
 ```ts
-const child = $`echo 1 && sleep 1 && echo 2`
-  .stdout("piped")
-  .spawn();
-await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+const child = $`echo 1 && sleep 1 && echo 2`.stdout("piped").spawn();
+await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`
   .stdin(child.stdout());
 ```
 
@@ -748,16 +748,13 @@ You may wish to create your own `$` function that has a certain setup context (f
 ```ts
 import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax/mod.ts";
 
-const commandBuilder = new CommandBuilder()
-  .cwd("./subDir")
-  .env("HTTPS_PROXY", "some_value");
-const requestBuilder = new RequestBuilder()
-  .header("SOME_NAME", "some value");
-
-// creates a $ object with the starting environment as shown above
+// creates a $ object with the provided starting environment
 const $ = build$({
-  commandBuilder,
-  requestBuilder,
+  commandBuilder: new CommandBuilder()
+    .cwd("./subDir")
+    .env("HTTPS_PROXY", "some_value"),
+  requestBuilder: new RequestBuilder()
+    .header("SOME_NAME", "some value"),
   extras: {
     add(a: number, b: number) {
       return a + b;
@@ -769,7 +766,7 @@ const $ = build$({
 // process won't have its environment changed
 await $`deno run my_script.ts`;
 
-const data = await $.request("https://plugins.dprint.dev/info.json").json();
+console.log(await $.request("https://plugins.dprint.dev/info.json").json());
 
 // use your custom function
 console.log($.add(1, 2));
