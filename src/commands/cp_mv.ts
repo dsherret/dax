@@ -2,6 +2,7 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 import { lstat, resolvePath, rustJoin } from "../common.ts";
+import { path } from "../deps.ts";
 
 export async function cpCommand(
   context: CommandContext,
@@ -161,7 +162,11 @@ async function getCopyAndMoveOperations(
     }
   } else {
     const fromPath = resolvePath(cwd, fromArgs[0]);
-    const toPath = await lstat(destination).then((p) => p?.isDirectory) ? rustJoin(destination, fromPath) : destination;
+
+    const toPath = await lstat(destination).then((p) => p?.isDirectory)
+      ? (path.join(destination, path.basename(fromPath)))
+      : destination;
+
     operations.push({
       from: {
         specified: fromArgs[0],

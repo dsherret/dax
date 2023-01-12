@@ -1203,6 +1203,21 @@ Deno.test("copy test", async () => {
     assertStringIncludes(await getStdErr($`cp -r ${destDir} ${destDir2}/file1.txt`), "destination was a file");
   });
 });
+Deno.test("cp test2", async () => {
+  await withTempDir(async (dir) => {
+    const originalDir = Deno.cwd();
+    try {
+      Deno.chdir(dir);
+      await $`mkdir -p a/d1`;
+      await $`mkdir -p a/d2`;
+      Deno.createSync("a/d1/f").close();
+      await $`cp a/d1/f a/d2`;
+      assert($.existsSync("a/d2/f"));
+    } finally {
+      Deno.chdir(originalDir);
+    }
+  });
+});
 
 Deno.test("move test", async () => {
   await withTempDir(async (dir) => {
