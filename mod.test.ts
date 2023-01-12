@@ -1333,7 +1333,6 @@ Deno.test("touch test", async () => {
       assert($.existsSync("a"));
 
       await $`touch b c`;
-      await $`ls`;
       assert($.existsSync("b"));
       assert($.existsSync("c"));
 
