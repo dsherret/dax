@@ -1337,6 +1337,8 @@ Deno.test("touch test", async () => {
       assert($.existsSync("c"));
 
       assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
+
+      assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
     } finally {
       Deno.chdir(originalDir);
     }

@@ -1,6 +1,6 @@
 import { CommandContext } from "../command_handler.ts";
 import { resultFromCode } from "../result.ts";
-import { parseArgKinds } from "./args.ts";
+import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function touchCommand(context: CommandContext) {
   try {
@@ -28,6 +28,7 @@ export function parseArgs(args: string[]): TouchFlags {
   const paths = [];
   for (const arg of parseArgKinds(args)) {
     if (arg.kind === "Arg") paths.push(arg.arg);
+    else bailUnsupported(arg);
   }
 
   if (paths.length === 0) throw Error("missing file operand");
