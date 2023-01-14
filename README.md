@@ -179,7 +179,7 @@ await $`deno eval 'console.log(Deno.cwd());'`.cwd("./someDir");
 
 ### Silencing a command
 
-Makes a command not output anything to stdout and stderr if set to `"inherit"` or `"inheritPiped"`.
+Makes a command not output anything to stdout and stderr.
 
 ```ts
 await $`echo 5`.quiet();
@@ -666,6 +666,8 @@ Currently implemented (though not every option is supported):
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
+
+Note that these cross platform commands can be bypassed by running them through `sh`: `sh -c <command>` (ex. `sh -c cp source destination`). Obviously doing this won't work on Windows though.
 
 ### Cross platform shebang support
 
