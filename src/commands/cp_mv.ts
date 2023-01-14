@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { lstat, resolvePath, rustJoin } from "../common.ts";
+import { calculateDestinationPath, lstat, resolvePath } from "../common.ts";
 import { path } from "../deps.ts";
 
 export async function cpCommand(
@@ -84,8 +84,8 @@ async function copyDirRecursively(from: string, to: string) {
   await Deno.mkdir(to, { recursive: true });
   const readDir = Deno.readDir(from);
   for await (const entry of readDir) {
-    const newFrom = rustJoin(from, entry.name);
-    const newTo = rustJoin(to, entry.name);
+    const newFrom = path.join(from, path.basename(entry.name));
+    const newTo = path.join(to, path.basename(entry.name));
     if (entry.isDirectory) {
       await copyDirRecursively(newFrom, newTo);
     } else if (entry.isFile) {
@@ -146,7 +146,7 @@ async function getCopyAndMoveOperations(
     }
     for (const from of fromArgs) {
       const fromPath = resolvePath(cwd, from);
-      const toPath = rustJoin(destination, fromPath);
+      const toPath = path.join(destination, path.basename(fromPath));
       operations.push(
         {
           from: {
@@ -164,7 +164,7 @@ async function getCopyAndMoveOperations(
     const fromPath = resolvePath(cwd, fromArgs[0]);
 
     const toPath = await lstat(destination).then((p) => p?.isDirectory)
-      ? (path.join(destination, path.basename(fromPath)))
+      ? calculateDestinationPath(destination, fromPath)
       : destination;
 
     operations.push({

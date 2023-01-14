@@ -1,6 +1,6 @@
 import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { lstat, rustJoin } from "./src/common.ts";
+import { calculateDestinationPath, lstat } from "./src/common.ts";
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
 
@@ -1163,8 +1163,8 @@ Deno.test("copy test", async () => {
 
     assert($.existsSync(file1));
     assert($.existsSync(file2));
-    assert($.existsSync(rustJoin(destDir, file1)));
-    assert($.existsSync(rustJoin(destDir, file2)));
+    assert($.existsSync(calculateDestinationPath(destDir, file1)));
+    assert($.existsSync(calculateDestinationPath(destDir, file2)));
 
     const newFile = path.join(dir, "new.txt");
     Deno.writeTextFileSync(newFile, "test");
@@ -1172,7 +1172,7 @@ Deno.test("copy test", async () => {
 
     assert(await isDir(destDir));
     assert($.existsSync(newFile));
-    assert($.existsSync(rustJoin(destDir, newFile)));
+    assert($.existsSync(calculateDestinationPath(destDir, newFile)));
 
     assertEquals(
       await getStdErr($`cp ${file1} ${file2} non-existent`),
@@ -1236,8 +1236,8 @@ Deno.test("move test", async () => {
     await $`mv ${file1} ${file2} ${destDir}`;
     assert(!$.existsSync(file1));
     assert(!$.existsSync(file2));
-    assert($.existsSync(rustJoin(destDir, file2)));
-    assert($.existsSync(rustJoin(destDir, file2)));
+    assert($.existsSync(calculateDestinationPath(destDir, file2)));
+    assert($.existsSync(calculateDestinationPath(destDir, file2)));
 
     const newFile = path.join(dir, "new.txt");
     Deno.writeTextFileSync(newFile, "test");
