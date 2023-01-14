@@ -152,6 +152,16 @@ Deno.test("$.request", (t) => {
             Deno.errors.AlreadyExists,
           );
         }
+        {
+          // test downloading to a directory
+          const tempDir = Deno.makeTempDirSync();
+          const downloadedFilePath = await new RequestBuilder()
+            .url(new URL("/text-file", serverUrl))
+            .showProgress()
+            .pipeToPath(tempDir);
+          assertEquals(Deno.readTextFileSync(path.join(tempDir, "text-file")), "text".repeat(1000));
+          assertEquals(downloadedFilePath, path.join(tempDir, "text-file"));
+        }
       } finally {
         try {
           Deno.chdir(originDir);

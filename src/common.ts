@@ -131,6 +131,17 @@ export async function lstat(path: string) {
     }
   }
 }
+export function lstatSync(path: string) {
+  try {
+    return Deno.lstatSync(path);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return undefined;
+    } else {
+      throw err;
+    }
+  }
+}
 
 export function getFileNameFromUrl(url: string | URL) {
   const parsedUrl = url instanceof URL ? url : new URL(url);

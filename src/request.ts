@@ -1,4 +1,4 @@
-import { filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
+import { filterEmptyRecordValues, getFileNameFromUrl, lstatSync } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { path } from "./deps.ts";
 
@@ -503,6 +503,9 @@ export class RequestResult {
    * @remarks The path will be derived from the request's url
    * and downloaded to the current working directory.
    *
+   * @remarks  If the path is a directory, then the file name will be derived
+   * from the request's url and the file will be downloaded to the provided directory
+   *
    * @returns The path of the downloaded file
    */
   async pipeToPath(options?: Deno.WriteFileOptions): Promise<string>;
@@ -511,6 +514,9 @@ export class RequestResult {
    *
    * @remarks If no path is provided then it will be derived from the
    * request's url and downloaded to the current working directory.
+   *
+   * @remarks  If the path is a directory, then the file name will be derived
+   * from the request's url and the file will be downloaded to the provided directory
    *
    * @returns The path of the downloaded file
    */
@@ -646,7 +652,13 @@ function resolvePipeToPathParams(
   } else if (pathOrOptions === undefined) {
     options = maybeOptions;
   }
-  filePath = resolvePathOrUrl(filePath ?? getFileNameFromUrlOrThrow(originalUrl));
+  if (filePath === undefined) {
+    filePath = getFileNameFromUrlOrThrow(originalUrl);
+  } else if (lstatSync(filePath)?.isDirectory) {
+    filePath = path.join(filePath, getFileNameFromUrlOrThrow(originalUrl));
+  }
+  filePath = resolvePathOrUrl(filePath);
+
   return {
     filePath,
     options,
