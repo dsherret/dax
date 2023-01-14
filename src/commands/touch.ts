@@ -24,7 +24,7 @@ interface TouchFlags {
   paths: string[];
 }
 
-export function parseArgs(args: string[]): touchFlags {
+export function parseArgs(args: string[]): TouchFlags {
   const paths = [];
   for (const arg of parseArgKinds(args)) {
     if (arg.kind === "Arg") paths.push(arg.arg);
