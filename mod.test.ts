@@ -1321,3 +1321,26 @@ Empty lines (like the one above) will not affect the common indentation.`.trim()
 
   assertEquals(actual, expected);
 });
+
+Deno.test("touch test", async () => {
+  await withTempDir(async (dir) => {
+    const originalDir = Deno.cwd();
+    try {
+      Deno.chdir(dir);
+      await $`touch a`;
+      assert($.existsSync("a"));
+      await $`touch a`;
+      assert($.existsSync("a"));
+
+      await $`touch b c`;
+      assert($.existsSync("b"));
+      assert($.existsSync("c"));
+
+      assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
+
+      assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
+    } finally {
+      Deno.chdir(originalDir);
+    }
+  });
+});

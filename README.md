@@ -662,6 +662,7 @@ Currently implemented (though not every option is supported):
 - [`pwd`](https://man7.org/linux/man-pages/man1/pwd.1.html) - Prints the current/working directory.
 - [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
+- [`touch`](https://man7.org/linux/man-pages/man1/touch.1.html) - Creates a file (note: flags have not been implemented yet).
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).

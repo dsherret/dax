@@ -23,6 +23,7 @@ import {
 import { parseCommand, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
+import { touchCommand } from "./commands/touch.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -56,6 +57,7 @@ const builtInCommands = {
   cp: cpCommand,
   mv: mvCommand,
   pwd: pwdCommand,
+  touch: touchCommand,
 };
 
 /** @internal */
