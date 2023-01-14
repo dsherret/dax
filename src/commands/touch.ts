@@ -20,7 +20,7 @@ async function executetouch(args: string[]) {
   }
 }
 
-interface touchFlags {
+interface TouchFlags {
   paths: string[];
 }
 
