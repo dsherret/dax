@@ -1203,6 +1203,7 @@ Deno.test("copy test", async () => {
     assertStringIncludes(await getStdErr($`cp -r ${destDir} ${destDir2}/file1.txt`), "destination was a file");
   });
 });
+
 Deno.test("cp test2", async () => {
   await withTempDir(async (dir) => {
     const originalDir = Deno.cwd();
