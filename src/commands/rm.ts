@@ -35,7 +35,6 @@ async function executeRemove(cwd: string, args: string[]) {
       throw new Error("Cannot delete root directory. Maybe bug in dax? Please report this.");
     }
 
-    // return Deno.remove(path, { recursive: flags.recursive })
     return Deno.remove(path, { recursive: flags.recursive }).catch((err) => {
       if (flags.force && err instanceof Deno.errors.NotFound) {
         return Promise.resolve();

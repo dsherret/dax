@@ -1109,17 +1109,19 @@ Deno.test("test remove", async () => {
 
     // Remove a directory that does not exist
     {
-      const error = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
-        .then((r) => r.stderr);
+      const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => [r.stderr, r.code] as const);
       const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: No such file or directory"
         : "rm: The system cannot find the file specified";
       assertEquals(error.substring(0, expectedText.length), expectedText);
+      assertEquals(code, 1);
     }
     {
-      const error = await $`rm -Rf ${notExists}`.noThrow().stderr("piped").spawn()
-        .then((r) => r.stderr);
+      const [error, code] = await $`rm -Rf ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => [r.stderr, r.code] as const);
       assertEquals(error, "");
+      assertEquals(code, 0);
     }
   });
 });
