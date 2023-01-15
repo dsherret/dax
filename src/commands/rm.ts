@@ -24,17 +24,31 @@ interface RmFlags {
 
 async function executeRemove(cwd: string, args: string[]) {
   const flags = parseArgs(args);
-  await Promise.all(flags.paths.map((specifiedPath) => {
-    if (specifiedPath.length === 0) {
-      throw new Error("Bug in dax. Specified path should have not been empty.");
+  try {
+    await Promise.all(flags.paths.map((specifiedPath) => {
+      if (specifiedPath.length === 0) {
+        throw new Error(
+          "Bug in dax. Specified path should have not been empty.",
+        );
+      }
+
+      const path = resolvePath(cwd, specifiedPath);
+      if (path === "/") {
+        // just in case...
+        throw new Error(
+          "Cannot delete root directory. Maybe bug in dax? Please report this.",
+        );
+      }
+
+      return Deno.remove(path, { recursive: flags.recursive });
+    }));
+  } catch (err) {
+    if (flags.force && err instanceof Deno.errors.NotFound) {
+      return;
     }
-    const path = resolvePath(cwd, specifiedPath);
-    if (path === "/") {
-      // just in case...
-      throw new Error("Cannot delete root directory. Maybe bug in dax? Please report this.");
-    }
-    return Deno.remove(path, { recursive: flags.recursive });
-  }));
+
+    throw err;
+  }
 }
 
 export function parseArgs(args: string[]) {
