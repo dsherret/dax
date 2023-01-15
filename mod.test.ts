@@ -1,6 +1,6 @@
 import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { lstat, rustJoin } from "./src/common.ts";
+import { lstat } from "./src/common.ts";
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
 
@@ -1185,8 +1185,8 @@ Deno.test("copy test", async () => {
 
     assert($.existsSync(file1));
     assert($.existsSync(file2));
-    assert($.existsSync(rustJoin(destDir, file1)));
-    assert($.existsSync(rustJoin(destDir, file2)));
+    assert($.existsSync(path.join(destDir, "file1.txt")));
+    assert($.existsSync(path.join(destDir, "file2.txt")));
 
     const newFile = path.join(dir, "new.txt");
     Deno.writeTextFileSync(newFile, "test");
@@ -1194,7 +1194,7 @@ Deno.test("copy test", async () => {
 
     assert(await isDir(destDir));
     assert($.existsSync(newFile));
-    assert($.existsSync(rustJoin(destDir, newFile)));
+    assert($.existsSync(path.join(destDir, "new.txt")));
 
     assertEquals(
       await getStdErr($`cp ${file1} ${file2} non-existent`),
@@ -1226,6 +1226,22 @@ Deno.test("copy test", async () => {
   });
 });
 
+Deno.test("cp test2", async () => {
+  await withTempDir(async (dir) => {
+    const originalDir = Deno.cwd();
+    try {
+      Deno.chdir(dir);
+      await $`mkdir -p a/d1`;
+      await $`mkdir -p a/d2`;
+      Deno.createSync("a/d1/f").close();
+      await $`cp a/d1/f a/d2`;
+      assert($.existsSync("a/d2/f"));
+    } finally {
+      Deno.chdir(originalDir);
+    }
+  });
+});
+
 Deno.test("move test", async () => {
   await withTempDir(async (dir) => {
     const file1 = path.join(dir, "file1.txt");
@@ -1242,8 +1258,8 @@ Deno.test("move test", async () => {
     await $`mv ${file1} ${file2} ${destDir}`;
     assert(!$.existsSync(file1));
     assert(!$.existsSync(file2));
-    assert($.existsSync(rustJoin(destDir, file2)));
-    assert($.existsSync(rustJoin(destDir, file2)));
+    assert($.existsSync(path.join(destDir, "file1.txt")));
+    assert($.existsSync(path.join(destDir, "file2.txt")));
 
     const newFile = path.join(dir, "new.txt");
     Deno.writeTextFileSync(newFile, "test");
