@@ -393,9 +393,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Note that when using `.noThrow()` this won't cause an error to
    * be thrown when timing out.
    */
-  timeout(delay: Delay) {
+  timeout(delay: Delay | undefined) {
     return this.#newWithState((state) => {
-      state.timeout = delayToMs(delay);
+      state.timeout = delay == null ? undefined : delayToMs(delay);
     });
   }
 

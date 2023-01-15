@@ -741,6 +741,7 @@ const requestBuilder = new RequestBuilder()
 
 const result = await requestBuilder
   .url("https://example.com")
+  .timeout("10s")
   .text();
 ```
 
