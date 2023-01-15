@@ -177,7 +177,7 @@ export async function safeLstat(path: string) {
   }
 }
 
-/** lstate that doesn't throw when the path is not found. */
+/** lstat that doesn't throw when the path is not found. */
 export function safeLstatSync(path: string) {
   try {
     return Deno.lstatSync(path);
