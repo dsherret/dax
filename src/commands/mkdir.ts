@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
-import { lstat } from "../common.ts";
+import { safeLstat } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function mkdirCommand(
@@ -25,7 +25,7 @@ async function executeMkdir(cwd: string, args: string[]) {
   const flags = parseArgs(args);
   for (const specifiedPath of flags.paths) {
     const path = resolvePath(cwd, specifiedPath);
-    const info = await lstat(path);
+    const info = await safeLstat(path);
     if (info?.isFile || (!flags.parents && info?.isDirectory)) {
       throw Error(`cannot create directory '${specifiedPath}': File exists`);
     }

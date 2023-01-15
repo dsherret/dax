@@ -1,4 +1,4 @@
-import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl, lstatSync } from "./common.ts";
+import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl, safeLstatSync } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { path } from "./deps.ts";
 
@@ -654,7 +654,7 @@ function resolvePipeToPathParams(
   }
   if (filePath === undefined) {
     filePath = getFileNameFromUrlOrThrow(originalUrl);
-  } else if (lstatSync(filePath)?.isDirectory) {
+  } else if (safeLstatSync(filePath)?.isDirectory) {
     filePath = path.join(filePath, getFileNameFromUrlOrThrow(originalUrl));
   }
   filePath = resolvePathOrUrl(filePath);

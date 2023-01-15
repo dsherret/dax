@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { lstat, resolvePath } from "../common.ts";
+import { resolvePath, safeLstat } from "../common.ts";
 import { fs } from "../deps.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
@@ -9,11 +9,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     let result: boolean;
     switch (testFlag) {
       case "-f":
-        result = (await lstat(testPath))?.isFile ?? false;
+        result = (await safeLstat(testPath))?.isFile ?? false;
         break;
 
       case "-d":
-        result = (await lstat(testPath))?.isDirectory ?? false;
+        result = (await safeLstat(testPath))?.isDirectory ?? false;
         break;
 
       case "-e":
@@ -21,11 +21,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
         break;
 
       case "-s":
-        result = ((await lstat(testPath))?.size ?? 0) > 0;
+        result = ((await safeLstat(testPath))?.size ?? 0) > 0;
         break;
 
       case "-L":
-        result = (await lstat(testPath))?.isSymlink ?? false;
+        result = (await safeLstat(testPath))?.isSymlink ?? false;
         break;
 
       default:
