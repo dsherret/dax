@@ -17,6 +17,15 @@ Deno.test("should get delay value", () => {
   assertEquals(delayToMs(`10.123s`), 10_123);
   assertEquals(delayToMs(`10ms`), 10);
   assertEquals(delayToMs(`10000ms`), 10_000);
+  assertEquals(delayToMs(`1m`), 60 * 1000);
+  assertEquals(delayToMs(`1.5m`), 90 * 1000);
+  assertEquals(delayToMs(`2m`), 120 * 1000);
+  assertEquals(delayToMs(`2m10s`), 130 * 1000);
+  assertEquals(delayToMs(`2.2m10.2s`), 142.2 * 1000);
+  assertEquals(delayToMs(`1h`), 1000 * 60 * 60);
+  assertEquals(delayToMs(`1.5h`), 1.5 * 1000 * 60 * 60);
+  assertEquals(delayToMs(`1.2h11m`), 1.2 * 1000 * 60 * 60 + 11 * 1000 * 60);
+  assertEquals(delayToMs(`1.1h50.2m20.1s`), 1.1 * 1000 * 60 * 60 + 50.2 * 1000 * 60 + 20.1 * 1000);
 });
 
 Deno.test("should get delay iterator", () => {
@@ -43,6 +52,9 @@ Deno.test("should format milliseconds", () => {
   assertEquals(formatMillis(1000), "1 second");
   assertEquals(formatMillis(2000), "2 seconds");
   assertEquals(formatMillis(1500), "1.5 seconds");
+  assertEquals(formatMillis(60_000), "1 minute");
+  assertEquals(formatMillis(61_000), "1.02 minutes");
+  assertEquals(formatMillis(92_000), "1.53 minutes");
 });
 
 Deno.test("should resolve absolute and relative paths", () => {
