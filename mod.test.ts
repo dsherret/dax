@@ -1113,7 +1113,7 @@ Deno.test("test remove", async () => {
         .then((r) => r.stderr);
       const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: No such file or directory"
-        : "rm: The system cannot find the path specified";
+        : "rm: The system cannot find the file specified";
       assertEquals(error.substring(0, expectedText.length), expectedText);
     }
     {
