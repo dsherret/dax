@@ -1,4 +1,4 @@
-import { filterEmptyRecordValues, getFileNameFromUrl, lstatSync } from "./common.ts";
+import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl, lstatSync } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { path } from "./deps.ts";
 
@@ -239,10 +239,10 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     });
   }
 
-  /** Timeout the request after the specified number of milliseconds */
-  timeout(ms: number | undefined) {
+  /** Timeout the request after the specified delay. */
+  timeout(delay: Delay | undefined) {
     return this.#newWithState((state) => {
-      state.timeout = ms;
+      state.timeout = delay == null ? undefined : delayToMs(delay);
     });
   }
 
