@@ -123,17 +123,6 @@ export function resolvePath(cwd: string, arg: string) {
   return path.resolve(path.isAbsolute(arg) ? arg : path.join(cwd, arg));
 }
 
-/**  Calculates destination path
- * destination should be a directory
- * example:
- *          destination: /dir/a
- *          from       : /path/file
- *          returns    : /dir/a/file
- */
-export function calculateDestinationPath(destination: string, from: string) {
-  return path.join(destination, path.basename(from));
-}
-
 export class Box<T> {
   constructor(public value: T) {
   }
@@ -175,7 +164,8 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
   }
 }
 
-export async function lstat(path: string) {
+/** lstat that doesn't throw when the path is not found. */
+export async function safeLstat(path: string) {
   try {
     return await Deno.lstat(path);
   } catch (err) {
@@ -186,7 +176,9 @@ export async function lstat(path: string) {
     }
   }
 }
-export function lstatSync(path: string) {
+
+/** lstate that doesn't throw when the path is not found. */
+export function safeLstatSync(path: string) {
   try {
     return Deno.lstatSync(path);
   } catch (err) {

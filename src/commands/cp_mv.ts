@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { calculateDestinationPath, lstat, resolvePath } from "../common.ts";
+import { resolvePath, safeLstat } from "../common.ts";
 import { path } from "../deps.ts";
 
 export async function cpCommand(
@@ -59,10 +59,10 @@ async function doCopyOperation(
 ) {
   // These are racy with the file system, but that's ok.
   // They only exists to give better error messages.
-  const fromInfo = await lstat(from.path);
+  const fromInfo = await safeLstat(from.path);
   if (fromInfo?.isDirectory) {
     if (flags.recursive) {
-      const toInfo = await lstat(to.path);
+      const toInfo = await safeLstat(to.path);
       if (toInfo?.isFile) {
         throw Error("destination was a file");
       } else if (toInfo?.isSymlink) {
@@ -141,7 +141,7 @@ async function getCopyAndMoveOperations(
   const fromArgs = paths;
   const operations = [];
   if (fromArgs.length > 1) {
-    if (!await lstat(destination).then((p) => p?.isDirectory)) {
+    if (!await safeLstat(destination).then((p) => p?.isDirectory)) {
       throw Error(`target '${specified_destination}' is not a directory`);
     }
     for (const from of fromArgs) {
@@ -163,7 +163,7 @@ async function getCopyAndMoveOperations(
   } else {
     const fromPath = resolvePath(cwd, fromArgs[0]);
 
-    const toPath = await lstat(destination).then((p) => p?.isDirectory)
+    const toPath = await safeLstat(destination).then((p) => p?.isDirectory)
       ? calculateDestinationPath(destination, fromPath)
       : destination;
 
@@ -179,4 +179,15 @@ async function getCopyAndMoveOperations(
     });
   }
   return operations;
+}
+
+/**  Calculates destination path
+ * destination should be a directory
+ * example:
+ *          destination: /dir/a
+ *          from       : /path/file
+ *          returns    : /dir/a/file
+ */
+function calculateDestinationPath(destination: string, from: string) {
+  return path.join(destination, path.basename(from));
 }

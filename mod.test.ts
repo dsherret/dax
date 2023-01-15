@@ -1,6 +1,6 @@
 import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { lstat } from "./src/common.ts";
+import { safeLstat } from "./src/common.ts";
 import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
 
@@ -1308,7 +1308,7 @@ async function getStdErr(cmd: CommandBuilder) {
 }
 
 async function isDir(path: string) {
-  const info = await lstat(path);
+  const info = await safeLstat(path);
   return info?.isDirectory ? true : false;
 }
 
