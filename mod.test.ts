@@ -1080,27 +1080,49 @@ Deno.test("test remove", async () => {
   await withTempDir(async (dir) => {
     const emptyDir = dir + "/hello";
     const someFile = dir + "/a.txt";
+    const notExists = dir + "/notexists";
 
     Deno.mkdirSync(emptyDir);
     Deno.writeTextFileSync(someFile, "");
 
+    // Remove empty directory or file
     await $`rm ${emptyDir}`;
     await $`rm ${someFile}`;
     assertEquals($.existsSync(dir + "/hello"), false);
     assertEquals($.existsSync(dir + "/a.txt"), false);
 
+    // Remove a non-empty directory
     const nonEmptyDir = dir + "/a";
     Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
+    {
+      const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
+        .then((r) => r.stderr);
+      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+        ? "rm: Directory not empty"
+        : "rm: The directory is not empty";
+      assertEquals(error.substring(0, expectedText.length), expectedText);
+    }
+    {
+      await $`rm -r ${nonEmptyDir}`;
+      assertEquals($.existsSync(nonEmptyDir), false);
+    }
 
-    const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
-      .then((r) => r.stderr);
-    const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
-      ? "rm: Directory not empty"
-      : "rm: The directory is not empty";
-    assertEquals(error.substring(0, expectedText.length), expectedText);
-
-    await $`rm -r ${nonEmptyDir}`;
-    assertEquals($.existsSync(nonEmptyDir), false);
+    // Remove a directory that does not exist
+    {
+      const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => [r.stderr, r.code] as const);
+      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+        ? "rm: No such file or directory"
+        : "rm: The system cannot find the file specified";
+      assertEquals(error.substring(0, expectedText.length), expectedText);
+      assertEquals(code, 1);
+    }
+    {
+      const [error, code] = await $`rm -Rf ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => [r.stderr, r.code] as const);
+      assertEquals(error, "");
+      assertEquals(code, 0);
+    }
   });
 });
 
