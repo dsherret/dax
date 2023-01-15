@@ -6,7 +6,7 @@ import { BufReader, path } from "./deps.ts";
  *
  * @remarks Providing just a number will use milliseconds.
  */
-export type Delay = number | `${number}ms` | `${number}s`;
+export type Delay = number | `${number}ms` | `${number}s` | `${number}m` | `${number}m${number}s`;
 
 /** An iterator that returns a new delay each time. */
 export interface DelayIterator {
@@ -15,10 +15,29 @@ export interface DelayIterator {
 
 export function formatMillis(ms: number) {
   if (ms < 1000) {
-    return `${ms} millisecond${ms === 1 ? "" : "s"}`;
-  } else {
+    return `${formatValue(ms)} millisecond${ms === 1 ? "" : "s"}`;
+  } else if (ms < 60 * 1000) {
     const s = ms / 1000;
-    return `${s} second${s === 1 ? "" : "s"}`;
+    return `${formatValue(s)} ${pluralize("second", s)}`;
+  } else {
+    const mins = ms / 60 / 1000;
+    return `${formatValue(mins)} ${pluralize("minute", mins)}`;
+  }
+
+  function formatValue(value: number) {
+    const text = value.toFixed(2);
+    if (text.endsWith(".00")) {
+      return value.toFixed(0);
+    } else if (text.endsWith("0")) {
+      return value.toFixed(1);
+    } else {
+      return text;
+    }
+  }
+
+  function pluralize(text: string, value: number) {
+    const suffix = value === 1 ? "" : "s";
+    return text + suffix;
   }
 }
 
@@ -45,6 +64,17 @@ export function delayToMs(delay: Delay) {
     const secondsMatch = delay.match(/^([0-9]+\.?[0-9]*)s$/);
     if (secondsMatch != null) {
       return Math.round(parseFloat(secondsMatch[1]) * 1000);
+    }
+    const minutesMatch = delay.match(/^([0-9]+\.?[0-9]*)m$/);
+    if (minutesMatch != null) {
+      return Math.round(parseFloat(minutesMatch[1]) * 1000 * 60);
+    }
+    const minutesSecondsMatch = delay.match(/^([0-9]+\.?[0-9]*)m([0-9]+\.?[0-9]*)s$/);
+    if (minutesSecondsMatch != null) {
+      return Math.round(
+        parseFloat(minutesSecondsMatch[1]) * 1000 * 60 +
+          parseFloat(minutesSecondsMatch[2]) * 1000,
+      );
     }
   }
 
