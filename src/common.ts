@@ -6,7 +6,15 @@ import { BufReader, path } from "./deps.ts";
  *
  * @remarks Providing just a number will use milliseconds.
  */
-export type Delay = number | `${number}ms` | `${number}s` | `${number}m` | `${number}m${number}s`;
+export type Delay =
+  | number
+  | `${number}ms`
+  | `${number}s`
+  | `${number}m`
+  | `${number}m${number}s`
+  | `${number}h`
+  | `${number}h${number}m`
+  | `${number}h${number}m${number}s`;
 
 /** An iterator that returns a new delay each time. */
 export interface DelayIterator {
@@ -57,6 +65,7 @@ export function delayToMs(delay: Delay) {
   if (typeof delay === "number") {
     return delay;
   } else if (typeof delay === "string") {
+    // code seems kind of repetitive
     const msMatch = delay.match(/^([0-9]+)ms$/);
     if (msMatch != null) {
       return parseInt(msMatch[1], 10);
@@ -74,6 +83,25 @@ export function delayToMs(delay: Delay) {
       return Math.round(
         parseFloat(minutesSecondsMatch[1]) * 1000 * 60 +
           parseFloat(minutesSecondsMatch[2]) * 1000,
+      );
+    }
+    const hoursMatch = delay.match(/^([0-9]+\.?[0-9]*)h$/);
+    if (hoursMatch != null) {
+      return Math.round(parseFloat(hoursMatch[1]) * 1000 * 60 * 60);
+    }
+    const hoursMinutesMatch = delay.match(/^([0-9]+\.?[0-9]*)h([0-9]+\.?[0-9]*)m$/);
+    if (hoursMinutesMatch != null) {
+      return Math.round(
+        parseFloat(hoursMinutesMatch[1]) * 1000 * 60 * 60 +
+          parseFloat(hoursMinutesMatch[2]) * 1000 * 60,
+      );
+    }
+    const hoursMinutesSecondsMatch = delay.match(/^([0-9]+\.?[0-9]*)h([0-9]+\.?[0-9]*)m([0-9]+\.?[0-9]*)s$/);
+    if (hoursMinutesSecondsMatch != null) {
+      return Math.round(
+        parseFloat(hoursMinutesSecondsMatch[1]) * 1000 * 60 * 60 +
+          parseFloat(hoursMinutesSecondsMatch[2]) * 1000 * 60 +
+          parseFloat(hoursMinutesSecondsMatch[3]) * 1000,
       );
     }
   }

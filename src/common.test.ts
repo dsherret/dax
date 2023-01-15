@@ -22,6 +22,10 @@ Deno.test("should get delay value", () => {
   assertEquals(delayToMs(`2m`), 120 * 1000);
   assertEquals(delayToMs(`2m10s`), 130 * 1000);
   assertEquals(delayToMs(`2.2m10.2s`), 142.2 * 1000);
+  assertEquals(delayToMs(`1h`), 1000 * 60 * 60);
+  assertEquals(delayToMs(`1.5h`), 1.5 * 1000 * 60 * 60);
+  assertEquals(delayToMs(`1.2h11m`), 1.2 * 1000 * 60 * 60 + 11 * 1000 * 60);
+  assertEquals(delayToMs(`1.1h50.2m20.1s`), 1.1 * 1000 * 60 * 60 + 50.2 * 1000 * 60 + 20.1 * 1000);
 });
 
 Deno.test("should get delay iterator", () => {
