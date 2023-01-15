@@ -1080,6 +1080,7 @@ Deno.test("test remove", async () => {
   await withTempDir(async (dir) => {
     const emptyDir = dir + "/hello";
     const someFile = dir + "/a.txt";
+    const notExists = dir + "/notexists";
 
     Deno.mkdirSync(emptyDir);
     Deno.writeTextFileSync(someFile, "");
@@ -1091,16 +1092,33 @@ Deno.test("test remove", async () => {
 
     const nonEmptyDir = dir + "/a";
     Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
+    {
+      const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
+        .then((r) => r.stderr);
+      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+        ? "rm: Directory not empty"
+        : "rm: The directory is not empty";
+      assertEquals(error.substring(0, expectedText.length), expectedText);
+    }
+    {
+      await $`rm -r ${nonEmptyDir}`;
+      assertEquals($.existsSync(nonEmptyDir), false);
+    }
 
-    const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
-      .then((r) => r.stderr);
-    const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
-      ? "rm: Directory not empty"
-      : "rm: The directory is not empty";
-    assertEquals(error.substring(0, expectedText.length), expectedText);
-
-    await $`rm -r ${nonEmptyDir}`;
-    assertEquals($.existsSync(nonEmptyDir), false);
+    // Remove a directory that does not exist
+    {
+      const error = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => r.stderr);
+      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+        ? "rm: No such file or directory"
+        : "rm: No such file or directory"; // <--- not sure what the windows error will be.
+      assertEquals(error.substring(0, expectedText.length), expectedText);
+    }
+    {
+      const error = await $`rm -Rf ${notExists}`.noThrow().stderr("piped").spawn()
+        .then((r) => r.stderr);
+      assertEquals(error, "");
+    }
   });
 });
 
