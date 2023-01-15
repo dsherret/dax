@@ -1085,11 +1085,13 @@ Deno.test("test remove", async () => {
     Deno.mkdirSync(emptyDir);
     Deno.writeTextFileSync(someFile, "");
 
+    // Remove empty directory or file
     await $`rm ${emptyDir}`;
     await $`rm ${someFile}`;
     assertEquals($.existsSync(dir + "/hello"), false);
     assertEquals($.existsSync(dir + "/a.txt"), false);
 
+    // Remove a non-empty directory
     const nonEmptyDir = dir + "/a";
     Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
     {
