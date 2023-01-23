@@ -166,12 +166,28 @@ export class PathReference {
     return Deno.readFileSync(this.#path);
   }
 
+  maybeBytes(options?: Deno.ReadFileOptions) {
+    return notFoundToUndefined(() => this.bytes(options));
+  }
+
+  maybeBytesSync() {
+    return notFoundToUndefinedSync(() => this.bytesSync());
+  }
+
   text(options?: Deno.ReadFileOptions) {
     return Deno.readTextFile(this.#path, options);
   }
 
   textSync() {
     return Deno.readTextFileSync(this.#path);
+  }
+
+  maybeText(options?: Deno.ReadFileOptions) {
+    return notFoundToUndefined(() => this.text(options));
+  }
+
+  maybeTextSync() {
+    return notFoundToUndefinedSync(() => this.textSync());
   }
 
   async json<T>(options?: Deno.ReadFileOptions) {
@@ -181,6 +197,14 @@ export class PathReference {
 
   jsonSync<T>() {
     return JSON.parse(this.textSync()) as T;
+  }
+
+  maybeJson<T>(options?: Deno.ReadFileOptions) {
+    return notFoundToUndefined(() => this.json<T>(options));
+  }
+
+  maybeJsonSync<T>() {
+    return notFoundToUndefinedSync(() => this.jsonSync<T>());
   }
 
   async write(data: Uint8Array, options?: Deno.WriteFileOptions) {
@@ -434,5 +458,29 @@ export class FsFileWrapper implements Deno.FsFile {
 
   close(): void {
     return this.#file.close();
+  }
+}
+
+async function notFoundToUndefined<T>(action: () => Promise<T>) {
+  try {
+    return await action();
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return undefined;
+    } else {
+      throw err;
+    }
+  }
+}
+
+function notFoundToUndefinedSync<T>(action: () => T) {
+  try {
+    return action();
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return undefined;
+    } else {
+      throw err;
+    }
   }
 }
