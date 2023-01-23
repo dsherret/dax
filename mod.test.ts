@@ -1,7 +1,14 @@
 import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
 import { safeLstat } from "./src/common.ts";
-import { assert, assertEquals, assertRejects, assertStringIncludes, assertThrows } from "./src/deps.test.ts";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+  assertThrows,
+  withTempDir,
+} from "./src/deps.test.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
@@ -1077,23 +1084,24 @@ Deno.test("environment should be evaluated at command execution", async () => {
 });
 
 Deno.test("test remove", async () => {
-  await withTempDir(async (dir) => {
-    const emptyDir = dir + "/hello";
-    const someFile = dir + "/a.txt";
-    const notExists = dir + "/notexists";
+  await withTempDir(async (tempDirPath) => {
+    const dir = $.path(tempDirPath);
+    const emptyDir = dir.join("hello");
+    const someFile = dir.join("a.txt");
+    const notExists = dir.join("notexists");
 
-    Deno.mkdirSync(emptyDir);
-    Deno.writeTextFileSync(someFile, "");
+    emptyDir.mkdirSync();
+    someFile.writeTextSync("");
 
     // Remove empty directory or file
     await $`rm ${emptyDir}`;
     await $`rm ${someFile}`;
-    assertEquals($.existsSync(dir + "/hello"), false);
-    assertEquals($.existsSync(dir + "/a.txt"), false);
+    assertEquals(emptyDir.existsSync(), false);
+    assertEquals(someFile.existsSync(), false);
 
     // Remove a non-empty directory
-    const nonEmptyDir = dir + "/a";
-    Deno.mkdirSync(nonEmptyDir + "/b", { recursive: true });
+    const nonEmptyDir = dir.join("a");
+    nonEmptyDir.join("b").mkdirSync({ recursive: true });
     {
       const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
         .then((r) => r.stderr);
@@ -1104,7 +1112,7 @@ Deno.test("test remove", async () => {
     }
     {
       await $`rm -r ${nonEmptyDir}`;
-      assertEquals($.existsSync(nonEmptyDir), false);
+      assertEquals(nonEmptyDir.existsSync(), false);
     }
 
     // Remove a directory that does not exist
@@ -1125,19 +1133,6 @@ Deno.test("test remove", async () => {
     }
   });
 });
-
-async function withTempDir(action: (path: string) => Promise<void>) {
-  const dirPath = Deno.makeTempDirSync();
-  try {
-    await action(dirPath);
-  } finally {
-    try {
-      await Deno.remove(dirPath, { recursive: true });
-    } catch {
-      // ignore
-    }
-  }
-}
 
 Deno.test("test mkdir", async () => {
   await withTempDir(async (dir) => {
@@ -1228,17 +1223,11 @@ Deno.test("copy test", async () => {
 
 Deno.test("cp test2", async () => {
   await withTempDir(async (dir) => {
-    const originalDir = Deno.cwd();
-    try {
-      Deno.chdir(dir);
-      await $`mkdir -p a/d1`;
-      await $`mkdir -p a/d2`;
-      Deno.createSync("a/d1/f").close();
-      await $`cp a/d1/f a/d2`;
-      assert($.existsSync("a/d2/f"));
-    } finally {
-      Deno.chdir(originalDir);
-    }
+    await $`mkdir -p a/d1`;
+    await $`mkdir -p a/d2`;
+    Deno.createSync("a/d1/f").close();
+    await $`cp a/d1/f a/d2`;
+    assert($.existsSync("a/d2/f"));
   });
 });
 
@@ -1361,24 +1350,18 @@ Empty lines (like the one above) will not affect the common indentation.`.trim()
 });
 
 Deno.test("touch test", async () => {
-  await withTempDir(async (dir) => {
-    const originalDir = Deno.cwd();
-    try {
-      Deno.chdir(dir);
-      await $`touch a`;
-      assert($.existsSync("a"));
-      await $`touch a`;
-      assert($.existsSync("a"));
+  await withTempDir(async () => {
+    await $`touch a`;
+    assert($.existsSync("a"));
+    await $`touch a`;
+    assert($.existsSync("a"));
 
-      await $`touch b c`;
-      assert($.existsSync("b"));
-      assert($.existsSync("c"));
+    await $`touch b c`;
+    assert($.existsSync("b"));
+    assert($.existsSync("c"));
 
-      assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
+    assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
 
-      assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
-    } finally {
-      Deno.chdir(originalDir);
-    }
+    assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
   });
 });
