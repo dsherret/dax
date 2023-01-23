@@ -26,6 +26,10 @@ export class PathReference {
     return new PathReference(stdPath.join(this.#path, ...pathSegments));
   }
 
+  resolve(...pathSegments: string[]) {
+    return new PathReference(stdPath.resolve(this.#path, ...pathSegments));
+  }
+
   startsWith(text: string) {
     throw new Error("todo");
   }
