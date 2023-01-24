@@ -389,20 +389,20 @@ export class FsFileWrapper implements Deno.FsFile {
     return this.#file;
   }
 
-  writeAllText(text: string) {
-    return this.writeAllBytes(new TextEncoder().encode(text));
+  writeText(text: string) {
+    return this.writeBytes(new TextEncoder().encode(text));
   }
 
-  writeAllTextSync(text: string) {
-    return this.writeAllBytesSync(new TextEncoder().encode(text));
+  writeTextSync(text: string) {
+    return this.writeBytesSync(new TextEncoder().encode(text));
   }
 
-  async writeAllBytes(bytes: Uint8Array) {
+  async writeBytes(bytes: Uint8Array) {
     await writeAll(this.#file, bytes);
     return this;
   }
 
-  writeAllBytesSync(bytes: Uint8Array) {
+  writeBytesSync(bytes: Uint8Array) {
     writeAllSync(this.#file, bytes);
     return this;
   }
@@ -425,9 +425,11 @@ export class FsFileWrapper implements Deno.FsFile {
   write(p: Uint8Array): Promise<number> {
     return this.#file.write(p);
   }
+
   writeSync(p: Uint8Array): number {
     return this.#file.writeSync(p);
   }
+
   truncate(len?: number | undefined): Promise<void> {
     return this.#file.truncate(len);
   }
