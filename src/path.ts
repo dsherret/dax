@@ -1,5 +1,7 @@
 import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
+const PERIOD_CHAR_CODE = ".".charCodeAt(0);
+
 export function createPathReference(path: string) {
   return new PathReference(path);
 }
@@ -30,6 +32,15 @@ export class PathReference {
     return new PathReference(stdPath.resolve(this.#path, ...pathSegments));
   }
 
+  /**
+   * Normalize the `path`, resolving `'..'` and `'.'` segments.
+   * Note that resolving these segments does not necessarily mean that all will be eliminated.
+   * A `'..'` at the top-level will be preserved, and an empty path is canonically `'.'`.
+   */
+  normalize() {
+    return new PathReference(stdPath.normalize(this.#path));
+  }
+
   startsWith(text: string) {
     throw new Error("todo");
   }
@@ -51,11 +62,11 @@ export class PathReference {
   }
 
   isAbsolute() {
-    throw new Error("todo");
+    return stdPath.isAbsolute(this.#path);
   }
 
   isRelative() {
-    throw new Error("todo");
+    return !this.isAbsolute();
   }
 
   async stat(): Promise<Deno.FileInfo | undefined> {
@@ -106,26 +117,31 @@ export class PathReference {
     }
   }
 
-  // todo: investigate helpers in deno/std and use them all here
-
   dirname() {
-    throw new Error("todo");
+    return stdPath.dirname(this.#path);
   }
 
   basename() {
-    throw new Error("todo");
+    return stdPath.basename(this.#path);
   }
 
-  extension() {
-    throw new Error("todo");
+  /** Return the extension of the `path` with leading period. */
+  extname() {
+    return stdPath.extname(this.#path);
   }
 
-  withExtension(ext: string) {
-    throw new Error("todo");
+  withExtname(ext: string) {
+    const currentExt = this.extname();
+    const hasLeadingPeriod = ext.charCodeAt(0) === PERIOD_CHAR_CODE;
+    if (!hasLeadingPeriod) {
+      ext = "." + ext;
+    }
+    return new PathReference(this.#path.substring(0, this.#path.length - currentExt.length) + ext);
   }
 
   withBasename(basename: string) {
-    throw new Error("todo");
+    const currentBaseName = this.basename();
+    return new PathReference(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
   }
 
   exists() {
@@ -325,43 +341,43 @@ export class PathReference {
    * Copies the file returning a promise that resolves to
    * the destination path.
    */
-  copyFile(destinationPath: string | URL) {
-    return Deno.copyFile(this.#path, destinationPath)
-      .then(() => new PathReference(destinationPath));
+  copyFile(destinationPath: string | URL | PathReference) {
+    const pathRef = destinationPath instanceof PathReference ? destinationPath : new PathReference(destinationPath);
+    return Deno.copyFile(this.#path, pathRef.#path)
+      .then(() => pathRef);
   }
 
   /**
    * Copies the file returning a promise that resolves to
    * the destination path synchronously.
    */
-  copyFileSync(destinationPath: string | URL) {
-    Deno.copyFileSync(this.#path, destinationPath);
-    return new PathReference(destinationPath);
+  copyFileSync(destinationPath: string | URL | PathReference) {
+    const pathRef = destinationPath instanceof PathReference ? destinationPath : new PathReference(destinationPath);
+    Deno.copyFileSync(this.#path, pathRef.#path);
+    return pathRef;
   }
 
   /**
    * Renames the file or directory returning a promise that resolves to
    * the renamed path.
    */
-  rename(newPath: string | URL) {
-    return Deno.rename(this.#path, newPath)
-      .then(() => new PathReference(newPath));
+  rename(newPath: string | URL | PathReference) {
+    const pathRef = newPath instanceof PathReference ? newPath : new PathReference(newPath);
+    return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
   }
 
   /**
    * Renames the file or directory returning a promise that resolves to
    * the renamed path synchronously.
    */
-  renameSync(newPath: string | URL) {
-    return Deno.rename(this.#path, newPath)
-      .then(() => new PathReference(newPath));
+  renameSync(newPath: string | URL | PathReference) {
+    const pathRef = newPath instanceof PathReference ? newPath : new PathReference(newPath);
+    return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
   }
 
   /** Opens the file and pipes it to the writable stream. */
   async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
-    const file = await Deno.open(this.#path, {
-      read: true,
-    });
+    const file = await Deno.open(this.#path, { read: true });
     try {
       await file.readable.pipeTo(dest, options);
     } finally {
