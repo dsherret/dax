@@ -16,6 +16,10 @@ export class PathReference {
     this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
   }
 
+  toString() {
+    return this.#path;
+  }
+
   join(...pathSegments: string[]) {
     return new PathReference(stdPath.join(this.#path, ...pathSegments));
   }
@@ -128,6 +132,14 @@ export class PathReference {
     return new PathReference(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
   }
 
+  /** Gets the relative path from this path to the specified path. */
+  relative(to: string | URL | PathReference) {
+    const toPathRef = to instanceof PathReference ? to : new PathReference(to);
+    console.log(this.resolve().#path, toPathRef.resolve().#path);
+    console.log(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
+    return new PathReference(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
+  }
+
   exists() {
     return this.lstat().then((info) => info != null);
   }
@@ -152,6 +164,110 @@ export class PathReference {
   mkdirSync(options?: Deno.MkdirOptions) {
     Deno.mkdirSync(this.#path, options);
     return this;
+  }
+
+  /**
+   * Create a symlink at the specified path which points to the current path
+   * using an absolute path.
+   * @param linkPath The path to create a symlink at which points at the current path.
+   * @returns The destination path.
+   */
+  async createAbsoluteSymlinkAt(linkPath: string | URL | PathReference) {
+    const {
+      linkPathRef,
+      thisResolved,
+    } = this.#getAbsoluteSymlinkAtParts(linkPath);
+    await createSymlink({
+      toPath: thisResolved,
+      fromPath: linkPathRef,
+      text: thisResolved.#path,
+    });
+    return linkPathRef;
+  }
+
+  /**
+   * Create a symlink at the specified path which points to the current path
+   * using an absolute path.
+   * @param linkPath The path to create a symlink at which points at the current path.
+   * @returns The destination path.
+   */
+  createAbsoluteSymlinkAtSync(linkPath: string | URL | PathReference) {
+    const {
+      linkPathRef,
+      thisResolved,
+    } = this.#getAbsoluteSymlinkAtParts(linkPath);
+    createSymlinkSync({
+      toPath: thisResolved,
+      fromPath: linkPathRef,
+      text: thisResolved.#path,
+    });
+    return linkPathRef;
+  }
+
+  #getAbsoluteSymlinkAtParts(linkPath: string | URL | PathReference) {
+    const linkPathRef = (linkPath instanceof PathReference ? linkPath : new PathReference(linkPath)).resolve();
+    const thisResolved = this.resolve();
+    return {
+      thisResolved,
+      linkPathRef,
+    };
+  }
+
+  /**
+   * Create a symlink at the specified path which points to the current path
+   * using a relative path.
+   * @param linkPath The path to create a symlink at which points at the current path.
+   * @returns The destination path.
+   */
+  async createRelativeSymlinkAt(linkPath: string | URL | PathReference) {
+    const {
+      linkPathRef,
+      thisResolved,
+      relativePath,
+    } = this.#getRelativeSymlinkAtParts(linkPath);
+    await createSymlink({
+      toPath: thisResolved,
+      fromPath: linkPathRef,
+      text: relativePath.#path,
+    });
+    return linkPathRef;
+  }
+
+  /**
+   * Synchronously create a symlink at the specified path which points to the current
+   * path using a relative path.
+   * @param linkPath The path to create a symlink at which points at the current path.
+   * @returns The destination path.
+   */
+  createRelativeSymlinkAtSync(linkPath: string | URL | PathReference) {
+    const {
+      linkPathRef,
+      thisResolved,
+      relativePath,
+    } = this.#getRelativeSymlinkAtParts(linkPath);
+    createSymlinkSync({
+      toPath: thisResolved,
+      fromPath: linkPathRef,
+      text: relativePath.#path,
+    });
+    return linkPathRef;
+  }
+
+  #getRelativeSymlinkAtParts(linkPath: string | URL | PathReference) {
+    const linkPathRef = (linkPath instanceof PathReference ? linkPath : new PathReference(linkPath)).resolve();
+    const thisResolved = this.resolve();
+    let relativePath: PathReference;
+    if (linkPathRef.dirname() === thisResolved.dirname()) {
+      // we don't want it to do `../basename`
+      relativePath = new PathReference(linkPathRef.basename());
+    } else {
+      relativePath = linkPathRef.relative(thisResolved);
+    }
+    return {
+      thisResolved,
+      linkPathRef,
+      relativePath,
+    };
   }
 
   readDir() {
@@ -372,10 +488,58 @@ export class PathReference {
       }
     }
   }
+}
 
-  toString() {
-    return this.#path;
+async function createSymlink(opts: {
+  fromPath: PathReference;
+  toPath: PathReference;
+  text: string;
+}) {
+  let kind: "file" | "dir" | undefined;
+  if (Deno.build.os === "windows") {
+    const info = await opts.toPath.lstat();
+    if (info == null) {
+      throw new Deno.errors.NotFound(`The target path '${opts.toPath.toString()}' did not exist.`);
+    } else if (info?.isDirectory) {
+      kind = "dir";
+    } else if (info?.isFile) {
+      kind = "file";
+    }
   }
+
+  await Deno.symlink(
+    opts.text,
+    opts.fromPath.toString(),
+    kind == null ? undefined : {
+      type: kind,
+    },
+  );
+}
+
+function createSymlinkSync(opts: {
+  fromPath: PathReference;
+  toPath: PathReference;
+  text: string;
+}) {
+  let kind: "file" | "dir" | undefined;
+  if (Deno.build.os === "windows") {
+    const info = opts.toPath.lstatSync();
+    if (info == null) {
+      throw new Deno.errors.NotFound(`The target path '${opts.toPath.toString()}' did not exist.`);
+    } else if (info?.isDirectory) {
+      kind = "dir";
+    } else if (info?.isFile) {
+      kind = "file";
+    }
+  }
+
+  Deno.symlinkSync(
+    opts.text,
+    opts.fromPath.toString(),
+    kind == null ? undefined : {
+      type: kind,
+    },
+  );
 }
 
 export class FsFileWrapper implements Deno.FsFile {
