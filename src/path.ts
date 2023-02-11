@@ -1,4 +1,4 @@
-import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
@@ -16,14 +16,6 @@ export class PathReference {
     this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
   }
 
-  ancestors() {
-    throw new Error("todo");
-  }
-
-  components() {
-    throw new Error("todo");
-  }
-
   join(...pathSegments: string[]) {
     return new PathReference(stdPath.join(this.#path, ...pathSegments));
   }
@@ -39,14 +31,6 @@ export class PathReference {
    */
   normalize() {
     return new PathReference(stdPath.normalize(this.#path));
-  }
-
-  startsWith(text: string) {
-    throw new Error("todo");
-  }
-
-  endsWith(text: string) {
-    throw new Error("todo");
   }
 
   isDir() {
@@ -145,11 +129,11 @@ export class PathReference {
   }
 
   exists() {
-    return fs.exists(this.#path);
+    return this.lstat().then((info) => info != null);
   }
 
   existsSync() {
-    return fs.existsSync(this.#path);
+    return this.lstatSync() != null;
   }
 
   realPath() {

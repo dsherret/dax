@@ -819,7 +819,7 @@ Deno.test("streaming api errors while streaming", async () => {
   }
 
   {
-    const child = $`echo 1 && echo 2 && sleep 0.1 && exit 1`.stdout("piped").spawn();
+    const child = $`echo 1 && echo 2 && sleep 0.5 && exit 1`.stdout("piped").spawn();
     const stdout = child.stdout();
 
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
@@ -1222,7 +1222,7 @@ Deno.test("copy test", async () => {
 });
 
 Deno.test("cp test2", async () => {
-  await withTempDir(async (dir) => {
+  await withTempDir(async () => {
     await $`mkdir -p a/d1`;
     await $`mkdir -p a/d2`;
     Deno.createSync("a/d1/f").close();

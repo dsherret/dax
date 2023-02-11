@@ -2,7 +2,7 @@ import { assertEquals, withTempDir } from "./deps.test.ts";
 import { createPathReference } from "./path.ts";
 
 Deno.test("should get json data from file", async () => {
-  await withTempDir(async () => {
+  await withTempDir(() => {
     createPathReference("file.txt")
       .writeJsonSync({ test: 123 });
     const data = createPathReference("file.txt").jsonSync();
