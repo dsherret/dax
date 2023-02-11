@@ -1,4 +1,4 @@
-import { assert, assertEquals, withTempDir } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
 import { createPathReference } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
@@ -140,4 +140,137 @@ Deno.test("withBasename", () => {
   assertEquals(path.basename(), "test");
   path = path.withBasename("other.asdf");
   assertEquals(path.basename(), "other.asdf");
+});
+
+Deno.test("writeJson", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.json");
+    await path.writeJson({
+      prop: "test",
+    });
+    assertEquals(path.textSync(), `{"prop":"test"}\n`);
+    await path.writeJson({
+      prop: 1,
+    });
+    // should truncate
+    assertEquals(path.textSync(), `{"prop":1}\n`);
+
+    path.writeJsonSync({
+      asdf: "test",
+    });
+    assertEquals(path.textSync(), `{"asdf":"test"}\n`);
+    path.writeJsonSync({
+      asdf: 1,
+    });
+    // should truncate
+    assertEquals(path.textSync(), `{"asdf":1}\n`);
+  });
+});
+
+Deno.test("writeJsonPretty", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.json");
+    await path.writeJsonPretty({
+      prop: "test",
+    });
+    assertEquals(path.textSync(), `{\n  "prop": "test"\n}\n`);
+    await path.writeJsonPretty({
+      prop: 1,
+    });
+    // should truncate
+    assertEquals(path.textSync(), `{\n  "prop": 1\n}\n`);
+
+    path.writeJsonPrettySync({
+      asdf: "test",
+    });
+    assertEquals(path.textSync(), `{\n  "asdf": "test"\n}\n`);
+    path.writeJsonPrettySync({
+      asdf: 1,
+    });
+    // should truncate
+    assertEquals(path.textSync(), `{\n  "asdf": 1\n}\n`);
+  });
+});
+
+Deno.test("create", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("text");
+    let file = await path.create();
+    file.writeTextSync("asdf");
+    file.close();
+    path.removeSync();
+    file = await path.create();
+    file.close();
+    file = path.createSync();
+    file.writeTextSync("asdf");
+    file.close();
+    path.removeSync();
+    file = path.createSync();
+    file.close();
+  });
+});
+
+Deno.test("createNew", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("text");
+    await assertRejects(() => path.createNew());
+    path.removeSync();
+    let file = await path.createNew();
+    file.close();
+    assertThrows(() => path.createNewSync());
+    path.removeSync();
+    file = path.createNewSync();
+    file.close();
+  });
+});
+
+Deno.test("open", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("text");
+    let file = await path.open({ write: true });
+    await file.writeText("1");
+    file.writeTextSync("2");
+    file.close();
+    file = path.openSync({ write: true, append: true });
+    await file.writeBytes(new TextEncoder().encode("3"));
+    file.close();
+    assertEquals(path.textSync(), "12xt3");
+  });
+});
+
+Deno.test("remove", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("text");
+    assert(path.existsSync());
+    assert(!path.removeSync().existsSync());
+    path.writeTextSync("asdf");
+    assert(path.existsSync());
+    assert(!(await path.remove()).existsSync());
+  });
+});
+
+Deno.test("copyFile", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("text");
+    const newPath = await path.copyFile("other.txt");
+    assert(path.existsSync());
+    assert(newPath.existsSync());
+    assertEquals(newPath.textSync(), "text");
+    const newPath2 = path.copyFileSync("other2.txt");
+    assert(newPath2.existsSync());
+    assertEquals(newPath2.textSync(), "text");
+  });
+});
+
+Deno.test("rename", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("file.txt").writeTextSync("");
+    const newPath = path.renameSync("other.txt");
+    assert(!path.existsSync());
+    assert(newPath.existsSync());
+    path.writeTextSync("");
+    const newPath2 = await path.rename("other2.txt");
+    assert(!path.existsSync());
+    assert(newPath2.existsSync());
+  });
 });

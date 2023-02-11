@@ -10,7 +10,7 @@ export function createPathReference(path: string) {
  * Holds a reference to a path providing helper methods.
  */
 export class PathReference {
-  #path: string;
+  readonly #path: string;
 
   constructor(path: string | URL) {
     this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
@@ -349,57 +349,92 @@ export class PathReference {
 
   async writeJson(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj);
-    await this.writeText(text, options);
+    await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
   writeJsonSync(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj);
-    this.writeTextSync(text, options);
+    this.#writeTextWithEndNewLineSync(text, options);
     return this;
   }
 
   async writeJsonPretty(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj, undefined, 2);
-    await this.writeText(text, options);
+    await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
   writeJsonPrettySync(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj, undefined, 2);
-    this.writeTextSync(text, options);
+    this.#writeTextWithEndNewLineSync(text, options);
     return this;
   }
 
+  async #writeTextWithEndNewLine(text: string, options: Deno.WriteFileOptions | undefined) {
+    const file = await this.open({ write: true, create: true, truncate: true, ...options });
+    try {
+      await file.writeText(text);
+      await file.writeText("\n");
+    } finally {
+      try {
+        file.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  #writeTextWithEndNewLineSync(text: string, options: Deno.WriteFileOptions | undefined) {
+    const file = this.openSync({ write: true, create: true, truncate: true, ...options });
+    try {
+      file.writeTextSync(text);
+      file.writeTextSync("\n");
+    } finally {
+      try {
+        file.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  /** Changes the permissions of the file or directory. */
   async chmod(mode: number) {
     await Deno.chmod(this.#path, mode);
     return this;
   }
 
+  /** Synchronously changes the permissions of the file or directory. */
   chmodSync(mode: number) {
     Deno.chmodSync(this.#path, mode);
     return this;
   }
 
+  /** Changes the ownership permissions of the file. */
   async chown(uid: number | null, gid: number | null) {
     await Deno.chown(this.#path, uid, gid);
     return this;
   }
 
+  /** Synchronously changes the ownership permissions of the file. */
   chownSync(uid: number | null, gid: number | null) {
     Deno.chownSync(this.#path, uid, gid);
     return this;
   }
 
+  /** Creates a new file or opens the existing one. */
   create() {
     return Deno.create(this.#path)
       .then((file) => new FsFileWrapper(file));
   }
 
+  /** Synchronously creates a new file or opens the existing one. */
   createSync() {
     return new FsFileWrapper(Deno.createSync(this.#path));
   }
 
+  /** Creates a file throwing if a file previously existed. */
   createNew() {
     return this.open({
       createNew: true,
@@ -408,6 +443,7 @@ export class PathReference {
     });
   }
 
+  /** Synchronously creates a file throwing if a file previously existed. */
   createNewSync() {
     return this.openSync({
       createNew: true,
@@ -416,11 +452,13 @@ export class PathReference {
     });
   }
 
+  /** Opens a file. */
   open(options?: Deno.OpenOptions) {
     return Deno.open(this.#path, options)
       .then((file) => new FsFileWrapper(file));
   }
 
+  /** Opens a file synchronously. */
   openSync(options?: Deno.OpenOptions) {
     return new FsFileWrapper(Deno.openSync(this.#path, options));
   }
@@ -472,7 +510,8 @@ export class PathReference {
    */
   renameSync(newPath: string | URL | PathReference) {
     const pathRef = newPath instanceof PathReference ? newPath : new PathReference(newPath);
-    return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
+    Deno.renameSync(this.#path, pathRef.#path);
+    return pathRef;
   }
 
   /** Opens the file and pipes it to the writable stream. */
