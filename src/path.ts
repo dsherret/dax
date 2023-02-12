@@ -2,8 +2,8 @@ import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathReference(path: string | URL): PathReference {
-  return new PathReference(path);
+export function createPathRef(path: string | URL): PathRef {
+  return new PathRef(path);
 }
 
 /**
@@ -11,7 +11,7 @@ export function createPathReference(path: string | URL): PathReference {
  *
  * Create one via `$`: `const srcDir = $.path("src");`
  */
-export class PathReference {
+export class PathRef {
   readonly #path: string;
 
   constructor(path: string | URL) {
@@ -24,13 +24,13 @@ export class PathReference {
   }
 
   /** Joins the provided path segments onto this path. */
-  join(...pathSegments: string[]): PathReference {
-    return new PathReference(stdPath.join(this.#path, ...pathSegments));
+  join(...pathSegments: string[]): PathRef {
+    return new PathRef(stdPath.join(this.#path, ...pathSegments));
   }
 
   /** Resolves this path to an absolute path along with the provided path segments. */
-  resolve(...pathSegments: string[]): PathReference {
-    return new PathReference(stdPath.resolve(this.#path, ...pathSegments));
+  resolve(...pathSegments: string[]): PathRef {
+    return new PathRef(stdPath.resolve(this.#path, ...pathSegments));
   }
 
   /**
@@ -38,8 +38,8 @@ export class PathReference {
    * Note that resolving these segments does not necessarily mean that all will be eliminated.
    * A `'..'` at the top-level will be preserved, and an empty path is canonically `'.'`.
    */
-  normalize(): PathReference {
-    return new PathReference(stdPath.normalize(this.#path));
+  normalize(): PathRef {
+    return new PathRef(stdPath.normalize(this.#path));
   }
 
   /** Follows symlinks and gets if this path is a directory. */
@@ -124,7 +124,7 @@ export class PathReference {
 
   /**
    * Gets the directory path. In most cases, it is recommended
-   * to use `.parent()` instead since it will give you a `PathReference`.
+   * to use `.parent()` instead since it will give you a `PathRef`.
    */
   dirname(): string {
     return stdPath.dirname(this.#path);
@@ -136,7 +136,7 @@ export class PathReference {
   }
 
   /** Resolves the path getting all its ancestor directories in order. */
-  *ancestors(): Generator<PathReference> {
+  *ancestors(): Generator<PathRef> {
     let ancestor = this.parent();
     while (ancestor != null) {
       yield ancestor;
@@ -145,18 +145,18 @@ export class PathReference {
   }
 
   /** Gets the parent directory or returns undefined if the parent is the root directory. */
-  parent(): PathReference | undefined {
+  parent(): PathRef | undefined {
     const resolvedPath = this.resolve();
     const dirname = resolvedPath.dirname();
     if (dirname === resolvedPath.#path) {
       return undefined;
     } else {
-      return new PathReference(dirname);
+      return new PathRef(dirname);
     }
   }
 
   /** Gets the parent or throws if the current directory was the root. */
-  parentOrThrow(): PathReference {
+  parentOrThrow(): PathRef {
     const parent = this.parent();
     if (parent == null) {
       throw new Error(`Cannot get the parent directory of '${this.#path}'.`);
@@ -174,23 +174,23 @@ export class PathReference {
   }
 
   /** Gets a new path reference with the provided extension. */
-  withExtname(ext: string): PathReference {
+  withExtname(ext: string): PathRef {
     const currentExt = this.extname();
     const hasLeadingPeriod = ext.charCodeAt(0) === PERIOD_CHAR_CODE;
     if (!hasLeadingPeriod) {
       ext = "." + ext;
     }
-    return new PathReference(this.#path.substring(0, this.#path.length - (currentExt?.length ?? 0)) + ext);
+    return new PathRef(this.#path.substring(0, this.#path.length - (currentExt?.length ?? 0)) + ext);
   }
 
   /** Gets a new path reference with the provided file or directory name. */
-  withBasename(basename: string): PathReference {
+  withBasename(basename: string): PathRef {
     const currentBaseName = this.basename();
-    return new PathReference(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
+    return new PathRef(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
   }
 
   /** Gets the relative path from this path to the specified path. */
-  relative(to: string | URL | PathReference): string {
+  relative(to: string | URL | PathRef): string {
     const toPathRef = ensurePathRef(to);
     console.log(this.resolve().#path, toPathRef.resolve().#path);
     console.log(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
@@ -208,13 +208,13 @@ export class PathReference {
   }
 
   /** Resolves to the absolute normalized path, with symbolic links resolved. */
-  realPath(): Promise<PathReference> {
-    return Deno.realPath(this.#path).then((path) => new PathReference(path));
+  realPath(): Promise<PathRef> {
+    return Deno.realPath(this.#path).then((path) => new PathRef(path));
   }
 
   /** Synchronously resolves to the absolute normalized path, with symbolic links resolved. */
-  realPathSync(): PathReference {
-    return new PathReference(Deno.realPathSync(this.#path));
+  realPathSync(): PathRef {
+    return new PathRef(Deno.realPathSync(this.#path));
   }
 
   /** Creates a directory at this path. */
@@ -233,9 +233,9 @@ export class PathReference {
    * Creates a symlink at the provided path to the provided target returning the target path.
    */
   async createAbsoluteSymlinkTo(
-    target: string | URL | PathReference,
+    target: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<PathReference> {
+  ): Promise<PathRef> {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     await createSymlink({
@@ -251,7 +251,7 @@ export class PathReference {
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
    * @returns The resolved target path.
    */
-  createAbsoluteSymlinkToSync(target: string | URL | PathReference, opts?: Deno.SymlinkOptions): PathReference {
+  createAbsoluteSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): PathRef {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     createSymlinkSync({
@@ -270,9 +270,9 @@ export class PathReference {
    * @returns The destination path.
    */
   async createAbsoluteSymlinkAt(
-    linkPath: string | URL | PathReference,
+    linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<PathReference> {
+  ): Promise<PathRef> {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     await createSymlink({
@@ -291,9 +291,9 @@ export class PathReference {
    * @returns The destination path.
    */
   createAbsoluteSymlinkAtSync(
-    linkPath: string | URL | PathReference,
+    linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): PathReference {
+  ): PathRef {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     createSymlinkSync({
@@ -312,9 +312,9 @@ export class PathReference {
    * @returns The destination path.
    */
   async createRelativeSymlinkAt(
-    linkPath: string | URL | PathReference,
+    linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<PathReference> {
+  ): Promise<PathRef> {
     const {
       linkPathRef,
       thisResolved,
@@ -336,9 +336,9 @@ export class PathReference {
    * @returns The destination path.
    */
   createRelativeSymlinkAtSync(
-    linkPath: string | URL | PathReference,
+    linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): PathReference {
+  ): PathRef {
     const {
       linkPathRef,
       thisResolved,
@@ -353,7 +353,7 @@ export class PathReference {
     return linkPathRef;
   }
 
-  #getRelativeSymlinkAtParts(linkPath: string | URL | PathReference) {
+  #getRelativeSymlinkAtParts(linkPath: string | URL | PathRef) {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     let relativePath: string;
@@ -621,7 +621,7 @@ export class PathReference {
    * Copies the file returning a promise that resolves to
    * the destination path.
    */
-  copyFile(destinationPath: string | URL | PathReference): Promise<PathReference> {
+  copyFile(destinationPath: string | URL | PathRef): Promise<PathRef> {
     const pathRef = ensurePathRef(destinationPath);
     return Deno.copyFile(this.#path, pathRef.#path)
       .then(() => pathRef);
@@ -631,7 +631,7 @@ export class PathReference {
    * Copies the file returning a promise that resolves to
    * the destination path synchronously.
    */
-  copyFileSync(destinationPath: string | URL | PathReference): PathReference {
+  copyFileSync(destinationPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(destinationPath);
     Deno.copyFileSync(this.#path, pathRef.#path);
     return pathRef;
@@ -641,7 +641,7 @@ export class PathReference {
    * Renames the file or directory returning a promise that resolves to
    * the renamed path.
    */
-  rename(newPath: string | URL | PathReference): Promise<PathReference> {
+  rename(newPath: string | URL | PathRef): Promise<PathRef> {
     const pathRef = ensurePathRef(newPath);
     return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
   }
@@ -650,7 +650,7 @@ export class PathReference {
    * Renames the file or directory returning a promise that resolves to
    * the renamed path synchronously.
    */
-  renameSync(newPath: string | URL | PathReference): PathReference {
+  renameSync(newPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(newPath);
     Deno.renameSync(this.#path, pathRef.#path);
     return pathRef;
@@ -672,13 +672,13 @@ export class PathReference {
   }
 }
 
-function ensurePathRef(path: string | URL | PathReference) {
-  return path instanceof PathReference ? path : new PathReference(path);
+function ensurePathRef(path: string | URL | PathRef) {
+  return path instanceof PathRef ? path : new PathRef(path);
 }
 
 async function createSymlink(opts: {
-  fromPath: PathReference;
-  toPath: PathReference;
+  fromPath: PathRef;
+  toPath: PathRef;
   text: string;
   type: "file" | "dir" | undefined;
 }) {
@@ -707,8 +707,8 @@ async function createSymlink(opts: {
 }
 
 function createSymlinkSync(opts: {
-  fromPath: PathReference;
-  toPath: PathReference;
+  fromPath: PathRef;
+  toPath: PathRef;
   text: string;
   type: "file" | "dir" | undefined;
 }) {
