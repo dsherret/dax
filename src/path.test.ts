@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
-import { createPathRef } from "./path.ts";
+import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
 Deno.test("join", () => {
@@ -488,4 +488,20 @@ Deno.test("pipeTo", async () => {
     await textFile.pipeTo(otherFile.writable);
     assertEquals(otherFilePath.textSync(), largeText);
   });
+});
+
+Deno.test("instanceof check", () => {
+  class OtherPathRef {
+    // should match because of this
+    private static instanceofSymbol = Symbol.for("dax.PathRef");
+
+    static [Symbol.hasInstance](instance: any) {
+      return instance?.constructor?.instanceofSymbol === OtherPathRef.instanceofSymbol;
+    }
+  }
+
+  assert(createPathRef("test") instanceof PathRef);
+  assert(!(new URL("https://example.com") instanceof PathRef));
+  assert(new OtherPathRef() instanceof PathRef);
+  assert(createPathRef("test") instanceof OtherPathRef);
 });
