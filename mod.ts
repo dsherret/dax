@@ -206,17 +206,6 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    */
   dedent: typeof outdent;
   /**
-   * Gets if the provided path exists asynchronously.
-   *
-   * Although there is a potential for a race condition between the
-   * time this check is made and the time some code is used, it may
-   * not be a big deal to use this in some scenarios and simplify
-   * the code a lot.
-   */
-  exists(path: string): Promise<boolean>;
-  /** Gets if the provided path exists synchronously. */
-  existsSync(path: string): boolean;
-  /**
    * Determines if the provided command exists resolving to `true` if the command
    * will be resolved by the shell of the current `$` or false otherwise.
    */
@@ -548,12 +537,6 @@ const helperObject = {
     return wasmInstance.strip_ansi_codes(text);
   },
   dedent: outdent,
-  exists(path: string) {
-    return fs.exists(path);
-  },
-  existsSync(path: string) {
-    return fs.existsSync(path);
-  },
   sleep,
   which(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
