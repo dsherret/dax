@@ -472,7 +472,7 @@ pb.with(() => {
 
 ## Path API
 
-The path API offers an immutable `PathRef` class, which is a similar concept to Rust's `PathBuf` struct.
+The path API offers an immutable [`PathRef`](https://deno.land/x/dax/src/path.ts?s=PathRef) class, which is a similar concept to Rust's `PathBuf` struct.
 
 ```ts
 // create a `PathRef`
