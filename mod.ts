@@ -28,9 +28,9 @@ import {
 import { colors, fs, outdent, path as stdPath, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
-import { createPathReference } from "./src/path.ts";
+import { createPathRef } from "./src/path.ts";
 
-export { FsFileWrapper, PathReference } from "./src/path.ts";
+export { FsFileWrapper, PathRef } from "./src/path.ts";
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export type {
@@ -221,7 +221,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /** Helper function for creating path references, which provide an easier way for
    * working with paths, directories, and files on the file system. Also, a re-export
    * of deno_std's `path` module as properties on this object. */
-  path: typeof createPathReference & typeof stdPath;
+  path: typeof createPathRef & typeof stdPath;
   /**
    * Logs with potential indentation (`$.logIndent`)
    * and output of commands or request responses.
@@ -531,7 +531,7 @@ function buildInitial$State<TExtras extends ExtrasObject>(
 
 const helperObject = {
   fs,
-  path: Object.assign(createPathReference, stdPath),
+  path: Object.assign(createPathRef, stdPath),
   cd,
   escapeArg,
   stripAnsi(text: string) {

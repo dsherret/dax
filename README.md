@@ -472,12 +472,12 @@ pb.with(() => {
 
 ## Path API
 
-The path API offers an immutable `PathReference` class, which is a similar concept to Rust's `PathBuf` struct.
+The path API offers an immutable `PathRef` class, which is a similar concept to Rust's `PathBuf` struct.
 
 To create a `PathReference`, do the following:
 
 ```ts
-// create a `PathReference`
+// create a `PathRef`
 let srcDir = $.path("src");
 // get information about the path
 srcDir.isDir(); // false
@@ -511,7 +511,7 @@ const srcDir = $.path("src").resolve();
 await $`echo ${srcDir}`;
 ```
 
-There are a lot of helper methods here, so check the [documentation on PathReference](https://deno.land/x/dax/src/path.ts/~/PathReference) for more details.
+There are a lot of helper methods here, so check the [documentation on PathRef](https://deno.land/x/dax/src/path.ts/~/PathRef) for more details.
 
 ## Helper functions
 
