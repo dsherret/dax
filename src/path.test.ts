@@ -505,3 +505,15 @@ Deno.test("instanceof check", () => {
   assert(new OtherPathRef() instanceof PathRef);
   assert(createPathRef("test") instanceof OtherPathRef);
 });
+
+Deno.test("startsWith", () => {
+  const path = createPathRef('test');
+  assertEquals(path.startsWith('no'), false);
+  assertEquals(path.startsWith('te'), true);
+});
+
+Deno.test('endsWith', () => {
+  const path = createPathRef('test');
+  assertEquals(path.endsWith('no'), false);
+  assertEquals(path.endsWith('st'), true);
+});

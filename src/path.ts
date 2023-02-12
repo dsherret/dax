@@ -682,6 +682,14 @@ export class PathRef {
     }
     return this;
   }
+
+  startsWith(token: string): boolean {
+    return this.#path.startsWith(token);
+  }
+
+  endsWith(token: string): boolean {
+    return this.#path.endsWith(token);
+  }
 }
 
 function ensurePathRef(path: string | URL | PathRef) {
