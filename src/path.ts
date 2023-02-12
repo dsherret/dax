@@ -29,7 +29,7 @@ export class PathReference {
   }
 
   /**
-   * Normalize the `path`, resolving `'..'` and `'.'` segments.
+   * Normalizes the `path`, resolving `'..'` and `'.'` segments.
    * Note that resolving these segments does not necessarily mean that all will be eliminated.
    * A `'..'` at the top-level will be preserved, and an empty path is canonically `'.'`.
    */
@@ -105,10 +105,15 @@ export class PathReference {
     }
   }
 
+  /**
+   * Gets the directory path. In most cases, it is recommended
+   * to use `.parent()` instead since it will give you a `PathReference`.
+   */
   dirname() {
     return stdPath.dirname(this.#path);
   }
 
+  /** Gets the file or directory name of the path. */
   basename() {
     return stdPath.basename(this.#path);
   }
@@ -142,20 +147,26 @@ export class PathReference {
     return parent;
   }
 
-  /** Return the extension of the `path` with leading period. */
+  /**
+   * Returns the extension of the path with leading period or undefined
+   * if there is no extension.
+   */
   extname() {
-    return stdPath.extname(this.#path);
+    const extName = stdPath.extname(this.#path);
+    return extName.length === 0 ? undefined : extName;
   }
 
+  /** Gets a new path reference with the provided extension. */
   withExtname(ext: string) {
     const currentExt = this.extname();
     const hasLeadingPeriod = ext.charCodeAt(0) === PERIOD_CHAR_CODE;
     if (!hasLeadingPeriod) {
       ext = "." + ext;
     }
-    return new PathReference(this.#path.substring(0, this.#path.length - currentExt.length) + ext);
+    return new PathReference(this.#path.substring(0, this.#path.length - (currentExt?.length ?? 0)) + ext);
   }
 
+  /** Gets a new path reference with the provided file or directory name. */
   withBasename(basename: string) {
     const currentBaseName = this.basename();
     return new PathReference(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
@@ -196,7 +207,7 @@ export class PathReference {
   }
 
   /**
-   * Create a symlink at the specified path which points to the current path
+   * Creates a symlink at the specified path which points to the current path
    * using an absolute path.
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
@@ -215,7 +226,7 @@ export class PathReference {
   }
 
   /**
-   * Create a symlink at the specified path which points to the current path
+   * Creates a symlink at the specified path which points to the current path
    * using an absolute path.
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
@@ -243,7 +254,7 @@ export class PathReference {
   }
 
   /**
-   * Create a symlink at the specified path which points to the current path
+   * Creates a symlink at the specified path which points to the current path
    * using a relative path.
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
@@ -263,7 +274,7 @@ export class PathReference {
   }
 
   /**
-   * Synchronously create a symlink at the specified path which points to the current
+   * Synchronously creates a symlink at the specified path which points to the current
    * path using a relative path.
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
@@ -544,10 +555,13 @@ export class PathReference {
   }
 
   /** Opens the file and pipes it to the writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: Omit<PipeOptions, "preventClose">) {
     const file = await Deno.open(this.#path, { read: true });
     try {
-      await file.readable.pipeTo(dest, options);
+      await file.readable.pipeTo(dest, {
+        preventClose: true,
+        ...options,
+      });
     } finally {
       try {
         file.close();

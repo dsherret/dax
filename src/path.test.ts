@@ -144,7 +144,7 @@ Deno.test("withExtname", () => {
   let path = createPathReference("src").resolve();
   path = path.join("temp", "other");
   assertEquals(path.basename(), "other");
-  assertEquals(path.extname(), "");
+  assertEquals(path.extname(), undefined);
   path = path.withExtname("test");
   assertEquals(path.basename(), "other.test");
   path = path.withExtname("test2");
@@ -295,5 +295,16 @@ Deno.test("rename", async () => {
     const newPath2 = await path.rename("other2.txt");
     assert(!path.existsSync());
     assert(newPath2.existsSync());
+  });
+});
+
+Deno.test("pipeTo", async () => {
+  await withTempDir(async () => {
+    const largeText = "asdf".repeat(100_000);
+    const textFile = createPathReference("file.txt").writeTextSync(largeText);
+    const otherFilePath = textFile.parentOrThrow().join("other.txt");
+    const otherFile = otherFilePath.openSync({ write: true, create: true });
+    await textFile.pipeTo(otherFile.writable);
+    assertEquals(otherFilePath.textSync(), largeText);
   });
 });

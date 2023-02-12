@@ -286,9 +286,9 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** Pipes the response body to the provided writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>) {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
     const response = await this.fetch();
-    return await response.pipeTo(dest);
+    return await response.pipeTo(dest, options);
   }
 
   /**
@@ -493,8 +493,8 @@ export class RequestResult {
   }
 
   /** Pipes the response body to the provided writable stream. */
-  pipeTo(dest: WritableStream<Uint8Array>) {
-    return this.#getDownloadBody().pipeTo(dest);
+  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
+    return this.#getDownloadBody().pipeTo(dest, options);
   }
 
   /**
@@ -534,14 +534,15 @@ export class RequestResult {
         ...(options ?? {}),
       });
       try {
-        await body.pipeTo(file.writable);
-      } catch (err) {
+        await body.pipeTo(file.writable, {
+          preventClose: true,
+        });
+      } finally {
         try {
           file.close();
         } catch {
           // do nothing
         }
-        throw err;
       }
     } catch (err) {
       await this.#response.body?.cancel();
