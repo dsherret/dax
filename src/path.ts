@@ -8,6 +8,8 @@ export function createPathReference(path: string | URL): PathReference {
 
 /**
  * Holds a reference to a path providing helper methods.
+ *
+ * Create one via `$`: `const srcDir = $.path("src");`
  */
 export class PathReference {
   readonly #path: string;

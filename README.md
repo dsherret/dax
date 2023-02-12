@@ -474,8 +474,6 @@ pb.with(() => {
 
 The path API offers an immutable `PathReference` class, which is a similar concept to Rust's `PathBuf` struct.
 
-To create a `PathReference`, do the following:
-
 ```ts
 // create a `PathReference`
 let srcDir = $.path("src");
@@ -511,7 +509,7 @@ const srcDir = $.path("src").resolve();
 await $`echo ${srcDir}`;
 ```
 
-There are a lot of helper methods here, so check the [documentation on PathReference](https://deno.land/x/dax/src/path.ts/~/PathReference) for more details.
+There are a lot of helper methods here, so check the [documentation on PathReference](https://deno.land/x/dax/src/path.ts?s=PathReference) for more details.
 
 ## Helper functions
 
