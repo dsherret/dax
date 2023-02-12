@@ -8,13 +8,13 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 
 ## Differences with zx
 
-1. Minimal globals or global configuration.
-   - Only a default instance of `$`, but it's not mandatory to use this.
-1. No custom CLI.
 1. Cross platform shell.
    - Makes more code work on Windows.
    - Allows exporting the shell's environment to the current process.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+1. Minimal globals or global configuration.
+   - Only a default instance of `$`, but it's not mandatory to use this.
+1. No custom CLI.
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
@@ -470,6 +470,49 @@ pb.with(() => {
 });
 ```
 
+## Path API
+
+The path API offers an immutable `PathReference` class, which is a similar concept to Rust's `PathBuf` struct.
+
+To create a `PathReference`, do the following:
+
+```ts
+// create a `PathReference`
+let srcDir = $.path("src");
+// get information about the path
+srcDir.isDir(); // false
+// do actions on it
+srcDir.mkdir();
+srcDir.isDir(); // true
+
+srcDir.isRelative(); // true
+srcDir = srcDir.resolve(); // resolve the path to be absolute
+srcDir.isRelative(); // false
+srcDir.isAbsolute(); // true
+
+// join to get other paths and do actions on them
+const textFile = srcDir.join("file.txt");
+textFile.writeTextSync("some text");
+console.log(textFile.textSync()); // "some text"
+
+const jsonFile = srcDir.join("subDir", "file.json");
+jsonFile.parentOrThrow().mkdir();
+jsonFile.writeJsonSync({
+  someValue: 5,
+});
+console.log(jsonFile.jsonSync().someValue); // 5
+```
+
+It also works to provide these paths to commands:
+
+```ts
+const srcDir = $.path("src").resolve();
+
+await $`echo ${srcDir}`;
+```
+
+There are a lot of helper methods here, so check the documentation for more details.
+
 ## Helper functions
 
 Changing the current working directory of the current process:
@@ -541,7 +584,7 @@ This line will appear without any indentation.
 Empty lines (like the one above) will not affect the common indentation.
 ```
 
-Re-export of deno_std's path:
+Re-export of deno_std's path (though you might want to just use the path API described above):
 
 ```ts
 $.path.basename("./deno/std/path/mod.ts"); // mod.ts

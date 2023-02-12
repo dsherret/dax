@@ -25,9 +25,10 @@ import {
   select,
   SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, fs, outdent, path, which, whichSync } from "./src/deps.ts";
+import { colors, fs, outdent, path as stdPath, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
+import { createPathReference } from "./src/path.ts";
 
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
@@ -227,8 +228,10 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   commandExistsSync(commandName: string): boolean;
   /** Re-export of deno_std's `fs` module. */
   fs: typeof fs;
-  /** Re-export of deno_std's `path` module. */
-  path: typeof path;
+  /** Helper function for creating path references, which provide an easier way for
+   * working with paths, directories, and files on the file system. Also, a re-export
+   * of deno_std's `path` module as properties on this object. */
+  path: typeof createPathReference & typeof stdPath;
   /**
    * Logs with potential indentation (`$.logIndent`)
    * and output of commands or request responses.
@@ -538,7 +541,7 @@ function buildInitial$State<TExtras extends ExtrasObject>(
 
 const helperObject = {
   fs,
-  path,
+  path: Object.assign(createPathReference, stdPath),
   cd,
   escapeArg,
   stripAnsi(text: string) {

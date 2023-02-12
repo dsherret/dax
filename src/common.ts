@@ -177,19 +177,6 @@ export async function safeLstat(path: string) {
   }
 }
 
-/** lstat that doesn't throw when the path is not found. */
-export function safeLstatSync(path: string) {
-  try {
-    return Deno.lstatSync(path);
-  } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
-      return undefined;
-    } else {
-      throw err;
-    }
-  }
-}
-
 export function getFileNameFromUrl(url: string | URL) {
   const parsedUrl = url instanceof URL ? url : new URL(url);
   const fileName = parsedUrl.pathname.split("/").at(-1);
