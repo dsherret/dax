@@ -2,15 +2,6 @@ import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "
 import { createPathReference } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
-Deno.test("should get json data from file", async () => {
-  await withTempDir(() => {
-    createPathReference("file.txt")
-      .writeJsonSync({ test: 123 });
-    const data = createPathReference("file.txt").jsonSync();
-    assertEquals(data, { test: 123 });
-  });
-});
-
 Deno.test("join", () => {
   const path = createPathReference("src");
   const newPath = path.join("other", "test");
@@ -163,6 +154,192 @@ Deno.test("withBasename", () => {
   assertEquals(path.basename(), "test");
   path = path.withBasename("other.asdf");
   assertEquals(path.basename(), "other.asdf");
+});
+
+Deno.test("relative", () => {
+  const path1 = createPathReference("src");
+  const path2 = createPathReference(".github");
+  assertEquals(
+    path1.relative(path2),
+    Deno.build.os === "windows" ? "..\\.github" : "../.github",
+  );
+});
+
+Deno.test("exists", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file");
+    assert(!await file.exists());
+    assert(!file.existsSync());
+    file.writeTextSync("");
+    assert(await file.exists());
+    assert(file.existsSync());
+  });
+});
+
+Deno.test("realpath", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file").resolve();
+    file.writeTextSync("");
+    const symlink = file.createAbsoluteSymlinkAtSync("other");
+    assertEquals(
+      (await symlink.realPath()).toString(),
+      file.toString(),
+    );
+    assertEquals(
+      symlink.realPathSync().toString(),
+      file.toString(),
+    );
+  });
+});
+
+Deno.test("mkdir", async () => {
+  await withTempDir(async () => {
+    const path = createPathReference("dir");
+    await path.mkdir();
+    assert(path.isDir());
+    path.removeSync();
+    assert(!path.isDir());
+    path.mkdirSync();
+    assert(path.isDir());
+    const nestedDir = path.join("subdir", "subsubdir", "sub");
+    await assertRejects(() => nestedDir.mkdir());
+    assertThrows(() => nestedDir.mkdirSync());
+    assert(!nestedDir.parentOrThrow().existsSync());
+    await nestedDir.mkdir({ recursive: true });
+    assert(nestedDir.existsSync());
+    await path.remove({ recursive: true });
+    assert(!path.existsSync());
+    nestedDir.mkdirSync({ recursive: true });
+    assert(nestedDir.existsSync());
+  });
+});
+
+Deno.test("createAbsoluteSymlinkTo", async () => {
+  await withTempDir(async () => {
+    const destFile = createPathReference("temp.txt").writeTextSync("");
+    const otherFile = destFile.parentOrThrow().join("other.txt");
+    await otherFile.createAbsoluteSymlinkTo(destFile);
+    const stat = await otherFile.stat();
+    assertEquals(stat!.isFile, true);
+    assertEquals(stat!.isSymlink, false);
+    assert(otherFile.isSymlink());
+  });
+});
+
+Deno.test("createAbsoluteSymlinkToSync", async () => {
+  await withTempDir(() => {
+    const destFile = createPathReference("temp.txt").writeTextSync("");
+    const otherFile = destFile.parentOrThrow().join("other.txt");
+    otherFile.createAbsoluteSymlinkToSync(destFile);
+    const stat = otherFile.statSync();
+    assertEquals(stat!.isFile, true);
+    assertEquals(stat!.isSymlink, false);
+    assert(otherFile.isSymlink());
+  });
+});
+
+Deno.test("readDir", async () => {
+  await withTempDir(async () => {
+    const dir = createPathReference(".").resolve();
+    dir.join("file1").writeTextSync("");
+    dir.join("file2").writeTextSync("");
+
+    const entries1 = [];
+    for await (const entry of dir.readDir()) {
+      entries1.push(entry);
+    }
+    const entries2 = [];
+    for (const entry of dir.readDirSync()) {
+      entries2.push(entry);
+    }
+
+    for (const entries of [entries1, entries2]) {
+      assertEquals(entries.length, 2);
+      assert(entries[0].name.endsWith("file1"));
+      assert(entries[1].name.endsWith("file2"));
+    }
+  });
+});
+
+Deno.test("bytes", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.txt");
+    const bytes = new TextEncoder().encode("asdf");
+    file.writeSync(bytes);
+    assertEquals(file.bytesSync(), bytes);
+    assertEquals(await file.bytes(), bytes);
+    const nonExistent = createPathReference("not-exists");
+    assertThrows(() => nonExistent.bytesSync());
+    await assertRejects(() => nonExistent.bytes());
+  });
+});
+
+Deno.test("maybeBytes", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.txt");
+    const bytes = new TextEncoder().encode("asdf");
+    await file.write(bytes);
+    assertEquals(file.maybeBytesSync(), bytes);
+    assertEquals(await file.maybeBytes(), bytes);
+    const nonExistent = createPathReference("not-exists");
+    assertEquals(await nonExistent.maybeText(), undefined);
+    assertEquals(nonExistent.maybeTextSync(), undefined);
+  });
+});
+
+Deno.test("text", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.txt");
+    file.writeTextSync("asdf");
+    assertEquals(file.maybeTextSync(), "asdf");
+    assertEquals(await file.maybeText(), "asdf");
+    const nonExistent = createPathReference("not-exists");
+    assertThrows(() => nonExistent.textSync());
+    await assertRejects(() => nonExistent.text());
+  });
+});
+
+Deno.test("maybeText", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.txt");
+    file.writeTextSync("asdf");
+    assertEquals(file.maybeTextSync(), "asdf");
+    assertEquals(await file.maybeText(), "asdf");
+    const nonExistent = createPathReference("not-exists");
+    assertEquals(await nonExistent.maybeText(), undefined);
+    assertEquals(nonExistent.maybeTextSync(), undefined);
+  });
+});
+
+Deno.test("json", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.txt");
+    file.writeJsonSync({ test: 123 });
+    let data = file.jsonSync();
+    assertEquals(data, { test: 123 });
+    data = await file.json();
+    assertEquals(data, { test: 123 });
+  });
+});
+
+Deno.test("maybeJson", async () => {
+  await withTempDir(async () => {
+    const file = createPathReference("file.json");
+    file.writeJsonSync({ test: 123 });
+    let data = file.maybeJsonSync();
+    assertEquals(data, { test: 123 });
+    data = await file.maybeJson();
+    assertEquals(data, { test: 123 });
+    const nonExistent = createPathReference("not-exists");
+    data = nonExistent.maybeJsonSync();
+    assertEquals(data, undefined);
+    data = await nonExistent.maybeJson();
+    assertEquals(data, undefined);
+
+    file.writeTextSync("1 23 532lkjladf asd");
+    assertThrows(() => file.maybeJsonSync(), Error, "Failed parsing JSON in 'file.json'.");
+    await assertRejects(() => file.maybeJson(), Error, "Failed parsing JSON in 'file.json'.");
+  });
 });
 
 Deno.test("writeJson", async () => {

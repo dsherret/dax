@@ -478,12 +478,17 @@ To create a `PathReference`, do the following:
 
 ```ts
 // create a `PathReference`
-const srcDir = $.path("src");
+let srcDir = $.path("src");
 // get information about the path
 srcDir.isDir(); // false
 // do actions on it
 srcDir.mkdir();
 srcDir.isDir(); // true
+
+srcDir.isRelative(); // true
+srcDir = srcDir.resolve(); // resolve the path to be absolute
+srcDir.isRelative(); // false
+srcDir.isAbsolute(); // true
 
 // join to get other paths and do actions on them
 const textFile = srcDir.join("file.txt");
@@ -496,6 +501,14 @@ jsonFile.writeJsonSync({
   someValue: 5,
 });
 console.log(jsonFile.jsonSync().someValue); // 5
+```
+
+It also works to provide these paths to commands:
+
+```ts
+const srcDir = $.path("src").resolve();
+
+await $`echo ${srcDir}`;
 ```
 
 There are a lot of helper methods here, so check the documentation for more details.

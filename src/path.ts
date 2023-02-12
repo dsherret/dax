@@ -2,7 +2,7 @@ import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathReference(path: string) {
+export function createPathReference(path: string | URL) {
   return new PathReference(path);
 }
 
@@ -16,14 +16,17 @@ export class PathReference {
     this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
   }
 
+  /** Gets the string representation of this path. */
   toString() {
     return this.#path;
   }
 
+  /** Joins the provided path segments onto this path. */
   join(...pathSegments: string[]) {
     return new PathReference(stdPath.join(this.#path, ...pathSegments));
   }
 
+  /** Resolves this path to an absolute path along with the provided path segments. */
   resolve(...pathSegments: string[]) {
     return new PathReference(stdPath.resolve(this.#path, ...pathSegments));
   }
@@ -37,26 +40,32 @@ export class PathReference {
     return new PathReference(stdPath.normalize(this.#path));
   }
 
+  /** Follows symlinks and gets if this path is a directory. */
   isDir() {
     return this.statSync()?.isDirectory ?? false;
   }
 
+  /** Follows symlinks and gets if this path is a file. */
   isFile() {
     return this.statSync()?.isFile ?? false;
   }
 
+  /** Gets if this path is a symlink. */
   isSymlink() {
     return this.lstatSync()?.isSymlink ?? false;
   }
 
+  /** Gets if this path is an absolute path. */
   isAbsolute() {
     return stdPath.isAbsolute(this.#path);
   }
 
+  /** Gets if this path is relative. */
   isRelative() {
     return !this.isAbsolute();
   }
 
+  /** Resolves the `Deno.FileInfo` of this path following symlinks. */
   async stat(): Promise<Deno.FileInfo | undefined> {
     try {
       return await Deno.stat(this.#path);
@@ -69,6 +78,8 @@ export class PathReference {
     }
   }
 
+  /** Synchronously resolves the `Deno.FileInfo` of this
+   * path following symlinks. */
   statSync(): Deno.FileInfo | undefined {
     try {
       return Deno.statSync(this.#path);
@@ -81,6 +92,8 @@ export class PathReference {
     }
   }
 
+  /** Resolves the `Deno.FileInfo` of this path without
+   * following symlinks. */
   async lstat(): Promise<Deno.FileInfo | undefined> {
     try {
       return await Deno.lstat(this.#path);
@@ -93,6 +106,8 @@ export class PathReference {
     }
   }
 
+  /** Synchronously resolves the `Deno.FileInfo` of this path
+   * without following symlinks. */
   lstatSync(): Deno.FileInfo | undefined {
     try {
       return Deno.lstatSync(this.#path);
@@ -174,53 +189,89 @@ export class PathReference {
 
   /** Gets the relative path from this path to the specified path. */
   relative(to: string | URL | PathReference) {
-    const toPathRef = to instanceof PathReference ? to : new PathReference(to);
+    const toPathRef = ensurePathRef(to);
     console.log(this.resolve().#path, toPathRef.resolve().#path);
     console.log(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
-    return new PathReference(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
+    return stdPath.relative(this.resolve().#path, toPathRef.resolve().#path);
   }
 
+  /** Gets if the path exists. Beaware of TOCTOU issues. */
   exists() {
     return this.lstat().then((info) => info != null);
   }
 
+  /** Synchronously gets if the path exists. Beaware of TOCTOU issues. */
   existsSync() {
     return this.lstatSync() != null;
   }
 
+  /** Resolves to the absolute normalized path, with symbolic links resolved. */
   realPath() {
     return Deno.realPath(this.#path).then((path) => new PathReference(path));
   }
 
+  /** Synchronously resolves to the absolute normalized path, with symbolic links resolved. */
   realPathSync() {
     return new PathReference(Deno.realPathSync(this.#path));
   }
 
+  /** Creates a directory at this path. */
   async mkdir(options?: Deno.MkdirOptions) {
     await Deno.mkdir(this.#path, options);
     return this;
   }
 
+  /** Synchronously creates a directory at this path. */
   mkdirSync(options?: Deno.MkdirOptions) {
     Deno.mkdirSync(this.#path, options);
     return this;
   }
 
   /**
+   * Creates a symlink at the provided path to the provided target returning the target path.
+   */
+  async createAbsoluteSymlinkTo(target: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+    const from = this.resolve();
+    const to = ensurePathRef(target).resolve();
+    await createSymlink({
+      toPath: to,
+      fromPath: from,
+      text: to.#path,
+      type: opts?.type,
+    });
+    return to;
+  }
+
+  /**
+   * Synchronously creates a symlink at the provided path to the provided target returning the target path.
+   * @returns The resolved target path.
+   */
+  createAbsoluteSymlinkToSync(target: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+    const from = this.resolve();
+    const to = ensurePathRef(target).resolve();
+    createSymlinkSync({
+      toPath: to,
+      fromPath: from,
+      text: to.#path,
+      type: opts?.type,
+    });
+    return to;
+  }
+
+  /**
    * Creates a symlink at the specified path which points to the current path
    * using an absolute path.
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  async createAbsoluteSymlinkAt(linkPath: string | URL | PathReference) {
-    const {
-      linkPathRef,
-      thisResolved,
-    } = this.#getAbsoluteSymlinkAtParts(linkPath);
+  async createAbsoluteSymlinkAt(linkPath: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+    const linkPathRef = ensurePathRef(linkPath).resolve();
+    const thisResolved = this.resolve();
     await createSymlink({
       toPath: thisResolved,
       fromPath: linkPathRef,
       text: thisResolved.#path,
+      type: opts?.type,
     });
     return linkPathRef;
   }
@@ -231,26 +282,19 @@ export class PathReference {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  createAbsoluteSymlinkAtSync(linkPath: string | URL | PathReference) {
-    const {
-      linkPathRef,
-      thisResolved,
-    } = this.#getAbsoluteSymlinkAtParts(linkPath);
+  createAbsoluteSymlinkAtSync(
+    linkPath: string | URL | PathReference,
+    opts?: Deno.SymlinkOptions,
+  ) {
+    const linkPathRef = ensurePathRef(linkPath).resolve();
+    const thisResolved = this.resolve();
     createSymlinkSync({
       toPath: thisResolved,
       fromPath: linkPathRef,
       text: thisResolved.#path,
+      type: opts?.type,
     });
     return linkPathRef;
-  }
-
-  #getAbsoluteSymlinkAtParts(linkPath: string | URL | PathReference) {
-    const linkPathRef = (linkPath instanceof PathReference ? linkPath : new PathReference(linkPath)).resolve();
-    const thisResolved = this.resolve();
-    return {
-      thisResolved,
-      linkPathRef,
-    };
   }
 
   /**
@@ -259,7 +303,10 @@ export class PathReference {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  async createRelativeSymlinkAt(linkPath: string | URL | PathReference) {
+  async createRelativeSymlinkAt(
+    linkPath: string | URL | PathReference,
+    opts?: Deno.SymlinkOptions,
+  ) {
     const {
       linkPathRef,
       thisResolved,
@@ -268,7 +315,8 @@ export class PathReference {
     await createSymlink({
       toPath: thisResolved,
       fromPath: linkPathRef,
-      text: relativePath.#path,
+      text: relativePath,
+      type: opts?.type,
     });
     return linkPathRef;
   }
@@ -279,7 +327,10 @@ export class PathReference {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  createRelativeSymlinkAtSync(linkPath: string | URL | PathReference) {
+  createRelativeSymlinkAtSync(
+    linkPath: string | URL | PathReference,
+    opts?: Deno.SymlinkOptions,
+  ) {
     const {
       linkPathRef,
       thisResolved,
@@ -288,18 +339,19 @@ export class PathReference {
     createSymlinkSync({
       toPath: thisResolved,
       fromPath: linkPathRef,
-      text: relativePath.#path,
+      text: relativePath,
+      type: opts?.type,
     });
     return linkPathRef;
   }
 
   #getRelativeSymlinkAtParts(linkPath: string | URL | PathReference) {
-    const linkPathRef = (linkPath instanceof PathReference ? linkPath : new PathReference(linkPath)).resolve();
+    const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
-    let relativePath: PathReference;
+    let relativePath: string;
     if (linkPathRef.dirname() === thisResolved.dirname()) {
       // we don't want it to do `../basename`
-      relativePath = new PathReference(linkPathRef.basename());
+      relativePath = linkPathRef.basename();
     } else {
       relativePath = linkPathRef.relative(thisResolved);
     }
@@ -310,101 +362,143 @@ export class PathReference {
     };
   }
 
+  /** Reads the entries in the directory. */
   readDir() {
     return Deno.readDir(this.#path);
   }
 
+  /** Synchronously reads the entries in the directory. */
   readDirSync() {
     return Deno.readDirSync(this.#path);
   }
 
+  /** Reads the bytes from the file. */
   bytes(options?: Deno.ReadFileOptions) {
     return Deno.readFile(this.#path, options);
   }
 
+  /** Synchronously reads the bytes from the file. */
   bytesSync() {
     return Deno.readFileSync(this.#path);
   }
 
+  /** Calls `.bytes()`, but returns undefined if the path doesn't exist. */
   maybeBytes(options?: Deno.ReadFileOptions) {
     return notFoundToUndefined(() => this.bytes(options));
   }
 
+  /** Calls `.bytesSync()`, but returns undefined if the path doesn't exist. */
   maybeBytesSync() {
     return notFoundToUndefinedSync(() => this.bytesSync());
   }
 
+  /** Reads the text from the file. */
   text(options?: Deno.ReadFileOptions) {
     return Deno.readTextFile(this.#path, options);
   }
 
+  /** Synchronously reads the text from the file. */
   textSync() {
     return Deno.readTextFileSync(this.#path);
   }
 
+  /** Calls `.text()`, but returns undefined when the path doesn't exist.
+   * @remarks This still errors for other kinds of errors reading a file.
+   */
   maybeText(options?: Deno.ReadFileOptions) {
     return notFoundToUndefined(() => this.text(options));
   }
 
+  /** Calls `.textSync()`, but returns undefined when the path doesn't exist.
+   * @remarks This still errors for other kinds of errors reading a file.
+   */
   maybeTextSync() {
     return notFoundToUndefinedSync(() => this.textSync());
   }
 
+  /** Reads and parses the file as JSON, throwing if it doesn't exist or is not valid JSON. */
   async json<T>(options?: Deno.ReadFileOptions) {
-    const text = await this.text(options);
-    return JSON.parse(text) as T;
+    return this.#parseJson<T>(await this.text(options));
   }
 
+  /** Synchronously reads and parses the file as JSON, throwing if it doesn't
+   * exist or is not valid JSON. */
   jsonSync<T>() {
-    return JSON.parse(this.textSync()) as T;
+    return this.#parseJson<T>(this.textSync());
   }
 
+  #parseJson<T>(text: string) {
+    try {
+      return JSON.parse(text) as T;
+    } catch (err) {
+      throw new Error(`Failed parsing JSON in '${this.toString()}'.`, {
+        cause: err,
+      });
+    }
+  }
+
+  /**
+   * Calls `.json()`, but returns undefined if the file doesn't exist.
+   * @remarks This method will still throw if the file cannot be parsed as JSON.
+   */
   maybeJson<T>(options?: Deno.ReadFileOptions) {
     return notFoundToUndefined(() => this.json<T>(options));
   }
 
+  /**
+   * Calls `.jsonSync()`, but returns undefined if the file doesn't exist.
+   * @remarks This method will still throw if the file cannot be parsed as JSON.
+   */
   maybeJsonSync<T>() {
     return notFoundToUndefinedSync(() => this.jsonSync<T>());
   }
 
+  /** Writes out the provided bytes to the file. */
   async write(data: Uint8Array, options?: Deno.WriteFileOptions) {
     await Deno.writeFile(this.#path, data, options);
     return this;
   }
 
+  /** Synchronously writes out the provided bytes to the file. */
   writeSync(data: Uint8Array, options?: Deno.WriteFileOptions) {
     Deno.writeFileSync(this.#path, data, options);
     return this;
   }
 
+  /** Writes out the provided text to the file. */
   async writeText(text: string, options?: Deno.WriteFileOptions) {
     await Deno.writeTextFile(this.#path, text, options);
     return this;
   }
 
+  /** Synchronously writes out the provided text to the file. */
   writeTextSync(text: string, options?: Deno.WriteFileOptions) {
     Deno.writeTextFileSync(this.#path, text, options);
     return this;
   }
 
+  /** Writes out the provided object as compact JSON. */
   async writeJson(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj);
     await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
+  /** Synchronously writes out the provided object as compact JSON. */
   writeJsonSync(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj);
     this.#writeTextWithEndNewLineSync(text, options);
     return this;
   }
 
+  /** Writes out the provided object as formatted JSON. */
   async writeJsonPretty(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj, undefined, 2);
     await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
+  /** Synchronously writes out the provided object as formatted JSON. */
   writeJsonPrettySync(obj: unknown, options?: Deno.WriteFileOptions) {
     const text = JSON.stringify(obj, undefined, 2);
     this.#writeTextWithEndNewLineSync(text, options);
@@ -504,14 +598,14 @@ export class PathReference {
   }
 
   /** Removes the file or directory from the file system. */
-  async remove() {
-    await Deno.remove(this.#path);
+  async remove(options?: Deno.RemoveOptions) {
+    await Deno.remove(this.#path, options);
     return this;
   }
 
   /** Removes the file or directory from the file system synchronously. */
-  removeSync() {
-    Deno.removeSync(this.#path);
+  removeSync(options?: Deno.RemoveOptions) {
+    Deno.removeSync(this.#path, options);
     return this;
   }
 
@@ -520,7 +614,7 @@ export class PathReference {
    * the destination path.
    */
   copyFile(destinationPath: string | URL | PathReference) {
-    const pathRef = destinationPath instanceof PathReference ? destinationPath : new PathReference(destinationPath);
+    const pathRef = ensurePathRef(destinationPath);
     return Deno.copyFile(this.#path, pathRef.#path)
       .then(() => pathRef);
   }
@@ -530,7 +624,7 @@ export class PathReference {
    * the destination path synchronously.
    */
   copyFileSync(destinationPath: string | URL | PathReference) {
-    const pathRef = destinationPath instanceof PathReference ? destinationPath : new PathReference(destinationPath);
+    const pathRef = ensurePathRef(destinationPath);
     Deno.copyFileSync(this.#path, pathRef.#path);
     return pathRef;
   }
@@ -540,7 +634,7 @@ export class PathReference {
    * the renamed path.
    */
   rename(newPath: string | URL | PathReference) {
-    const pathRef = newPath instanceof PathReference ? newPath : new PathReference(newPath);
+    const pathRef = ensurePathRef(newPath);
     return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
   }
 
@@ -549,19 +643,16 @@ export class PathReference {
    * the renamed path synchronously.
    */
   renameSync(newPath: string | URL | PathReference) {
-    const pathRef = newPath instanceof PathReference ? newPath : new PathReference(newPath);
+    const pathRef = ensurePathRef(newPath);
     Deno.renameSync(this.#path, pathRef.#path);
     return pathRef;
   }
 
   /** Opens the file and pipes it to the writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: Omit<PipeOptions, "preventClose">) {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
     const file = await Deno.open(this.#path, { read: true });
     try {
-      await file.readable.pipeTo(dest, {
-        preventClose: true,
-        ...options,
-      });
+      await file.readable.pipeTo(dest, options);
     } finally {
       try {
         file.close();
@@ -572,20 +663,28 @@ export class PathReference {
   }
 }
 
+function ensurePathRef(path: string | URL | PathReference) {
+  return path instanceof PathReference ? path : new PathReference(path);
+}
+
 async function createSymlink(opts: {
   fromPath: PathReference;
   toPath: PathReference;
   text: string;
+  type: "file" | "dir" | undefined;
 }) {
-  let kind: "file" | "dir" | undefined;
-  if (Deno.build.os === "windows") {
+  let kind = opts.type;
+  if (kind == null && Deno.build.os === "windows") {
     const info = await opts.toPath.lstat();
-    if (info == null) {
-      throw new Deno.errors.NotFound(`The target path '${opts.toPath.toString()}' did not exist.`);
-    } else if (info?.isDirectory) {
+    if (info?.isDirectory) {
       kind = "dir";
     } else if (info?.isFile) {
       kind = "file";
+    } else {
+      throw new Deno.errors.NotFound(
+        `The target path '${opts.toPath.toString()}' did not exist or path kind could not be determined. ` +
+          `When the path doesn't exist, you need to specify a symlink type on Windows.`,
+      );
     }
   }
 
@@ -602,16 +701,20 @@ function createSymlinkSync(opts: {
   fromPath: PathReference;
   toPath: PathReference;
   text: string;
+  type: "file" | "dir" | undefined;
 }) {
-  let kind: "file" | "dir" | undefined;
-  if (Deno.build.os === "windows") {
+  let kind = opts.type;
+  if (kind == null && Deno.build.os === "windows") {
     const info = opts.toPath.lstatSync();
-    if (info == null) {
-      throw new Deno.errors.NotFound(`The target path '${opts.toPath.toString()}' did not exist.`);
-    } else if (info?.isDirectory) {
+    if (info?.isDirectory) {
       kind = "dir";
     } else if (info?.isFile) {
       kind = "file";
+    } else {
+      throw new Deno.errors.NotFound(
+        `The target path '${opts.toPath.toString()}' did not exist or path kind could not be determined. ` +
+          `When the path doesn't exist, you need to specify a symlink type on Windows.`,
+      );
     }
   }
 
@@ -631,23 +734,28 @@ export class FsFileWrapper implements Deno.FsFile {
     this.#file = file;
   }
 
+  /** Gets the inner `Deno.FsFile` that this wraps. */
   get inner() {
     return this.#file;
   }
 
+  /** Writes the provided text to this file. */
   writeText(text: string) {
     return this.writeBytes(new TextEncoder().encode(text));
   }
 
+  /** Synchronously writes the provided text to this file. */
   writeTextSync(text: string) {
     return this.writeBytesSync(new TextEncoder().encode(text));
   }
 
+  /** Writes the provided bytes to the file. */
   async writeBytes(bytes: Uint8Array) {
     await writeAll(this.#file, bytes);
     return this;
   }
 
+  /** Synchronously writes the provided bytes to the file. */
   writeBytesSync(bytes: Uint8Array) {
     writeAllSync(this.#file, bytes);
     return this;
