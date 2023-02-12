@@ -73,6 +73,16 @@ Deno.test("ancestors", () => {
   }
 });
 
+Deno.test("resolve", () => {
+  // there are more tests elsewhere
+  const srcDir = createPathRef("src").resolve();
+  const assetsDir = srcDir.resolve("assets");
+  assert(assetsDir.toString().endsWith("assets"));
+
+  // should be the same object since it is known to be resolved
+  assert(assetsDir === assetsDir.resolve());
+});
+
 Deno.test("stat", async () => {
   const stat1 = await createPathRef("src").stat();
   assertEquals(stat1?.isDirectory, true);

@@ -13,11 +13,13 @@ export function createPathRef(path: string | URL): PathRef {
  */
 export class PathRef {
   readonly #path: string;
+  #knownResolved = false;
 
   /** This is a special symbol that allows different versions of
    * Dax's `PathRef` API to match on `instanceof` checks. Ideally
    * people shouldn't be mixing versions, but if it happens then
    * this will maybe reduce some bugs (or cause some... tbd).
+   * @internal
    */
   private static instanceofSymbol = Symbol.for("dax.PathRef");
 
@@ -25,6 +27,7 @@ export class PathRef {
     this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
   }
 
+  /** @internal */
   static [Symbol.hasInstance](instance: any) {
     // this should never change because it should work accross versions
     return instance?.constructor?.instanceofSymbol === PathRef.instanceofSymbol;
@@ -42,7 +45,12 @@ export class PathRef {
 
   /** Resolves this path to an absolute path along with the provided path segments. */
   resolve(...pathSegments: string[]): PathRef {
-    return new PathRef(stdPath.resolve(this.#path, ...pathSegments));
+    if (this.#knownResolved && pathSegments.length === 0) {
+      return this;
+    }
+    const pathRef = new PathRef(stdPath.resolve(this.#path, ...pathSegments));
+    pathRef.#knownResolved = true;
+    return pathRef;
   }
 
   /**
