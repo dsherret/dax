@@ -8,13 +8,13 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 
 ## Differences with zx
 
-1. Minimal globals or global configuration.
-   - Only a default instance of `$`, but it's not mandatory to use this.
-1. No custom CLI.
 1. Cross platform shell.
    - Makes more code work on Windows.
    - Allows exporting the shell's environment to the current process.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+1. Minimal globals or global configuration.
+   - Only a default instance of `$`, but it's not mandatory to use this.
+1. No custom CLI.
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
