@@ -522,20 +522,12 @@ $.cd("someDir");
 console.log(Deno.cwd()); // will be in someDir directory
 ```
 
-Checking if a path exists:
-
-```ts
-// Note: beware of "time of check to time of use" race conditions when using this
-await $.exists("./file.txt");
-$.existsSync("./file.txt");
-```
-
 Sleeping asynchronously for a specified amount of time:
 
 ```ts
 await $.sleep(100); // ms
 await $.sleep("1.5s");
-await $.sleep("100ms");
+await $.sleep("1m30s");
 ```
 
 Getting path to an executable based on a command name:

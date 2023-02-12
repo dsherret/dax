@@ -1131,7 +1131,7 @@ Deno.test("test remove", async () => {
 Deno.test("test mkdir", async () => {
   await withTempDir(async (dir) => {
     await $`mkdir ${dir}/a`;
-    await $.exists(dir + "/a");
+    assert(dir.join("a").existsSync());
 
     {
       const error = await $`mkdir ${dir}/a`.noThrow().stderr("piped").spawn()
@@ -1154,7 +1154,7 @@ Deno.test("test mkdir", async () => {
     }
 
     await $`mkdir -p ${dir}/b/c`;
-    assert(await $.exists(dir + "/b/c"));
+    assert(await dir.join("b/c").exists());
   });
 });
 
@@ -1216,12 +1216,12 @@ Deno.test("copy test", async () => {
 });
 
 Deno.test("cp test2", async () => {
-  await withTempDir(async () => {
+  await withTempDir(async (dir) => {
     await $`mkdir -p a/d1`;
     await $`mkdir -p a/d2`;
     Deno.createSync("a/d1/f").close();
     await $`cp a/d1/f a/d2`;
-    assert($.existsSync("a/d2/f"));
+    assert(dir.join("a/d2/f").existsSync());
   });
 });
 
@@ -1339,15 +1339,15 @@ Empty lines (like the one above) will not affect the common indentation.`.trim()
 });
 
 Deno.test("touch test", async () => {
-  await withTempDir(async () => {
+  await withTempDir(async (dir) => {
     await $`touch a`;
-    assert($.existsSync("a"));
+    assert(dir.join("a").existsSync());
     await $`touch a`;
-    assert($.existsSync("a"));
+    assert(dir.join("a").existsSync());
 
     await $`touch b c`;
-    assert($.existsSync("b"));
-    assert($.existsSync("c"));
+    assert(dir.join("b").existsSync());
+    assert(dir.join("c").existsSync());
 
     assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
 
