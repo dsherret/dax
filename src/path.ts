@@ -113,6 +113,35 @@ export class PathReference {
     return stdPath.basename(this.#path);
   }
 
+  /** Resolves the path getting all its ancestor directories in order. */
+  *ancestors() {
+    let ancestor = this.parent();
+    while (ancestor != null) {
+      yield ancestor;
+      ancestor = ancestor.parent();
+    }
+  }
+
+  /** Gets the parent directory or returns undefined if the parent is the root directory. */
+  parent() {
+    const resolvedPath = this.resolve();
+    const dirname = resolvedPath.dirname();
+    if (dirname === resolvedPath.#path) {
+      return undefined;
+    } else {
+      return new PathReference(dirname);
+    }
+  }
+
+  /** Gets the parent or throws if the current directory was the root. */
+  parentOrThrow() {
+    const parent = this.parent();
+    if (parent == null) {
+      throw new Error(`Cannot get the parent directory of '${this.#path}'.`);
+    }
+    return parent;
+  }
+
   /** Return the extension of the `path` with leading period. */
   extname() {
     return stdPath.extname(this.#path);

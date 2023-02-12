@@ -470,6 +470,36 @@ pb.with(() => {
 });
 ```
 
+## Path API
+
+The path API offers an immutable `PathReference` class, which is a similar concept to Rust's `PathBuf` struct.
+
+To create a `PathReference`, do the following:
+
+```ts
+// create a `PathReference`
+const srcDir = $.path("src");
+// get information about the path
+srcDir.isDir(); // false
+// do actions on it
+srcDir.mkdir();
+srcDir.isDir(); // true
+
+// join to get other paths and do actions on them
+const textFile = srcDir.join("file.txt");
+textFile.writeTextSync("some text");
+console.log(textFile.textSync()); // "some text"
+
+const jsonFile = srcDir.join("subDir", "file.json");
+jsonFile.parentOrThrow().mkdir();
+jsonFile.writeJsonSync({
+  someValue: 5,
+});
+console.log(jsonFile.jsonSync().someValue); // 5
+```
+
+There are a lot of helper methods here, so check the documentation for more details.
+
 ## Helper functions
 
 Changing the current working directory of the current process:
@@ -541,7 +571,7 @@ This line will appear without any indentation.
 Empty lines (like the one above) will not affect the common indentation.
 ```
 
-Re-export of deno_std's path:
+Re-export of deno_std's path (though you might want to just use the path API described above):
 
 ```ts
 $.path.basename("./deno/std/path/mod.ts"); // mod.ts

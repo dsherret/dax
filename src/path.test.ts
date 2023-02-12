@@ -59,6 +59,29 @@ Deno.test("isRelative", () => {
   assert(!createPathReference("src").resolve().isRelative());
 });
 
+Deno.test("parent", () => {
+  const parent = createPathReference("src").parent()!;
+  assertEquals(parent.toString(), Deno.cwd());
+  const lastParent = Array.from(parent.ancestors()).at(-1)!;
+  assertEquals(lastParent.parent(), undefined);
+});
+
+Deno.test("parentOrThrow", () => {
+  const parent = createPathReference("src").parentOrThrow();
+  assertEquals(parent.toString(), Deno.cwd());
+  const lastParent = Array.from(parent.ancestors()).at(-1)!;
+  assertThrows(() => lastParent.parentOrThrow(), Error);
+});
+
+Deno.test("ancestors", () => {
+  const srcDir = createPathReference("src").resolve();
+  let lastDir = srcDir;
+  for (const ancestor of srcDir.ancestors()) {
+    assert(ancestor.toString().length < lastDir.toString().length);
+    lastDir = ancestor;
+  }
+});
+
 Deno.test("stat", async () => {
   const stat1 = await createPathReference("src").stat();
   assertEquals(stat1?.isDirectory, true);
