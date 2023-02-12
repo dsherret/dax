@@ -297,7 +297,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    * @remarks The path will be derived from the request's url
    * and downloaded to the current working directory.
    *
-   * @returns The path of the downloaded file
+   * @returns The path reference of the downloaded file.
    */
   async pipeToPath(options?: Deno.WriteFileOptions): Promise<PathReference>;
   /**
@@ -306,10 +306,16 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
    * @remarks If no path is provided then it will be derived from the
    * request's url and downloaded to the current working directory.
    *
-   * @returns The path of the downloaded file
+   * @returns The path reference of the downloaded file.
    */
-  async pipeToPath(path?: string | URL | undefined, options?: Deno.WriteFileOptions): Promise<PathReference>;
-  async pipeToPath(filePathOrOptions?: string | URL | Deno.WriteFileOptions, maybeOptions?: Deno.WriteFileOptions) {
+  async pipeToPath(
+    path?: string | URL | PathReference | undefined,
+    options?: Deno.WriteFileOptions,
+  ): Promise<PathReference>;
+  async pipeToPath(
+    filePathOrOptions?: string | URL | PathReference | Deno.WriteFileOptions,
+    maybeOptions?: Deno.WriteFileOptions,
+  ) {
     // Do not derive from the response url because that could cause the server
     // to be able to overwrite whatever file it wants locally, which would be
     // a security issue.

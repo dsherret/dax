@@ -178,9 +178,10 @@ Deno.test("exists", async () => {
 
 Deno.test("realpath", async () => {
   await withTempDir(async () => {
-    // need to do realPathSync for GH actions CI
-    const file = createPathReference("file").resolve().realPathSync();
+    let file = createPathReference("file").resolve();
     file.writeTextSync("");
+    // need to do realPathSync for GH actions CI
+    file = file.realPathSync();
     const symlink = file.createAbsoluteSymlinkAtSync("other");
     assertEquals(
       (await symlink.realPath()).toString(),

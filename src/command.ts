@@ -24,6 +24,7 @@ import { parseCommand, spawn } from "./shell.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { touchCommand } from "./commands/touch.ts";
+import { PathReference } from "./path.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -292,9 +293,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the current working directory to use when executing this command. */
-  cwd(dirPath: string | URL) {
+  cwd(dirPath: string | URL | PathReference) {
     return this.#newWithState((state) => {
-      state.cwd = dirPath instanceof URL ? path.fromFileUrl(dirPath) : path.resolve(dirPath);
+      state.cwd = dirPath instanceof URL
+        ? path.fromFileUrl(dirPath)
+        : dirPath instanceof PathReference
+        ? dirPath.resolve().toString()
+        : path.resolve(dirPath);
     });
   }
 

@@ -1,6 +1,5 @@
 import { readAll } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
-import { safeLstat } from "./src/common.ts";
 import {
   assert,
   assertEquals,
@@ -894,8 +893,7 @@ Deno.test("shebang support", async (t) => {
     };
 
     step("with -S", async () => {
-      await Deno.writeTextFile(
-        $.path.join(dir, "file.ts"),
+      dir.join("file.ts").writeTextSync(
         [
           "#!/usr/bin/env -S deno run",
           "console.log(5);",
@@ -908,8 +906,7 @@ Deno.test("shebang support", async (t) => {
     });
 
     step("without -S and invalid", async () => {
-      await Deno.writeTextFile(
-        $.path.join(dir, "file2.ts"),
+      dir.join("file2.ts").writeTextSync(
         [
           "#!/usr/bin/env deno run",
           "console.log(5);",
@@ -927,15 +924,13 @@ Deno.test("shebang support", async (t) => {
     });
 
     step("without -S, but valid", async () => {
-      await Deno.writeTextFile(
-        $.path.join(dir, "echo_stdin.ts"),
+      dir.join("echo_stdin.ts").writeTextSync(
         [
           "#!/usr/bin/env -S deno run --unstable --allow-run",
           "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
         ].join("\n"),
       );
-      await Deno.writeTextFile(
-        $.path.join(dir, "file3.ts"),
+      dir.join("file3.ts").writeTextSync(
         [
           "#!/usr/bin/env ./echo_stdin.ts",
           "console.log('Hello')",
@@ -1084,8 +1079,7 @@ Deno.test("environment should be evaluated at command execution", async () => {
 });
 
 Deno.test("test remove", async () => {
-  await withTempDir(async (tempDirPath) => {
-    const dir = $.path(tempDirPath);
+  await withTempDir(async (dir) => {
     const emptyDir = dir.join("hello");
     const someFile = dir.join("a.txt");
     const notExists = dir.join("notexists");
@@ -1166,30 +1160,30 @@ Deno.test("test mkdir", async () => {
 
 Deno.test("copy test", async () => {
   await withTempDir(async (dir) => {
-    const file1 = path.join(dir, "file1.txt");
-    const file2 = path.join(dir, "file2.txt");
-    Deno.writeTextFileSync(file1, "test");
+    const file1 = dir.join("file1.txt");
+    const file2 = dir.join("file2.txt");
+    file1.writeTextSync("test");
     await $`cp ${file1} ${file2}`;
 
-    assert($.existsSync(file1));
-    assert($.existsSync(file2));
+    assert(file1.existsSync());
+    assert(file2.existsSync());
 
-    const destDir = path.join(dir, "dest");
-    Deno.mkdirSync(destDir);
+    const destDir = dir.join("dest");
+    destDir.mkdirSync();
     await $`cp ${file1} ${file2} ${destDir}`;
 
-    assert($.existsSync(file1));
-    assert($.existsSync(file2));
-    assert($.existsSync(path.join(destDir, "file1.txt")));
-    assert($.existsSync(path.join(destDir, "file2.txt")));
+    assert(file1.existsSync());
+    assert(file2.existsSync());
+    assert(destDir.join("file1.txt").existsSync());
+    assert(destDir.join("file2.txt").existsSync());
 
-    const newFile = path.join(dir, "new.txt");
-    Deno.writeTextFileSync(newFile, "test");
+    const newFile = dir.join("new.txt");
+    newFile.writeTextSync("test");
     await $`cp ${newFile} ${destDir}`;
 
-    assert(await isDir(destDir));
-    assert($.existsSync(newFile));
-    assert($.existsSync(path.join(destDir, "new.txt")));
+    assert(destDir.isDir());
+    assert(newFile.existsSync());
+    assert(destDir.join("new.txt").existsSync());
 
     assertEquals(
       await getStdErr($`cp ${file1} ${file2} non-existent`),
@@ -1200,18 +1194,18 @@ Deno.test("copy test", async () => {
     assertStringIncludes(await getStdErr($`cp ${file1} ""`), "cp: missing destination file operand after");
 
     // recursive test
-    Deno.mkdirSync(path.join(destDir, "sub_dir"));
-    Deno.writeTextFileSync(path.join(destDir, "sub_dir", "sub.txt"), "test");
-    const destDir2 = path.join(dir, "dest2");
+    destDir.join("sub_dir").mkdirSync();
+    destDir.join("sub_dir", "sub.txt").writeTextSync("test");
+    const destDir2 = dir.join("dest2");
 
     assertEquals(await getStdErr($`cp ${destDir} ${destDir2}`), "cp: source was a directory; maybe specify -r\n");
-    assert(!$.existsSync(destDir2));
+    assert(!destDir2.existsSync());
 
     await $`cp -r ${destDir} ${destDir2}`;
-    assert($.existsSync(destDir2));
-    assert($.existsSync(path.join(destDir2, "file1.txt")));
-    assert($.existsSync(path.join(destDir2, "file2.txt")));
-    assert($.existsSync(path.join(destDir2, "sub_dir", "sub.txt")));
+    assert(destDir2.existsSync());
+    assert(destDir2.join("file1.txt").existsSync());
+    assert(destDir2.join("file2.txt").existsSync());
+    assert(destDir2.join("sub_dir", "sub.txt").existsSync());
 
     // copy again
     await $`cp -r ${destDir} ${destDir2}`;
@@ -1233,29 +1227,29 @@ Deno.test("cp test2", async () => {
 
 Deno.test("move test", async () => {
   await withTempDir(async (dir) => {
-    const file1 = path.join(dir, "file1.txt");
-    const file2 = path.join(dir, "file2.txt");
-    Deno.writeTextFileSync(file1, "test");
+    const file1 = dir.join("file1.txt");
+    const file2 = dir.join("file2.txt");
+    file1.writeTextSync("test");
 
     await $`mv ${file1} ${file2}`;
-    assert(!$.existsSync(file1));
-    assert($.existsSync(file2));
+    assert(!file1.existsSync());
+    assert(file2.existsSync());
 
-    const destDir = path.join(dir, "dest");
-    Deno.writeTextFileSync(file1, "test"); // recreate
-    Deno.mkdirSync(destDir);
+    const destDir = dir.join("dest");
+    file1.writeTextSync("test"); // recreate
+    destDir.mkdirSync();
     await $`mv ${file1} ${file2} ${destDir}`;
-    assert(!$.existsSync(file1));
-    assert(!$.existsSync(file2));
-    assert($.existsSync(path.join(destDir, "file1.txt")));
-    assert($.existsSync(path.join(destDir, "file2.txt")));
+    assert(!file1.existsSync());
+    assert(!file2.existsSync());
+    assert(destDir.join("file1.txt").existsSync());
+    assert(destDir.join("file2.txt").existsSync());
 
-    const newFile = path.join(dir, "new.txt");
-    Deno.writeTextFileSync(newFile, "test");
+    const newFile = dir.join("new.txt");
+    newFile.writeTextSync("test");
     await $`mv ${newFile} ${destDir}`;
-    assert(await isDir(destDir));
-    assert(!$.existsSync(newFile));
-    assert($.existsSync(path.join(destDir, "new.txt")));
+    assert(destDir.isDir());
+    assert(!newFile.existsSync());
+    assert(destDir.join("new.txt").existsSync());
 
     assertEquals(
       await getStdErr($`mv ${file1} ${file2} non-existent`),
@@ -1294,11 +1288,6 @@ Deno.test("progress", async () => {
 
 async function getStdErr(cmd: CommandBuilder) {
   return await cmd.noThrow().stderr("piped").then((r) => r.stderr);
-}
-
-async function isDir(path: string) {
-  const info = await safeLstat(path);
-  return info?.isDirectory ? true : false;
 }
 
 Deno.test("$.commandExists", async () => {

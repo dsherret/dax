@@ -164,6 +164,19 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
   }
 }
 
+/** lstat that doesn't throw when the path is not found. */
+export async function safeLstat(path: string) {
+  try {
+    return await Deno.lstat(path);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return undefined;
+    } else {
+      throw err;
+    }
+  }
+}
+
 export function getFileNameFromUrl(url: string | URL) {
   const parsedUrl = url instanceof URL ? url : new URL(url);
   const fileName = parsedUrl.pathname.split("/").at(-1);
