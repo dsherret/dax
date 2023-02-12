@@ -246,17 +246,19 @@ Deno.test("readDir", async () => {
 
     const entries1 = [];
     for await (const entry of dir.readDir()) {
-      entries1.push(entry);
+      entries1.push(entry.name);
     }
+    entries1.sort();
     const entries2 = [];
     for (const entry of dir.readDirSync()) {
-      entries2.push(entry);
+      entries2.push(entry.name);
     }
+    entries2.sort();
 
     for (const entries of [entries1, entries2]) {
       assertEquals(entries.length, 2);
-      assert(entries[0].name.endsWith("file1"));
-      assert(entries[1].name.endsWith("file2"));
+      assert(entries[0].endsWith("file1"));
+      assert(entries[1].endsWith("file2"));
     }
   });
 });
