@@ -511,7 +511,7 @@ const srcDir = $.path("src").resolve();
 await $`echo ${srcDir}`;
 ```
 
-There are a lot of helper methods here, so check the documentation for more details.
+There are a lot of helper methods here, so check the [documentation on PathReference](https://deno.land/x/dax/src/path.ts/~/PathReference) for more details.
 
 ## Helper functions
 
@@ -622,7 +622,7 @@ console.log(response.code);
 console.log(await response.json());
 ```
 
-See the [documentation on `RequestBuilder`](https://doc.deno.land/https/deno.land/x/dax/mod.ts) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
+See the [documentation on `RequestBuilder`](https://deno.land/x/dax/src/request.ts?s=RequestBuilder) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
 ### Showing progress
 

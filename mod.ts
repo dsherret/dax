@@ -30,6 +30,7 @@ import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathReference } from "./src/path.ts";
 
+export { FsFileWrapper, PathReference } from "./src/path.ts";
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export type {

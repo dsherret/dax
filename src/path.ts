@@ -2,7 +2,7 @@ import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathReference(path: string | URL) {
+export function createPathReference(path: string | URL): PathReference {
   return new PathReference(path);
 }
 
@@ -17,17 +17,17 @@ export class PathReference {
   }
 
   /** Gets the string representation of this path. */
-  toString() {
+  toString(): string {
     return this.#path;
   }
 
   /** Joins the provided path segments onto this path. */
-  join(...pathSegments: string[]) {
+  join(...pathSegments: string[]): PathReference {
     return new PathReference(stdPath.join(this.#path, ...pathSegments));
   }
 
   /** Resolves this path to an absolute path along with the provided path segments. */
-  resolve(...pathSegments: string[]) {
+  resolve(...pathSegments: string[]): PathReference {
     return new PathReference(stdPath.resolve(this.#path, ...pathSegments));
   }
 
@@ -36,32 +36,32 @@ export class PathReference {
    * Note that resolving these segments does not necessarily mean that all will be eliminated.
    * A `'..'` at the top-level will be preserved, and an empty path is canonically `'.'`.
    */
-  normalize() {
+  normalize(): PathReference {
     return new PathReference(stdPath.normalize(this.#path));
   }
 
   /** Follows symlinks and gets if this path is a directory. */
-  isDir() {
+  isDir(): boolean {
     return this.statSync()?.isDirectory ?? false;
   }
 
   /** Follows symlinks and gets if this path is a file. */
-  isFile() {
+  isFile(): boolean {
     return this.statSync()?.isFile ?? false;
   }
 
   /** Gets if this path is a symlink. */
-  isSymlink() {
+  isSymlink(): boolean {
     return this.lstatSync()?.isSymlink ?? false;
   }
 
   /** Gets if this path is an absolute path. */
-  isAbsolute() {
+  isAbsolute(): boolean {
     return stdPath.isAbsolute(this.#path);
   }
 
   /** Gets if this path is relative. */
-  isRelative() {
+  isRelative(): boolean {
     return !this.isAbsolute();
   }
 
@@ -124,17 +124,17 @@ export class PathReference {
    * Gets the directory path. In most cases, it is recommended
    * to use `.parent()` instead since it will give you a `PathReference`.
    */
-  dirname() {
+  dirname(): string {
     return stdPath.dirname(this.#path);
   }
 
   /** Gets the file or directory name of the path. */
-  basename() {
+  basename(): string {
     return stdPath.basename(this.#path);
   }
 
   /** Resolves the path getting all its ancestor directories in order. */
-  *ancestors() {
+  *ancestors(): Generator<PathReference> {
     let ancestor = this.parent();
     while (ancestor != null) {
       yield ancestor;
@@ -143,7 +143,7 @@ export class PathReference {
   }
 
   /** Gets the parent directory or returns undefined if the parent is the root directory. */
-  parent() {
+  parent(): PathReference | undefined {
     const resolvedPath = this.resolve();
     const dirname = resolvedPath.dirname();
     if (dirname === resolvedPath.#path) {
@@ -154,7 +154,7 @@ export class PathReference {
   }
 
   /** Gets the parent or throws if the current directory was the root. */
-  parentOrThrow() {
+  parentOrThrow(): PathReference {
     const parent = this.parent();
     if (parent == null) {
       throw new Error(`Cannot get the parent directory of '${this.#path}'.`);
@@ -166,13 +166,13 @@ export class PathReference {
    * Returns the extension of the path with leading period or undefined
    * if there is no extension.
    */
-  extname() {
+  extname(): string | undefined {
     const extName = stdPath.extname(this.#path);
     return extName.length === 0 ? undefined : extName;
   }
 
   /** Gets a new path reference with the provided extension. */
-  withExtname(ext: string) {
+  withExtname(ext: string): PathReference {
     const currentExt = this.extname();
     const hasLeadingPeriod = ext.charCodeAt(0) === PERIOD_CHAR_CODE;
     if (!hasLeadingPeriod) {
@@ -182,13 +182,13 @@ export class PathReference {
   }
 
   /** Gets a new path reference with the provided file or directory name. */
-  withBasename(basename: string) {
+  withBasename(basename: string): PathReference {
     const currentBaseName = this.basename();
     return new PathReference(this.#path.substring(0, this.#path.length - currentBaseName.length) + basename);
   }
 
   /** Gets the relative path from this path to the specified path. */
-  relative(to: string | URL | PathReference) {
+  relative(to: string | URL | PathReference): string {
     const toPathRef = ensurePathRef(to);
     console.log(this.resolve().#path, toPathRef.resolve().#path);
     console.log(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
@@ -196,33 +196,33 @@ export class PathReference {
   }
 
   /** Gets if the path exists. Beaware of TOCTOU issues. */
-  exists() {
+  exists(): Promise<boolean> {
     return this.lstat().then((info) => info != null);
   }
 
   /** Synchronously gets if the path exists. Beaware of TOCTOU issues. */
-  existsSync() {
+  existsSync(): boolean {
     return this.lstatSync() != null;
   }
 
   /** Resolves to the absolute normalized path, with symbolic links resolved. */
-  realPath() {
+  realPath(): Promise<PathReference> {
     return Deno.realPath(this.#path).then((path) => new PathReference(path));
   }
 
   /** Synchronously resolves to the absolute normalized path, with symbolic links resolved. */
-  realPathSync() {
+  realPathSync(): PathReference {
     return new PathReference(Deno.realPathSync(this.#path));
   }
 
   /** Creates a directory at this path. */
-  async mkdir(options?: Deno.MkdirOptions) {
+  async mkdir(options?: Deno.MkdirOptions): Promise<this> {
     await Deno.mkdir(this.#path, options);
     return this;
   }
 
   /** Synchronously creates a directory at this path. */
-  mkdirSync(options?: Deno.MkdirOptions) {
+  mkdirSync(options?: Deno.MkdirOptions): this {
     Deno.mkdirSync(this.#path, options);
     return this;
   }
@@ -230,7 +230,10 @@ export class PathReference {
   /**
    * Creates a symlink at the provided path to the provided target returning the target path.
    */
-  async createAbsoluteSymlinkTo(target: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+  async createAbsoluteSymlinkTo(
+    target: string | URL | PathReference,
+    opts?: Deno.SymlinkOptions,
+  ): Promise<PathReference> {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     await createSymlink({
@@ -246,7 +249,7 @@ export class PathReference {
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
    * @returns The resolved target path.
    */
-  createAbsoluteSymlinkToSync(target: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+  createAbsoluteSymlinkToSync(target: string | URL | PathReference, opts?: Deno.SymlinkOptions): PathReference {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     createSymlinkSync({
@@ -264,7 +267,10 @@ export class PathReference {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  async createAbsoluteSymlinkAt(linkPath: string | URL | PathReference, opts?: Deno.SymlinkOptions) {
+  async createAbsoluteSymlinkAt(
+    linkPath: string | URL | PathReference,
+    opts?: Deno.SymlinkOptions,
+  ): Promise<PathReference> {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     await createSymlink({
@@ -285,7 +291,7 @@ export class PathReference {
   createAbsoluteSymlinkAtSync(
     linkPath: string | URL | PathReference,
     opts?: Deno.SymlinkOptions,
-  ) {
+  ): PathReference {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     createSymlinkSync({
@@ -306,7 +312,7 @@ export class PathReference {
   async createRelativeSymlinkAt(
     linkPath: string | URL | PathReference,
     opts?: Deno.SymlinkOptions,
-  ) {
+  ): Promise<PathReference> {
     const {
       linkPathRef,
       thisResolved,
@@ -330,7 +336,7 @@ export class PathReference {
   createRelativeSymlinkAtSync(
     linkPath: string | URL | PathReference,
     opts?: Deno.SymlinkOptions,
-  ) {
+  ): PathReference {
     const {
       linkPathRef,
       thisResolved,
@@ -363,67 +369,67 @@ export class PathReference {
   }
 
   /** Reads the entries in the directory. */
-  readDir() {
+  readDir(): AsyncIterable<Deno.DirEntry> {
     return Deno.readDir(this.#path);
   }
 
   /** Synchronously reads the entries in the directory. */
-  readDirSync() {
+  readDirSync(): Iterable<Deno.DirEntry> {
     return Deno.readDirSync(this.#path);
   }
 
   /** Reads the bytes from the file. */
-  bytes(options?: Deno.ReadFileOptions) {
+  bytes(options?: Deno.ReadFileOptions): Promise<Uint8Array> {
     return Deno.readFile(this.#path, options);
   }
 
   /** Synchronously reads the bytes from the file. */
-  bytesSync() {
+  bytesSync(): Uint8Array {
     return Deno.readFileSync(this.#path);
   }
 
   /** Calls `.bytes()`, but returns undefined if the path doesn't exist. */
-  maybeBytes(options?: Deno.ReadFileOptions) {
+  maybeBytes(options?: Deno.ReadFileOptions): Promise<Uint8Array | undefined> {
     return notFoundToUndefined(() => this.bytes(options));
   }
 
   /** Calls `.bytesSync()`, but returns undefined if the path doesn't exist. */
-  maybeBytesSync() {
+  maybeBytesSync(): Uint8Array | undefined {
     return notFoundToUndefinedSync(() => this.bytesSync());
   }
 
   /** Reads the text from the file. */
-  text(options?: Deno.ReadFileOptions) {
+  text(options?: Deno.ReadFileOptions): Promise<string> {
     return Deno.readTextFile(this.#path, options);
   }
 
   /** Synchronously reads the text from the file. */
-  textSync() {
+  textSync(): string {
     return Deno.readTextFileSync(this.#path);
   }
 
   /** Calls `.text()`, but returns undefined when the path doesn't exist.
    * @remarks This still errors for other kinds of errors reading a file.
    */
-  maybeText(options?: Deno.ReadFileOptions) {
+  maybeText(options?: Deno.ReadFileOptions): Promise<string | undefined> {
     return notFoundToUndefined(() => this.text(options));
   }
 
   /** Calls `.textSync()`, but returns undefined when the path doesn't exist.
    * @remarks This still errors for other kinds of errors reading a file.
    */
-  maybeTextSync() {
+  maybeTextSync(): string | undefined {
     return notFoundToUndefinedSync(() => this.textSync());
   }
 
   /** Reads and parses the file as JSON, throwing if it doesn't exist or is not valid JSON. */
-  async json<T>(options?: Deno.ReadFileOptions) {
+  async json<T>(options?: Deno.ReadFileOptions): Promise<T> {
     return this.#parseJson<T>(await this.text(options));
   }
 
   /** Synchronously reads and parses the file as JSON, throwing if it doesn't
    * exist or is not valid JSON. */
-  jsonSync<T>() {
+  jsonSync<T>(): T {
     return this.#parseJson<T>(this.textSync());
   }
 
@@ -441,7 +447,7 @@ export class PathReference {
    * Calls `.json()`, but returns undefined if the file doesn't exist.
    * @remarks This method will still throw if the file cannot be parsed as JSON.
    */
-  maybeJson<T>(options?: Deno.ReadFileOptions) {
+  maybeJson<T>(options?: Deno.ReadFileOptions): Promise<T | undefined> {
     return notFoundToUndefined(() => this.json<T>(options));
   }
 
@@ -449,57 +455,57 @@ export class PathReference {
    * Calls `.jsonSync()`, but returns undefined if the file doesn't exist.
    * @remarks This method will still throw if the file cannot be parsed as JSON.
    */
-  maybeJsonSync<T>() {
+  maybeJsonSync<T>(): T | undefined {
     return notFoundToUndefinedSync(() => this.jsonSync<T>());
   }
 
   /** Writes out the provided bytes to the file. */
-  async write(data: Uint8Array, options?: Deno.WriteFileOptions) {
+  async write(data: Uint8Array, options?: Deno.WriteFileOptions): Promise<this> {
     await Deno.writeFile(this.#path, data, options);
     return this;
   }
 
   /** Synchronously writes out the provided bytes to the file. */
-  writeSync(data: Uint8Array, options?: Deno.WriteFileOptions) {
+  writeSync(data: Uint8Array, options?: Deno.WriteFileOptions): this {
     Deno.writeFileSync(this.#path, data, options);
     return this;
   }
 
   /** Writes out the provided text to the file. */
-  async writeText(text: string, options?: Deno.WriteFileOptions) {
+  async writeText(text: string, options?: Deno.WriteFileOptions): Promise<this> {
     await Deno.writeTextFile(this.#path, text, options);
     return this;
   }
 
   /** Synchronously writes out the provided text to the file. */
-  writeTextSync(text: string, options?: Deno.WriteFileOptions) {
+  writeTextSync(text: string, options?: Deno.WriteFileOptions): this {
     Deno.writeTextFileSync(this.#path, text, options);
     return this;
   }
 
   /** Writes out the provided object as compact JSON. */
-  async writeJson(obj: unknown, options?: Deno.WriteFileOptions) {
+  async writeJson(obj: unknown, options?: Deno.WriteFileOptions): Promise<this> {
     const text = JSON.stringify(obj);
     await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
   /** Synchronously writes out the provided object as compact JSON. */
-  writeJsonSync(obj: unknown, options?: Deno.WriteFileOptions) {
+  writeJsonSync(obj: unknown, options?: Deno.WriteFileOptions): this {
     const text = JSON.stringify(obj);
     this.#writeTextWithEndNewLineSync(text, options);
     return this;
   }
 
   /** Writes out the provided object as formatted JSON. */
-  async writeJsonPretty(obj: unknown, options?: Deno.WriteFileOptions) {
+  async writeJsonPretty(obj: unknown, options?: Deno.WriteFileOptions): Promise<this> {
     const text = JSON.stringify(obj, undefined, 2);
     await this.#writeTextWithEndNewLine(text, options);
     return this;
   }
 
   /** Synchronously writes out the provided object as formatted JSON. */
-  writeJsonPrettySync(obj: unknown, options?: Deno.WriteFileOptions) {
+  writeJsonPrettySync(obj: unknown, options?: Deno.WriteFileOptions): this {
     const text = JSON.stringify(obj, undefined, 2);
     this.#writeTextWithEndNewLineSync(text, options);
     return this;
@@ -534,42 +540,42 @@ export class PathReference {
   }
 
   /** Changes the permissions of the file or directory. */
-  async chmod(mode: number) {
+  async chmod(mode: number): Promise<this> {
     await Deno.chmod(this.#path, mode);
     return this;
   }
 
   /** Synchronously changes the permissions of the file or directory. */
-  chmodSync(mode: number) {
+  chmodSync(mode: number): this {
     Deno.chmodSync(this.#path, mode);
     return this;
   }
 
   /** Changes the ownership permissions of the file. */
-  async chown(uid: number | null, gid: number | null) {
+  async chown(uid: number | null, gid: number | null): Promise<this> {
     await Deno.chown(this.#path, uid, gid);
     return this;
   }
 
   /** Synchronously changes the ownership permissions of the file. */
-  chownSync(uid: number | null, gid: number | null) {
+  chownSync(uid: number | null, gid: number | null): this {
     Deno.chownSync(this.#path, uid, gid);
     return this;
   }
 
   /** Creates a new file or opens the existing one. */
-  create() {
+  create(): Promise<FsFileWrapper> {
     return Deno.create(this.#path)
       .then((file) => new FsFileWrapper(file));
   }
 
   /** Synchronously creates a new file or opens the existing one. */
-  createSync() {
+  createSync(): FsFileWrapper {
     return new FsFileWrapper(Deno.createSync(this.#path));
   }
 
   /** Creates a file throwing if a file previously existed. */
-  createNew() {
+  createNew(): Promise<FsFileWrapper> {
     return this.open({
       createNew: true,
       read: true,
@@ -578,7 +584,7 @@ export class PathReference {
   }
 
   /** Synchronously creates a file throwing if a file previously existed. */
-  createNewSync() {
+  createNewSync(): FsFileWrapper {
     return this.openSync({
       createNew: true,
       read: true,
@@ -587,24 +593,24 @@ export class PathReference {
   }
 
   /** Opens a file. */
-  open(options?: Deno.OpenOptions) {
+  open(options?: Deno.OpenOptions): Promise<FsFileWrapper> {
     return Deno.open(this.#path, options)
       .then((file) => new FsFileWrapper(file));
   }
 
   /** Opens a file synchronously. */
-  openSync(options?: Deno.OpenOptions) {
+  openSync(options?: Deno.OpenOptions): FsFileWrapper {
     return new FsFileWrapper(Deno.openSync(this.#path, options));
   }
 
   /** Removes the file or directory from the file system. */
-  async remove(options?: Deno.RemoveOptions) {
+  async remove(options?: Deno.RemoveOptions): Promise<this> {
     await Deno.remove(this.#path, options);
     return this;
   }
 
   /** Removes the file or directory from the file system synchronously. */
-  removeSync(options?: Deno.RemoveOptions) {
+  removeSync(options?: Deno.RemoveOptions): this {
     Deno.removeSync(this.#path, options);
     return this;
   }
@@ -613,7 +619,7 @@ export class PathReference {
    * Copies the file returning a promise that resolves to
    * the destination path.
    */
-  copyFile(destinationPath: string | URL | PathReference) {
+  copyFile(destinationPath: string | URL | PathReference): Promise<PathReference> {
     const pathRef = ensurePathRef(destinationPath);
     return Deno.copyFile(this.#path, pathRef.#path)
       .then(() => pathRef);
@@ -623,7 +629,7 @@ export class PathReference {
    * Copies the file returning a promise that resolves to
    * the destination path synchronously.
    */
-  copyFileSync(destinationPath: string | URL | PathReference) {
+  copyFileSync(destinationPath: string | URL | PathReference): PathReference {
     const pathRef = ensurePathRef(destinationPath);
     Deno.copyFileSync(this.#path, pathRef.#path);
     return pathRef;
@@ -633,7 +639,7 @@ export class PathReference {
    * Renames the file or directory returning a promise that resolves to
    * the renamed path.
    */
-  rename(newPath: string | URL | PathReference) {
+  rename(newPath: string | URL | PathReference): Promise<PathReference> {
     const pathRef = ensurePathRef(newPath);
     return Deno.rename(this.#path, pathRef.#path).then(() => pathRef);
   }
@@ -642,14 +648,14 @@ export class PathReference {
    * Renames the file or directory returning a promise that resolves to
    * the renamed path synchronously.
    */
-  renameSync(newPath: string | URL | PathReference) {
+  renameSync(newPath: string | URL | PathReference): PathReference {
     const pathRef = ensurePathRef(newPath);
     Deno.renameSync(this.#path, pathRef.#path);
     return pathRef;
   }
 
   /** Opens the file and pipes it to the writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<this> {
     const file = await Deno.open(this.#path, { read: true });
     try {
       await file.readable.pipeTo(dest, options);
@@ -660,6 +666,7 @@ export class PathReference {
         // ignore
       }
     }
+    return this;
   }
 }
 
@@ -735,28 +742,28 @@ export class FsFileWrapper implements Deno.FsFile {
   }
 
   /** Gets the inner `Deno.FsFile` that this wraps. */
-  get inner() {
+  get inner(): Deno.FsFile {
     return this.#file;
   }
 
   /** Writes the provided text to this file. */
-  writeText(text: string) {
+  writeText(text: string): Promise<this> {
     return this.writeBytes(new TextEncoder().encode(text));
   }
 
   /** Synchronously writes the provided text to this file. */
-  writeTextSync(text: string) {
+  writeTextSync(text: string): this {
     return this.writeBytesSync(new TextEncoder().encode(text));
   }
 
   /** Writes the provided bytes to the file. */
-  async writeBytes(bytes: Uint8Array) {
+  async writeBytes(bytes: Uint8Array): Promise<this> {
     await writeAll(this.#file, bytes);
     return this;
   }
 
   /** Synchronously writes the provided bytes to the file. */
-  writeBytesSync(bytes: Uint8Array) {
+  writeBytesSync(bytes: Uint8Array): this {
     writeAllSync(this.#file, bytes);
     return this;
   }
@@ -764,15 +771,15 @@ export class FsFileWrapper implements Deno.FsFile {
   // below is Deno.FsFile implementation... could probably be something
   // done in the constructor instead.
 
-  get rid() {
+  get rid(): number {
     return this.#file.rid;
   }
 
-  get readable() {
+  get readable(): ReadableStream<Uint8Array> {
     return this.#file.readable;
   }
 
-  get writable() {
+  get writable(): WritableStream<Uint8Array> {
     return this.#file.writable;
   }
 
