@@ -48,7 +48,7 @@ Deno.test("should render with custom mask", () => {
     default: "test",
     mask: {
       char: "🦕",
-      visibleCount: 1,
+      lastVisible: true,
     },
   }));
 
