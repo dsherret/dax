@@ -12,9 +12,9 @@ export interface PromptOptions {
   /**
    * Whether typed characters should be hidden by
    * a mask, optionally allowing a choice of mask
-   * character (`*` by default) and the number of
-   * input characters to keep visible as the user
-   * types (`0` by default).
+   * character (`*` by default) and whether or not
+   * to keep the final character visible as the user
+   * types (`false` by default).
    * @default `false`
    */
   mask?: InputMask | boolean;
