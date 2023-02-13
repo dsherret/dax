@@ -26,11 +26,13 @@ export interface PromptOptions {
 }
 
 export interface InputMask {
+  /** The character used to mask input (`*` by default) */
   char?: string;
-  visibleCount?: number;
+  /** Whether or not to keep the last character "unmasked" (`false` by default) */
+  lastVisible?: boolean;
 }
 
-const defaultMask: Required<InputMask> = { char: "*", visibleCount: 0 };
+const defaultMask: Required<InputMask> = { char: "*", lastVisible: false };
 
 export function prompt(optsOrMessage: PromptOptions | string, options?: Omit<PromptOptions, "message">) {
   return maybePrompt(optsOrMessage, options).then(resultOrExit);
@@ -100,10 +102,12 @@ function render(state: DrawState): TextItem[] {
   let { inputText } = state;
   if (state.mask) {
     const char = state.mask.char ?? defaultMask.char;
-    const visible = state.mask.visibleCount ?? defaultMask.visibleCount;
-    const maskLength = Math.max(0, inputText.length - visible);
+    const lastVisible = state.mask.lastVisible ?? defaultMask.lastVisible;
 
-    inputText = char.repeat(maskLength) + inputText.slice(maskLength);
+    const masked = char.repeat(lastVisible ? Math.max(0, inputText.length - 1) : inputText.length);
+    const unmasked = lastVisible ? inputText.slice(Math.max(0, inputText.length - 1)) : "";
+
+    inputText = `${masked}${unmasked}`;
   }
 
   return [
