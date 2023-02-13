@@ -36,7 +36,7 @@ Deno.test("should render with mask", () => {
   const tester = createTester(innerPrompt({
     message: "Some question?",
     default: "test",
-    mask: true
+    mask: true,
   }));
 
   assertEquals(tester.getText(), "Some question? ****\u2588");
@@ -47,8 +47,8 @@ Deno.test("should render with custom mask", () => {
     message: "Some question?",
     default: "test",
     mask: {
-      char: '🦕',
-      visibleCount: 1
+      char: "🦕",
+      visibleCount: 1,
     }
   }));
 
