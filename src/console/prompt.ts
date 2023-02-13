@@ -55,7 +55,7 @@ export function innerPrompt(
   opts: PromptOptions,
 ): Pick<SelectionOptions<string | undefined>, "render" | "onKey"> {
   let mask = opts.mask ?? false;
-  if (mask && typeof mask === 'boolean') {
+  if (mask && typeof mask === "boolean") {
     mask = defaultMask;
   }
 

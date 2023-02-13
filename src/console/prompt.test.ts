@@ -49,7 +49,7 @@ Deno.test("should render with custom mask", () => {
     mask: {
       char: "🦕",
       visibleCount: 1,
-    }
+    },
   }));
 
   assertEquals(tester.getText(), "Some question? 🦕🦕🦕t\u2588");
