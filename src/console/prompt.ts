@@ -25,9 +25,7 @@ export interface PromptOptions {
   noClear?: boolean;
 }
 
-/**
- * Configuration of the prompt input mask
- */
+/** Configuration of the prompt input mask */
 export interface InputMask {
   /** The character used to mask input (`*` by default) */
   char?: string;
