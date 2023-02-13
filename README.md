@@ -84,8 +84,8 @@ console.log(output.stdoutJson);
 Getting the combined output:
 
 ```ts
-const result = await $`deno eval 'console.log(1); console.error(2); console.log(3);'`
-  .captureCombined();
+const result =
+  await $`deno eval 'console.log(1); console.error(2); console.log(3);'`.captureCombined();
 
 console.log(result.combined); // 1\n2\n3\n
 ```
@@ -142,7 +142,7 @@ console.log(finalText); // 1
 ```ts
 await $`command`.stdin("inherit"); // default
 await $`command`.stdin("null");
-await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
+await $`command`.stdin(new Uint8Array[(1, 2, 3, 4)]());
 await $`command`.stdin(someReaderOrReadableStream);
 await $`command`.stdinText("some value");
 ```
@@ -155,8 +155,9 @@ For example, the following will output 1, wait 2 seconds, then output 2 to the c
 
 ```ts
 const child = $`echo 1 && sleep 1 && echo 2`.stdout("piped").spawn();
-await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`
-  .stdin(child.stdout());
+await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`.stdin(
+  child.stdout()
+);
 ```
 
 ### Setting environment variables
@@ -351,6 +352,11 @@ const name = await $.prompt({
 const name = await $.prompt("What's your name?", {
   default: "Dax",
 });
+
+// with a character mask (for password / secret input)
+const password = await $.prompt("What's your password?", {
+  mask: true,
+});
 ```
 
 Again, you can use `$.maybePrompt("What's your name?")` to get a nullable return value for when the user presses `ctrl+c`.
@@ -382,11 +388,7 @@ Gets a single value:
 ```ts
 const index = await $.select({
   message: "What's your favourite colour?",
-  options: [
-    "Red",
-    "Green",
-    "Blue",
-  ],
+  options: ["Red", "Green", "Blue"],
 });
 ```
 
@@ -439,7 +441,9 @@ try {
 Set a length to be determinate, which will display a progress bar:
 
 ```ts
-const items = [/*...*/];
+const items = [
+  /*...*/
+];
 const pb = $.progress("Processing Items", {
   length: items.length,
 });
@@ -627,10 +631,9 @@ See the [documentation on `RequestBuilder`](https://deno.land/x/dax/src/request.
 You can have downloads show a progress bar by using the `.showProgress()` builder method:
 
 ```ts
-const url = "https://dl.deno.land/release/v1.29.1/deno-x86_64-unknown-linux-gnu.zip";
-const downloadPath = await $.request(url)
-  .showProgress()
-  .pipeToPath();
+const url =
+  "https://dl.deno.land/release/v1.29.1/deno-x86_64-unknown-linux-gnu.zip";
+const downloadPath = await $.request(url).showProgress().pipeToPath();
 ```
 
 ## Shell
@@ -740,8 +743,7 @@ const commandBuilder = new CommandBuilder()
   .stdout("inheritPiped") // output to stdout and pipe to a buffer
   .noThrow();
 
-const otherBuilder = commandBuilder
-  .stderr("null");
+const otherBuilder = commandBuilder.stderr("null");
 
 const result = await commandBuilder
   // won't have a null stderr
@@ -757,11 +759,9 @@ const result2 = await otherBuilder
 You can also register your own custom commands using the `registerCommand` or `registerCommands` methods:
 
 ```ts
-const commandBuilder = new CommandBuilder()
-  .registerCommand(
-    "true",
-    () => Promise.resolve({ kind: "continue", code: 0 }),
-  );
+const commandBuilder = new CommandBuilder().registerCommand("true", () =>
+  Promise.resolve({ kind: "continue", code: 0 })
+);
 
 const result = await commandBuilder
   // now includes the 'true' command
@@ -776,8 +776,10 @@ const result = await commandBuilder
 ```ts
 import { RequestBuilder } from "https://deno.land/x/dax/mod.ts";
 
-const requestBuilder = new RequestBuilder()
-  .header("SOME_VALUE", "some value to send in a header");
+const requestBuilder = new RequestBuilder().header(
+  "SOME_VALUE",
+  "some value to send in a header"
+);
 
 const result = await requestBuilder
   .url("https://example.com")
@@ -790,15 +792,18 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
-import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax/mod.ts";
+import {
+  build$,
+  CommandBuilder,
+  RequestBuilder,
+} from "https://deno.land/x/dax/mod.ts";
 
 // creates a $ object with the provided starting environment
 const $ = build$({
   commandBuilder: new CommandBuilder()
     .cwd("./subDir")
     .env("HTTPS_PROXY", "some_value"),
-  requestBuilder: new RequestBuilder()
-    .header("SOME_NAME", "some value"),
+  requestBuilder: new RequestBuilder().header("SOME_NAME", "some value"),
   extras: {
     add(a: number, b: number) {
       return a + b;
@@ -819,9 +824,7 @@ console.log($.add(1, 2));
 This may be useful also if you want to change the default configuration. Another example:
 
 ```ts
-const commandBuilder = new CommandBuilder()
-  .exportEnv()
-  .noThrow();
+const commandBuilder = new CommandBuilder().exportEnv().noThrow();
 
 const $ = build$({ commandBuilder });
 
