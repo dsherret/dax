@@ -103,14 +103,7 @@ function render(state: DrawState): TextItem[] {
     const visible = state.mask.visibleCount ?? defaultMask.visibleCount;
     const maskLength = Math.max(0, inputText.length - visible);
 
-    inputText = [
-      ...inputText
-        .slice(0, maskLength)
-        .split("")
-        .map(() => char)
-        .join(""),
-      ...inputText.slice(maskLength),
-    ].join("");
+    inputText = char.repeat(maskLength) + inputText.slice(maskLength);
   }
 
   return [
