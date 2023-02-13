@@ -31,3 +31,26 @@ Deno.test("should render with default", () => {
 
   assertEquals(tester.getText(), "Some question? test\u2588");
 });
+
+Deno.test("should render with mask", () => {
+  const tester = createTester(innerPrompt({
+    message: "Some question?",
+    default: "test",
+    mask: true
+  }));
+
+  assertEquals(tester.getText(), "Some question? ****\u2588");
+});
+
+Deno.test("should render with custom mask", () => {
+  const tester = createTester(innerPrompt({
+    message: "Some question?",
+    default: "test",
+    mask: {
+      char: '🦕',
+      visibleCount: 1
+    }
+  }));
+
+  assertEquals(tester.getText(), "Some question? 🦕🦕🦕t\u2588");
+});
