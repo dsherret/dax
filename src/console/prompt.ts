@@ -10,11 +10,30 @@ export interface PromptOptions {
    */
   default?: string;
   /**
+   * Whether typed characters should be hidden by
+   * a mask, optionally allowing a choice of mask
+   * character (`*` by default) and whether or not
+   * to keep the final character visible as the user
+   * types (`false` by default).
+   * @default `false`
+   */
+  mask?: InputMask | boolean;
+  /**
    * Whether to not clear the prompt text on selection.
    * @default `false`
    */
   noClear?: boolean;
 }
+
+/** Configuration of the prompt input mask */
+export interface InputMask {
+  /** The character used to mask input (`*` by default) */
+  char?: string;
+  /** Whether or not to keep the last character "unmasked" (`false` by default) */
+  lastVisible?: boolean;
+}
+
+const defaultMask: Required<InputMask> = { char: "*", lastVisible: false };
 
 export function prompt(optsOrMessage: PromptOptions | string, options?: Omit<PromptOptions, "message">) {
   return maybePrompt(optsOrMessage, options).then(resultOrExit);
@@ -38,9 +57,15 @@ export function maybePrompt(optsOrMessage: PromptOptions | string, options?: Omi
 export function innerPrompt(
   opts: PromptOptions,
 ): Pick<SelectionOptions<string | undefined>, "render" | "onKey"> {
+  let mask = opts.mask ?? false;
+  if (mask && typeof mask === "boolean") {
+    mask = defaultMask;
+  }
+
   const drawState: DrawState = {
     title: opts.message,
     inputText: opts.default ?? "",
+    mask,
     hasCompleted: false,
   };
 
@@ -70,14 +95,29 @@ export function innerPrompt(
 interface DrawState {
   title: string;
   inputText: string;
+  mask: InputMask | false;
   hasCompleted: boolean;
 }
 
 function render(state: DrawState): TextItem[] {
+  let { inputText } = state;
+  if (state.mask) {
+    const char = state.mask.char ?? defaultMask.char;
+    const lastVisible = state.mask.lastVisible ?? defaultMask.lastVisible;
+
+    const shouldShowLast = lastVisible && !state.hasCompleted;
+    const safeLengthMinusOne = Math.max(0, inputText.length - 1);
+
+    const masked = char.repeat(shouldShowLast ? safeLengthMinusOne : inputText.length);
+    const unmasked = shouldShowLast ? inputText.slice(safeLengthMinusOne) : "";
+
+    inputText = `${masked}${unmasked}`;
+  }
+
   return [
     colors.bold(colors.blue(state.title)) +
     " " +
-    state.inputText +
+    inputText +
     (state.hasCompleted ? "" : "\u2588"), // (block character)
   ];
 }

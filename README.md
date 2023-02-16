@@ -351,6 +351,11 @@ const name = await $.prompt({
 const name = await $.prompt("What's your name?", {
   default: "Dax",
 });
+
+// with a character mask (for password / secret input)
+const password = await $.prompt("What's your password?", {
+  mask: true,
+});
 ```
 
 Again, you can use `$.maybePrompt("What's your name?")` to get a nullable return value for when the user presses `ctrl+c`.
