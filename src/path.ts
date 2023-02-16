@@ -1,9 +1,13 @@
-import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
 export function createPathRef(path: string | URL): PathRef {
   return new PathRef(path);
+}
+
+export interface WalkEntry extends Deno.DirEntry {
+  path: PathRef;
 }
 
 /**
@@ -237,6 +241,35 @@ export class PathRef {
     return new PathRef(Deno.realPathSync(this.#path));
   }
 
+  /** Expands the glob using the current path as the root. */
+  async *expandGlob(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
+    const entries = fs.expandGlob(glob, {
+      root: this.#path,
+      ...options,
+    });
+    for await (const entry of entries) {
+      yield this.#stdWalkEntryToDax(entry);
+    }
+  }
+
+  /** Synchronously expands the glob using the current path as the root. */
+  *expandGlobSync(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
+    const entries = fs.expandGlobSync(glob, {
+      root: this.#path,
+      ...options,
+    });
+    for (const entry of entries) {
+      yield this.#stdWalkEntryToDax(entry);
+    }
+  }
+
+  #stdWalkEntryToDax(entry: fs.WalkEntry): WalkEntry {
+    return {
+      ...entry,
+      path: new PathRef(entry.path),
+    };
+  }
+
   /** Creates a directory at this path. */
   async mkdir(options?: Deno.MkdirOptions): Promise<this> {
     await Deno.mkdir(this.#path, options);
@@ -398,6 +431,24 @@ export class PathRef {
   /** Synchronously reads the entries in the directory. */
   readDirSync(): Iterable<Deno.DirEntry> {
     return Deno.readDirSync(this.#path);
+  }
+
+  /** Reads the directory file paths, not including symlinks. */
+  async *readDirFilePaths(): AsyncIterable<PathRef> {
+    for await (const entry of Deno.readDir(this.#path)) {
+      if (entry.isFile) {
+        yield this.join(entry.name);
+      }
+    }
+  }
+
+  /** Synchronously reads the directory file paths, not including symlinks. */
+  *readDirFilePathsSync(): Iterable<PathRef> {
+    for (const entry of Deno.readDirSync(this.#path)) {
+      if (entry.isFile) {
+        yield this.join(entry.name);
+      }
+    }
   }
 
   /** Reads the bytes from the file. */
