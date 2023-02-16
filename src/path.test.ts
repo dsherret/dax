@@ -412,8 +412,10 @@ Deno.test("write", async () => {
 
     // writing on top of a file it should return the original not found error
     const fileOnFile = file1.join("fileOnFile");
-    await assertRejects(() => fileOnFile.writeText("asdf"), Deno.errors.NotFound);
-    assertThrows(() => fileOnFile.writeTextSync("asdf"), Deno.errors.NotFound);
+    // windows will throw a NotFound error
+    const errorClass = Deno.build.os === "windows" ? Deno.errors.NotFound : Error;
+    await assertRejects(() => fileOnFile.writeText("asdf"), errorClass);
+    assertThrows(() => fileOnFile.writeTextSync("asdf"), errorClass);
   });
 });
 
