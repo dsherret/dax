@@ -499,7 +499,7 @@ textFile.writeTextSync("some text");
 console.log(textFile.textSync()); // "some text"
 
 const jsonFile = srcDir.join("otherDir", "file.json");
-console.log(jsonFile.parentOrThrow()); // otherDir
+console.log(jsonFile.parentOrThrow()); // path for otherDir
 jsonFile.writeJsonSync({
   someValue: 5,
 });
