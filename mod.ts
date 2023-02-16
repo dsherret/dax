@@ -31,6 +31,7 @@ import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathRef } from "./src/path.ts";
 
 export { FsFileWrapper, PathRef } from "./src/path.ts";
+export type { WalkEntry } from "./src/path.ts";
 export { CommandBuilder, CommandResult } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export type {

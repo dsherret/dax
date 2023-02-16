@@ -261,17 +261,53 @@ Deno.test("readDir", async () => {
       entries1.push(entry.name);
     }
     entries1.sort();
-    const entries2 = [];
-    for (const entry of dir.readDirSync()) {
-      entries2.push(entry.name);
-    }
+    const entries2 = Array.from(dir.readDirSync()).map((e) => e.name);
     entries2.sort();
 
     for (const entries of [entries1, entries2]) {
       assertEquals(entries.length, 2);
-      assert(entries[0].endsWith("file1"));
-      assert(entries[1].endsWith("file2"));
+      assertEquals(entries[0], "file1");
+      assertEquals(entries[1], "file2");
     }
+
+    const filePaths1 = [];
+    for await (const path of dir.readDirFilePaths()) {
+      filePaths1.push(path.toString());
+    }
+    const filePaths2 = Array.from(dir.readDirFilePathsSync()).map((p) => p.toString());
+    filePaths1.sort();
+    filePaths2.sort();
+    assertEquals(filePaths1, filePaths2);
+    assertEquals(filePaths1, entries1.map((dirName) => dir.join(dirName).toString()));
+  });
+});
+
+Deno.test("expandGlob", async () => {
+  await withTempDir(async () => {
+    const dir = createPathRef(".").resolve();
+    dir.join("file1").writeTextSync("");
+    dir.join("file2").writeTextSync("");
+    const subDir = dir.join("dir").join("subDir");
+    subDir.mkdirSync({ recursive: true });
+    subDir.join("file.txt").writeTextSync("");
+
+    const entries1 = [];
+    for await (const entry of dir.expandGlob("**/*.txt")) {
+      entries1.push(entry.path);
+    }
+    const entries2 = Array.from(dir.expandGlobSync("**/*.txt")).map((e) => e.path);
+
+    assertEquals(entries1, entries2);
+
+    assertEquals(entries1.length, 1);
+    assertEquals(entries1[0].basename(), "file.txt");
+
+    const subDir2 = dir.join("dir2");
+    subDir2.mkdirSync();
+    subDir2.join("other.txt").writeTextSync("");
+    const entries3 = Array.from(subDir2.expandGlobSync("**/*.txt")).map((e) => e.path);
+    assertEquals(entries3.length, 1);
+    assertEquals(entries3[0].basename(), "other.txt");
   });
 });
 
