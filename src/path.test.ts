@@ -258,16 +258,16 @@ Deno.test("readDir", async () => {
 
     const entries1 = [];
     for await (const entry of dir.readDir()) {
-      entries1.push(entry.name);
+      entries1.push(entry);
     }
-    entries1.sort();
-    const entries2 = Array.from(dir.readDirSync()).map((e) => e.name);
-    entries2.sort();
+    const entries2 = Array.from(dir.readDirSync());
+    entries1.sort((a, b) => a.name.localeCompare(b.name));
+    entries2.sort((a, b) => a.name.localeCompare(b.name));
 
     for (const entries of [entries1, entries2]) {
       assertEquals(entries.length, 2);
-      assertEquals(entries[0], "file1");
-      assertEquals(entries[1], "file2");
+      assertEquals(entries[0].name, "file1");
+      assertEquals(entries[1].name, "file2");
     }
 
     const filePaths1 = [];
@@ -278,7 +278,8 @@ Deno.test("readDir", async () => {
     filePaths1.sort();
     filePaths2.sort();
     assertEquals(filePaths1, filePaths2);
-    assertEquals(filePaths1, entries1.map((dirName) => dir.join(dirName).toString()));
+    assertEquals(filePaths1, entries1.map((entry) => entry.path.toString()));
+    assertEquals(filePaths1, entries2.map((entry) => entry.path.toString()));
   });
 });
 
