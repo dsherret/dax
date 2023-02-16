@@ -434,29 +434,43 @@ export class PathRef {
   }
 
   /** Reads the entries in the directory. */
-  readDir(): AsyncIterable<Deno.DirEntry> {
-    return Deno.readDir(this.#path);
+  async *readDir(): AsyncIterable<WalkEntry> {
+    const dir = this.resolve();
+    for await (const entry of Deno.readDir(dir.#path)) {
+      yield {
+        ...entry,
+        path: dir.join(entry.name),
+      };
+    }
   }
 
   /** Synchronously reads the entries in the directory. */
-  readDirSync(): Iterable<Deno.DirEntry> {
-    return Deno.readDirSync(this.#path);
+  *readDirSync(): Iterable<WalkEntry> {
+    const dir = this.resolve();
+    for (const entry of Deno.readDirSync(dir.#path)) {
+      yield {
+        ...entry,
+        path: dir.join(entry.name),
+      };
+    }
   }
 
-  /** Reads the directory file paths, not including symlinks. */
+  /** Reads only the directory file paths, not including symlinks. */
   async *readDirFilePaths(): AsyncIterable<PathRef> {
-    for await (const entry of Deno.readDir(this.#path)) {
+    const dir = this.resolve();
+    for await (const entry of Deno.readDir(dir.#path)) {
       if (entry.isFile) {
-        yield this.join(entry.name);
+        yield dir.join(entry.name);
       }
     }
   }
 
-  /** Synchronously reads the directory file paths, not including symlinks. */
+  /** Synchronously reads only the directory file paths, not including symlinks. */
   *readDirFilePathsSync(): Iterable<PathRef> {
-    for (const entry of Deno.readDirSync(this.#path)) {
+    const dir = this.resolve();
+    for (const entry of Deno.readDirSync(dir.#path)) {
       if (entry.isFile) {
-        yield this.join(entry.name);
+        yield dir.join(entry.name);
       }
     }
   }
