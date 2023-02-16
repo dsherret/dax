@@ -214,14 +214,14 @@ Deno.test("mkdir", async () => {
     path.mkdirSync();
     assert(path.isDir());
     const nestedDir = path.join("subdir", "subsubdir", "sub");
-    await assertRejects(() => nestedDir.mkdir());
-    assertThrows(() => nestedDir.mkdirSync());
+    await assertRejects(() => nestedDir.mkdir({ recursive: false }));
+    assertThrows(() => nestedDir.mkdirSync({ recursive: false }));
     assert(!nestedDir.parentOrThrow().existsSync());
-    await nestedDir.mkdir({ recursive: true });
+    await nestedDir.mkdir();
     assert(nestedDir.existsSync());
     await path.remove({ recursive: true });
     assert(!path.existsSync());
-    nestedDir.mkdirSync({ recursive: true });
+    nestedDir.mkdirSync();
     assert(nestedDir.existsSync());
   });
 });
@@ -288,7 +288,7 @@ Deno.test("expandGlob", async () => {
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
     const subDir = dir.join("dir").join("subDir");
-    subDir.mkdirSync({ recursive: true });
+    subDir.mkdirSync();
     subDir.join("file.txt").writeTextSync("");
 
     const entries1 = [];
