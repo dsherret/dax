@@ -494,12 +494,12 @@ srcDir.isRelative(); // false
 srcDir.isAbsolute(); // true
 
 // join to get other paths and do actions on them
-const textFile = srcDir.join("file.txt");
+const textFile = srcDir.join("subDir").join("file.txt");
 textFile.writeTextSync("some text");
 console.log(textFile.textSync()); // "some text"
 
-const jsonFile = srcDir.join("subDir", "file.json");
-jsonFile.parentOrThrow().mkdir();
+const jsonFile = srcDir.join("otherDir", "file.json");
+console.log(jsonFile.parentOrThrow()); // path for otherDir
 jsonFile.writeJsonSync({
   someValue: 5,
 });

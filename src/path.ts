@@ -544,25 +544,29 @@ export class PathRef {
 
   /** Writes out the provided bytes to the file. */
   async write(data: Uint8Array, options?: Deno.WriteFileOptions): Promise<this> {
-    await Deno.writeFile(this.#path, data, options);
+    await this.#withFileForWriting(options, (file) => file.write(data));
     return this;
   }
 
   /** Synchronously writes out the provided bytes to the file. */
   writeSync(data: Uint8Array, options?: Deno.WriteFileOptions): this {
-    Deno.writeFileSync(this.#path, data, options);
+    this.#withFileForWritingSync(options, (file) => {
+      file.writeSync(data);
+    });
     return this;
   }
 
   /** Writes out the provided text to the file. */
   async writeText(text: string, options?: Deno.WriteFileOptions): Promise<this> {
-    await Deno.writeTextFile(this.#path, text, options);
+    await this.#withFileForWriting(options, (file) => file.writeText(text));
     return this;
   }
 
   /** Synchronously writes out the provided text to the file. */
   writeTextSync(text: string, options?: Deno.WriteFileOptions): this {
-    Deno.writeTextFileSync(this.#path, text, options);
+    this.#withFileForWritingSync(options, (file) => {
+      file.writeTextSync(text);
+    });
     return this;
   }
 
@@ -594,11 +598,20 @@ export class PathRef {
     return this;
   }
 
-  async #writeTextWithEndNewLine(text: string, options: Deno.WriteFileOptions | undefined) {
-    const file = await this.open({ write: true, create: true, truncate: true, ...options });
-    try {
+  #writeTextWithEndNewLine(text: string, options: Deno.WriteFileOptions | undefined) {
+    return this.#withFileForWriting(options, async (file) => {
       await file.writeText(text);
       await file.writeText("\n");
+    });
+  }
+
+  async #withFileForWriting<T>(
+    options: Deno.WriteFileOptions | undefined,
+    action: (file: FsFileWrapper) => Promise<T>,
+  ) {
+    const file = await this.#openFileForWriting(options);
+    try {
+      return await action(file);
     } finally {
       try {
         file.close();
@@ -608,16 +621,67 @@ export class PathRef {
     }
   }
 
-  #writeTextWithEndNewLineSync(text: string, options: Deno.WriteFileOptions | undefined) {
-    const file = this.openSync({ write: true, create: true, truncate: true, ...options });
+  /** Opens a file for writing, but handles if the directory does not exist. */
+  async #openFileForWriting(options: Deno.WriteFileOptions | undefined) {
+    const resolvedPath = this.resolve(); // pre-resolve before going async in case the cwd changes
     try {
+      return await resolvedPath.open({ write: true, create: true, truncate: true, ...options });
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        // attempt to create the parent directory when it doesn't exist
+        const parent = resolvedPath.parent();
+        if (parent != null) {
+          try {
+            await parent.mkdir();
+          } catch {
+            throw err; // throw the original error
+          }
+        }
+        return await resolvedPath.open({ write: true, create: true, truncate: true, ...options });
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  #writeTextWithEndNewLineSync(text: string, options: Deno.WriteFileOptions | undefined) {
+    this.#withFileForWritingSync(options, (file) => {
       file.writeTextSync(text);
       file.writeTextSync("\n");
+    });
+  }
+
+  #withFileForWritingSync<T>(options: Deno.WriteFileOptions | undefined, action: (file: FsFileWrapper) => T) {
+    const file = this.#openFileForWritingSync(options);
+    try {
+      return action(file);
     } finally {
       try {
         file.close();
       } catch {
         // ignore
+      }
+    }
+  }
+
+  /** Opens a file for writing, but handles if the directory does not exist. */
+  #openFileForWritingSync(options: Deno.WriteFileOptions | undefined) {
+    try {
+      return this.openSync({ write: true, create: true, truncate: true, ...options });
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        // attempt to create the parent directory when it doesn't exist
+        const parent = this.resolve().parent();
+        if (parent != null) {
+          try {
+            parent.mkdirSync();
+          } catch {
+            throw err; // throw the original error
+          }
+        }
+        return this.openSync({ write: true, create: true, truncate: true, ...options });
+      } else {
+        throw err;
       }
     }
   }

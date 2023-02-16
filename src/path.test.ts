@@ -288,7 +288,6 @@ Deno.test("expandGlob", async () => {
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
     const subDir = dir.join("dir").join("subDir");
-    subDir.mkdirSync();
     subDir.join("file.txt").writeTextSync("");
 
     const entries1 = [];
@@ -303,7 +302,6 @@ Deno.test("expandGlob", async () => {
     assertEquals(entries1[0].basename(), "file.txt");
 
     const subDir2 = dir.join("dir2");
-    subDir2.mkdirSync();
     subDir2.join("other.txt").writeTextSync("");
     const entries3 = Array.from(subDir2.expandGlobSync("**/*.txt")).map((e) => e.path);
     assertEquals(entries3.length, 1);
@@ -389,6 +387,35 @@ Deno.test("maybeJson", async () => {
     file.writeTextSync("1 23 532lkjladf asd");
     assertThrows(() => file.maybeJsonSync(), Error, "Failed parsing JSON in 'file.json'.");
     await assertRejects(() => file.maybeJson(), Error, "Failed parsing JSON in 'file.json'.");
+  });
+});
+
+Deno.test("write", async () => {
+  await withTempDir(async (dir) => {
+    // these should all handle creating the directory when it doesn't exist
+    const file1 = dir.join("subDir1/file.txt");
+    const file2 = dir.join("subDir2/file.txt");
+    const file3 = dir.join("subDir3/file.txt");
+    const file4 = dir.join("subDir4/file.txt");
+
+    await file1.writeText("test");
+    assertEquals(file1.textSync(), "test");
+
+    file2.writeTextSync("test");
+    assertEquals(file2.textSync(), "test");
+
+    await file3.write(new TextEncoder().encode("test"));
+    assertEquals(file3.textSync(), "test");
+
+    file4.writeSync(new TextEncoder().encode("test"));
+    assertEquals(file4.textSync(), "test");
+
+    // writing on top of a file it should return the original not found error
+    const fileOnFile = file1.join("fileOnFile");
+    // windows will throw a NotFound error
+    const errorClass = Deno.build.os === "windows" ? Deno.errors.NotFound : Error;
+    await assertRejects(() => fileOnFile.writeText("asdf"), errorClass);
+    assertThrows(() => fileOnFile.writeTextSync("asdf"), errorClass);
   });
 });
 
