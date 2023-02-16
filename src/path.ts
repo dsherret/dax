@@ -270,15 +270,25 @@ export class PathRef {
     };
   }
 
-  /** Creates a directory at this path. */
+  /** Creates a directory at this path.
+   * @remarks By default, this is recursive.
+   */
   async mkdir(options?: Deno.MkdirOptions): Promise<this> {
-    await Deno.mkdir(this.#path, options);
+    await Deno.mkdir(this.#path, {
+      recursive: true,
+      ...options,
+    });
     return this;
   }
 
-  /** Synchronously creates a directory at this path. */
+  /** Synchronously creates a directory at this path.
+   * @remarks By default, this is recursive.
+   */
   mkdirSync(options?: Deno.MkdirOptions): this {
-    Deno.mkdirSync(this.#path, options);
+    Deno.mkdirSync(this.#path, {
+      recursive: true,
+      ...options,
+    });
     return this;
   }
 
