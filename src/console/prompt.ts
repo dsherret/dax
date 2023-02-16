@@ -105,8 +105,11 @@ function render(state: DrawState): TextItem[] {
     const char = state.mask.char ?? defaultMask.char;
     const lastVisible = state.mask.lastVisible ?? defaultMask.lastVisible;
 
-    const masked = char.repeat(lastVisible ? Math.max(0, inputText.length - 1) : inputText.length);
-    const unmasked = lastVisible ? inputText.slice(Math.max(0, inputText.length - 1)) : "";
+    const shouldShowLast = lastVisible && !state.hasCompleted;
+    const safeLengthMinusOne = Math.max(0, inputText.length - 1);
+
+    const masked = char.repeat(shouldShowLast ? safeLengthMinusOne : inputText.length);
+    const unmasked = shouldShowLast ? inputText.slice(safeLengthMinusOne) : "";
 
     inputText = `${masked}${unmasked}`;
   }

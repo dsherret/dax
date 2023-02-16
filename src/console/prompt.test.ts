@@ -54,3 +54,18 @@ Deno.test("should render with custom mask", () => {
 
   assertEquals(tester.getText(), "Some question? 🦕🦕🦕t\u2588");
 });
+
+Deno.test("should render mask all chars after complete and 'noClear' set", () => {
+  const tester = createTester(innerPrompt({
+    message: "Some question?",
+    default: "test",
+    noClear: true,
+    mask: {
+      lastVisible: true,
+    },
+  }));
+
+  tester.onKey(Keys.Enter)
+
+  assertEquals(tester.getText(), "Some question? ****");
+});
