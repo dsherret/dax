@@ -65,7 +65,7 @@ Deno.test("should render mask all chars after complete and 'noClear' set", () =>
     },
   }));
 
-  tester.onKey(Keys.Enter)
+  tester.onKey(Keys.Enter);
 
   assertEquals(tester.getText(), "Some question? ****");
 });
