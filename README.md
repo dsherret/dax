@@ -519,8 +519,8 @@ await $`echo ${srcDir}`;
 ```ts
 const pathRelative = $.path("./relative");
 const pathAbsolute = $.path("/tmp");
-const pathFileUrl = $.path(new URL("file:///test")); // converts to /test
-const pathStringFileUrl = $.path("file:///test"); // converts to /test
+const pathFileUrl = $.path(new URL("file:///tmp")); // converts to /tmp
+const pathStringFileUrl = $.path("file:///tmp"); // converts to /tmp
 const pathImportMeta = $.path(import.meta); // the path for the current module
 ```
 
