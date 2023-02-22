@@ -221,7 +221,10 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   fs: typeof fs;
   /** Helper function for creating path references, which provide an easier way for
    * working with paths, directories, and files on the file system. Also, a re-export
-   * of deno_std's `path` module as properties on this object. */
+   * of deno_std's `path` module as properties on this object.
+   *
+   * The function creates a new `PathRef` from a path or URL string, file URL, or for the current module.
+   */
   path: typeof createPathRef & typeof stdPath;
   /**
    * Logs with potential indentation (`$.logIndent`)

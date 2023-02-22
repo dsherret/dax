@@ -514,6 +514,16 @@ const srcDir = $.path("src").resolve();
 await $`echo ${srcDir}`;
 ```
 
+`PathRef`s can be created in the following ways:
+
+```ts
+const pathRelative = $.path("./relative");
+const pathAbsolute = $.path("/tmp");
+const pathFileUrl = $.path(new URL("file:///test")); // converts to /test
+const pathStringFileUrl = $.path("file:///test"); // converts to /test
+const pathImportMeta = $.path(import.meta); // the path for the current module
+```
+
 There are a lot of helper methods here, so check the [documentation on PathRef](https://deno.land/x/dax/src/path.ts?s=PathRef) for more details.
 
 ## Helper functions
