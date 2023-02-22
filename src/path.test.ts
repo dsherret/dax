@@ -580,8 +580,8 @@ Deno.test("instanceof check", () => {
   assert(createPathRef("test") instanceof OtherPathRef);
 });
 
-Deno.test("toFileURL", () => {
+Deno.test("toFileUrl", () => {
   const path = createPathRef(import.meta);
   assertEquals(path.toString(), stdPath.fromFileUrl(import.meta.url));
-  assertEquals(path.toFileURL(), new URL(import.meta.url));
+  assertEquals(path.toFileUrl(), new URL(import.meta.url));
 });

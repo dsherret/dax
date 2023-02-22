@@ -53,7 +53,7 @@ export class PathRef {
   }
 
   /** Resolves the path and gets the file URL. */
-  toFileURL(): URL {
+  toFileUrl(): URL {
     const resolvedPath = this.resolve();
     return stdPath.toFileUrl(resolvedPath.toString());
   }
