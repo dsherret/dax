@@ -2,7 +2,7 @@ import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathRef(path: string | URL): PathRef {
+export function createPathRef(path: string | URL | ImportMeta): PathRef {
   return new PathRef(path);
 }
 
@@ -27,8 +27,18 @@ export class PathRef {
    */
   private static instanceofSymbol = Symbol.for("dax.PathRef");
 
-  constructor(path: string | URL) {
-    this.#path = path instanceof URL ? stdPath.fromFileUrl(path) : path;
+  constructor(path: string | URL | ImportMeta) {
+    if (path instanceof URL) {
+      this.#path = stdPath.fromFileUrl(path);
+    } else if (typeof path === "string") {
+      if (path.startsWith("file://")) {
+        this.#path = stdPath.fromFileUrl(path);
+      } else {
+        this.#path = path;
+      }
+    } else {
+      this.#path = stdPath.fromFileUrl(path.url);
+    }
   }
 
   /** @internal */
@@ -40,6 +50,12 @@ export class PathRef {
   /** Gets the string representation of this path. */
   toString(): string {
     return this.#path;
+  }
+
+  /** Resolves the path and gets the file URL. */
+  toFileUrl(): URL {
+    const resolvedPath = this.resolve();
+    return stdPath.toFileUrl(resolvedPath.toString());
   }
 
   /** Joins the provided path segments onto this path. */
