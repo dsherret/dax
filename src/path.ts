@@ -39,9 +39,11 @@ export class PathRef {
    */
   private static instanceofSymbol = Symbol.for("dax.PathRef");
 
-  constructor(path: string | URL | ImportMeta) {
+  constructor(path: string | URL | ImportMeta | PathRef) {
     if (path instanceof URL) {
       this.#path = stdPath.fromFileUrl(path);
+    } else if (path instanceof PathRef) {
+      this.#path = path.toString();
     } else if (typeof path === "string") {
       if (path.startsWith("file://")) {
         this.#path = stdPath.fromFileUrl(path);

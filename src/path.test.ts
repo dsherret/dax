@@ -5,7 +5,9 @@ import { path as stdPath } from "./deps.ts";
 Deno.test("create from path ref", () => {
   const path = createPathRef("src");
   const path2 = createPathRef(path);
+  const path3 = new PathRef(path);
   assertEquals(path, path2);
+  assertEquals(path.toString(), path3.toString());
 });
 
 Deno.test("custom inspect", () => {
