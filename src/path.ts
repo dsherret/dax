@@ -47,6 +47,10 @@ export class PathRef {
     return instance?.constructor?.instanceofSymbol === PathRef.instanceofSymbol;
   }
 
+  [Symbol.for("Deno.customInspect")]() {
+    return `PathRef("${this.#path}")`;
+  }
+
   /** Gets the string representation of this path. */
   toString(): string {
     return this.#path;

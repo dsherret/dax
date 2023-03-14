@@ -2,6 +2,11 @@ import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "
 import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
+Deno.test("custom inspect", () => {
+  const path = createPathRef("src");
+  assertEquals(Deno.inspect(path), 'PathRef("src")');
+});
+
 Deno.test("join", () => {
   const path = createPathRef("src");
   const newPath = path.join("other", "test");

@@ -1354,3 +1354,21 @@ Deno.test("touch test", async () => {
     assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
   });
 });
+
+Deno.test("cd", () => {
+  const cwd = Deno.cwd();
+
+  try {
+    $.cd("./src");
+    assert(Deno.cwd().endsWith("src"));
+    $.cd(import.meta);
+    $.cd("./src");
+    assert(Deno.cwd().endsWith("src"));
+    const path = $.path(import.meta).parentOrThrow();
+    $.cd(path);
+    $.cd("./src");
+    assert(Deno.cwd().endsWith("src"));
+  } finally {
+    Deno.chdir(cwd);
+  }
+});
