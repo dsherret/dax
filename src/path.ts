@@ -2,8 +2,12 @@ import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathRef(path: string | URL | ImportMeta): PathRef {
-  return new PathRef(path);
+export function createPathRef(path: string | URL | ImportMeta | PathRef): PathRef {
+  if (path instanceof PathRef) {
+    return path;
+  } else {
+    return new PathRef(path);
+  }
 }
 
 export interface WalkEntry extends Deno.DirEntry {
@@ -35,9 +39,11 @@ export class PathRef {
    */
   private static instanceofSymbol = Symbol.for("dax.PathRef");
 
-  constructor(path: string | URL | ImportMeta) {
+  constructor(path: string | URL | ImportMeta | PathRef) {
     if (path instanceof URL) {
       this.#path = stdPath.fromFileUrl(path);
+    } else if (path instanceof PathRef) {
+      this.#path = path.toString();
     } else if (typeof path === "string") {
       if (path.startsWith("file://")) {
         this.#path = stdPath.fromFileUrl(path);
