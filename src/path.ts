@@ -10,6 +10,11 @@ export interface WalkEntry extends Deno.DirEntry {
   path: PathRef;
 }
 
+export interface SymlinkOptions extends Partial<Deno.SymlinkOptions> {
+  /** Creates the symlink as absolute or relative. */
+  kind?: "absolute" | "relative";
+}
+
 /**
  * Holds a reference to a path providing helper methods.
  *
@@ -314,143 +319,56 @@ export class PathRef {
 
   /**
    * Creates a symlink at the provided path to the provided target returning the target path.
+   * @target - The target text or path of the target.
    */
-  async createAbsoluteSymlinkTo(
+  async createSymlinkTo(
     target: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
-    const from = this.resolve();
-    const to = ensurePathRef(target).resolve();
-    await createSymlink({
-      toPath: to,
-      fromPath: from,
-      text: to.#path,
-      type: opts?.type,
-    });
-    return to;
+    opts?: SymlinkOptions,
+  ): Promise<void> {
+    await createSymlink(this.#resolveCreateSymlinkOpts(target, opts));
   }
 
   /**
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
-   * @returns The resolved target path.
+   * @target - The target text or path of the target.
    */
-  createAbsoluteSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): PathRef {
-    const from = this.resolve();
-    const to = ensurePathRef(target).resolve();
-    createSymlinkSync({
-      toPath: to,
-      fromPath: from,
-      text: to.#path,
-      type: opts?.type,
-    });
-    return to;
+  createSymlinkToSync(target: string | URL | PathRef, opts?: SymlinkOptions): void {
+    createSymlinkSync(this.#resolveCreateSymlinkOpts(target, opts));
   }
 
-  /**
-   * Creates a symlink at the specified path which points to the current path
-   * using an absolute path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  async createAbsoluteSymlinkAt(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
-    const linkPathRef = ensurePathRef(linkPath).resolve();
-    const thisResolved = this.resolve();
-    await createSymlink({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: thisResolved.#path,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  /**
-   * Creates a symlink at the specified path which points to the current path
-   * using an absolute path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  createAbsoluteSymlinkAtSync(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): PathRef {
-    const linkPathRef = ensurePathRef(linkPath).resolve();
-    const thisResolved = this.resolve();
-    createSymlinkSync({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: thisResolved.#path,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  /**
-   * Creates a symlink at the specified path which points to the current path
-   * using a relative path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  async createRelativeSymlinkAt(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
-    const {
-      linkPathRef,
-      thisResolved,
-      relativePath,
-    } = this.#getRelativeSymlinkAtParts(linkPath);
-    await createSymlink({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: relativePath,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  /**
-   * Synchronously creates a symlink at the specified path which points to the current
-   * path using a relative path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  createRelativeSymlinkAtSync(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): PathRef {
-    const {
-      linkPathRef,
-      thisResolved,
-      relativePath,
-    } = this.#getRelativeSymlinkAtParts(linkPath);
-    createSymlinkSync({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: relativePath,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  #getRelativeSymlinkAtParts(linkPath: string | URL | PathRef) {
-    const linkPathRef = ensurePathRef(linkPath).resolve();
-    const thisResolved = this.resolve();
-    let relativePath: string;
-    if (linkPathRef.dirname() === thisResolved.dirname()) {
-      // we don't want it to do `../basename`
-      relativePath = linkPathRef.basename();
-    } else {
-      relativePath = linkPathRef.relative(thisResolved);
+  #resolveCreateSymlinkOpts(target: string | URL | PathRef, opts: SymlinkOptions | undefined): CreateSymlinkOpts {
+    if (opts?.kind == null && typeof target === "string") {
+      return {
+        fromPath: this.resolve(),
+        targetPath: ensurePathRef(target),
+        text: target,
+        type: opts?.type,
+      };
     }
-    return {
-      thisResolved,
-      linkPathRef,
-      relativePath,
-    };
+    const targetPath = ensurePathRef(target).resolve();
+    if (opts?.kind === "relative") {
+      const fromPath = this.resolve();
+      let relativePath: string;
+      if (fromPath.dirname() === targetPath.dirname()) {
+        // we don't want it to do `../basename`
+        relativePath = targetPath.basename();
+      } else {
+        relativePath = fromPath.relative(targetPath);
+      }
+      return {
+        fromPath,
+        targetPath,
+        text: relativePath,
+        type: opts?.type,
+      };
+    } else {
+      return {
+        fromPath: this.resolve(),
+        targetPath,
+        text: targetPath.#path,
+        type: opts?.type,
+      };
+    }
   }
 
   /** Reads the entries in the directory. */
@@ -855,22 +773,17 @@ function ensurePathRef(path: string | URL | PathRef) {
   return path instanceof PathRef ? path : new PathRef(path);
 }
 
-async function createSymlink(opts: {
-  fromPath: PathRef;
-  toPath: PathRef;
-  text: string;
-  type: "file" | "dir" | undefined;
-}) {
+async function createSymlink(opts: CreateSymlinkOpts) {
   let kind = opts.type;
   if (kind == null && Deno.build.os === "windows") {
-    const info = await opts.toPath.lstat();
+    const info = await opts.targetPath.lstat();
     if (info?.isDirectory) {
       kind = "dir";
     } else if (info?.isFile) {
       kind = "file";
     } else {
       throw new Deno.errors.NotFound(
-        `The target path '${opts.toPath.toString()}' did not exist or path kind could not be determined. ` +
+        `The target path '${opts.targetPath}' did not exist or path kind could not be determined. ` +
           `When the path doesn't exist, you need to specify a symlink type on Windows.`,
       );
     }
@@ -885,22 +798,24 @@ async function createSymlink(opts: {
   );
 }
 
-function createSymlinkSync(opts: {
+interface CreateSymlinkOpts {
   fromPath: PathRef;
-  toPath: PathRef;
+  targetPath: PathRef;
   text: string;
   type: "file" | "dir" | undefined;
-}) {
+}
+
+function createSymlinkSync(opts: CreateSymlinkOpts) {
   let kind = opts.type;
   if (kind == null && Deno.build.os === "windows") {
-    const info = opts.toPath.lstatSync();
+    const info = opts.targetPath.lstatSync();
     if (info?.isDirectory) {
       kind = "dir";
     } else if (info?.isFile) {
       kind = "file";
     } else {
       throw new Deno.errors.NotFound(
-        `The target path '${opts.toPath.toString()}' did not exist or path kind could not be determined. ` +
+        `The target path '${opts.targetPath}' did not exist or path kind could not be determined. ` +
           `When the path doesn't exist, you need to specify a symlink type on Windows.`,
       );
     }
