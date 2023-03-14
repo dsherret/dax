@@ -40,7 +40,7 @@ Deno.test("isSymlink", async () => {
   await withTempDir(() => {
     const file = createPathRef("file.txt").writeTextSync("");
     const symlinkFile = createPathRef("test.txt");
-    symlinkFile.createSymlinkToSync(file);
+    symlinkFile.createSymlinkToSync(file, { kind: "absolute" });
     assert(symlinkFile.isSymlink());
     assert(!file.isSymlink());
   });
@@ -98,7 +98,7 @@ Deno.test("stat", async () => {
   await withTempDir(async () => {
     const tempFile = createPathRef("temp.txt").writeTextSync("");
     const symlinkFile = createPathRef("other.txt");
-    await symlinkFile.createSymlinkTo(tempFile);
+    await symlinkFile.createSymlinkTo(tempFile, { kind: "absolute" });
     const stat3 = await symlinkFile.stat();
     assertEquals(stat3!.isFile, true);
     assertEquals(stat3!.isSymlink, false);
@@ -114,7 +114,7 @@ Deno.test("statSync", async () => {
   await withTempDir(() => {
     const tempFile = createPathRef("temp.txt").writeTextSync("");
     const symlinkFile = createPathRef("other.txt");
-    symlinkFile.createSymlinkToSync(tempFile);
+    symlinkFile.createSymlinkToSync(tempFile, { kind: "absolute" });
     const stat3 = symlinkFile.statSync();
     assertEquals(stat3!.isFile, true);
     assertEquals(stat3!.isSymlink, false);
@@ -131,7 +131,7 @@ Deno.test("lstat", async () => {
     const symlinkFile = createPathRef("temp.txt");
     const otherFile = createPathRef("other.txt").writeTextSync("");
     // path ref
-    await symlinkFile.createSymlinkTo(otherFile);
+    await symlinkFile.createSymlinkTo(otherFile, { kind: "absolute" });
     const stat3 = await symlinkFile.lstat();
     assertEquals(stat3!.isSymlink, true);
   });
@@ -146,7 +146,7 @@ Deno.test("lstatSync", async () => {
   await withTempDir(() => {
     const symlinkFile = createPathRef("temp.txt");
     const otherFile = createPathRef("other.txt").writeTextSync("");
-    symlinkFile.createSymlinkToSync(otherFile);
+    symlinkFile.createSymlinkToSync(otherFile, { kind: "absolute" });
     assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
   });
 });
@@ -203,7 +203,7 @@ Deno.test("realpath", async () => {
     // need to do realPathSync for GH actions CI
     file = file.realPathSync();
     const symlink = createPathRef("other");
-    symlink.createSymlinkToSync(file);
+    symlink.createSymlinkToSync(file, { kind: "absolute" });
     assertEquals(
       (await symlink.realPath()).toString(),
       file.toString(),
@@ -241,11 +241,23 @@ Deno.test("createSymlinkTo", async () => {
   await withTempDir(async () => {
     const destFile = createPathRef("temp.txt").writeTextSync("");
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
-    await symlinkFile.createSymlinkTo(destFile);
+    await symlinkFile.createSymlinkTo(destFile, {
+      kind: "absolute",
+    });
     const stat = await symlinkFile.stat();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
     assert(symlinkFile.isSymlink());
+
+    // invalid
+    await assertRejects(
+      async () => {
+        // @ts-expect-error
+        await symlinkFile.createSymlinkTo(destFile);
+      },
+      Error,
+      'Missing a `{ kind: "absolute" | "relative" }` property.',
+    );
   });
 });
 
@@ -255,7 +267,7 @@ Deno.test("createSymlinkToSync", async () => {
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
 
     // path ref
-    symlinkFile.createSymlinkToSync(destFile);
+    symlinkFile.createSymlinkToSync(destFile, { kind: "absolute" });
     const stat = symlinkFile.statSync();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
@@ -275,6 +287,16 @@ Deno.test("createSymlinkToSync", async () => {
     symlinkFile.removeSync();
     symlinkFile.createSymlinkToSync("temp.txt");
     assertEquals(symlinkFile.statSync()!.isFile, true);
+
+    // invalid
+    assertThrows(
+      () => {
+        // @ts-expect-error
+        symlinkFile.createSymlinkToSync(destFile);
+      },
+      Error,
+      'Missing a `{ kind: "absolute" | "relative" }` property.',
+    );
   });
 });
 
