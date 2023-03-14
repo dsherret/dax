@@ -369,7 +369,7 @@ export class PathRef {
           type: opts?.type,
         };
       } else {
-        throw new Error('Missing a `{ kind: "absolute" | "relative" }` property.');
+        throw new Error("Please specify if this symlink is absolute or relative. Otherwise, provide the target text.");
       }
     }
     const targetPath = ensurePathRef(target).resolve();

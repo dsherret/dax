@@ -256,7 +256,7 @@ Deno.test("createSymlinkTo", async () => {
         await symlinkFile.createSymlinkTo(destFile);
       },
       Error,
-      'Missing a `{ kind: "absolute" | "relative" }` property.',
+      "Please specify if this symlink is absolute or relative. Otherwise, provide the target text.",
     );
   });
 });
@@ -295,7 +295,7 @@ Deno.test("createSymlinkToSync", async () => {
         symlinkFile.createSymlinkToSync(destFile);
       },
       Error,
-      'Missing a `{ kind: "absolute" | "relative" }` property.',
+      "Please specify if this symlink is absolute or relative. Otherwise, provide the target text.",
     );
   });
 });
