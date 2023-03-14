@@ -130,7 +130,8 @@ Deno.test("lstat", async () => {
   await withTempDir(async () => {
     const symlinkFile = createPathRef("temp.txt");
     const otherFile = createPathRef("other.txt").writeTextSync("");
-    await symlinkFile.createSymlinkToAsRelative(otherFile);
+    // path ref
+    await symlinkFile.createSymlinkTo(otherFile);
     const stat3 = await symlinkFile.lstat();
     assertEquals(stat3!.isSymlink, true);
   });
@@ -145,9 +146,25 @@ Deno.test("lstatSync", async () => {
   await withTempDir(() => {
     const symlinkFile = createPathRef("temp.txt");
     const otherFile = createPathRef("other.txt").writeTextSync("");
-    symlinkFile.createSymlinkToAsRelativeSync(otherFile);
-    const stat3 = symlinkFile.lstatSync();
-    assertEquals(stat3!.isSymlink, true);
+
+    // path ref
+    symlinkFile.createSymlinkToSync(otherFile);
+    assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
+
+    // path ref absolute
+    symlinkFile.removeSync();
+    symlinkFile.createSymlinkToSync(otherFile, { kind: "absolute" });
+    assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
+
+    // path ref relative
+    symlinkFile.removeSync();
+    symlinkFile.createSymlinkToSync(otherFile, { kind: "relative" });
+    assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
+
+    // relative text
+    symlinkFile.removeSync();
+    symlinkFile.createSymlinkToSync("other.txt");
+    assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
   });
 });
 
