@@ -2,8 +2,12 @@ import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
-export function createPathRef(path: string | URL | ImportMeta): PathRef {
-  return new PathRef(path);
+export function createPathRef(path: string | URL | ImportMeta | PathRef): PathRef {
+  if (path instanceof PathRef) {
+    return path;
+  } else {
+    return new PathRef(path);
+  }
 }
 
 export interface WalkEntry extends Deno.DirEntry {
