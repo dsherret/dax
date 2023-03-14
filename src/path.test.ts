@@ -121,7 +121,7 @@ Deno.test("lstat", async () => {
 
   await withTempDir(async () => {
     const dir = createPathRef("temp.txt").writeTextSync("");
-    const destinationPath = await dir.createRelativeSymlinkAt("other.txt");
+    const destinationPath = await dir.createSymlinkRelativeTo("other.txt");
     const stat3 = await destinationPath.lstat();
     assertEquals(stat3!.isSymlink, true);
   });
@@ -135,7 +135,7 @@ Deno.test("lstatSync", async () => {
 
   await withTempDir(() => {
     const dir = createPathRef("temp.txt").writeTextSync("");
-    const destinationPath = dir.createRelativeSymlinkAtSync("other.txt");
+    const destinationPath = dir.createSymlinkRelativeToSync("other.txt");
     const stat3 = destinationPath.lstatSync();
     assertEquals(stat3!.isSymlink, true);
   });
@@ -226,11 +226,11 @@ Deno.test("mkdir", async () => {
   });
 });
 
-Deno.test("createAbsoluteSymlinkTo", async () => {
+Deno.test("createSymlinkTo", async () => {
   await withTempDir(async () => {
     const destFile = createPathRef("temp.txt").writeTextSync("");
     const otherFile = destFile.parentOrThrow().join("other.txt");
-    await otherFile.createAbsoluteSymlinkTo(destFile);
+    await otherFile.createSymlinkTo(destFile);
     const stat = await otherFile.stat();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
@@ -238,11 +238,11 @@ Deno.test("createAbsoluteSymlinkTo", async () => {
   });
 });
 
-Deno.test("createAbsoluteSymlinkToSync", async () => {
+Deno.test("createSymlinkToSync", async () => {
   await withTempDir(() => {
     const destFile = createPathRef("temp.txt").writeTextSync("");
     const otherFile = destFile.parentOrThrow().join("other.txt");
-    otherFile.createAbsoluteSymlinkToSync(destFile);
+    otherFile.createSymlinkToSync(destFile);
     const stat = otherFile.statSync();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);

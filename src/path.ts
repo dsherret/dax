@@ -311,7 +311,7 @@ export class PathRef {
   /**
    * Creates a symlink at the provided path to the provided target returning the target path.
    */
-  async createAbsoluteSymlinkTo(
+  async createSymlinkTo(
     target: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
   ): Promise<PathRef> {
@@ -330,7 +330,7 @@ export class PathRef {
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
    * @returns The resolved target path.
    */
-  createAbsoluteSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): PathRef {
+  createSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): PathRef {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     createSymlinkSync({
@@ -390,7 +390,7 @@ export class PathRef {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  async createRelativeSymlinkAt(
+  async createSymlinkRelativeTo(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
   ): Promise<PathRef> {
@@ -414,7 +414,7 @@ export class PathRef {
    * @param linkPath The path to create a symlink at which points at the current path.
    * @returns The destination path.
    */
-  createRelativeSymlinkAtSync(
+  createSymlinkRelativeToSync(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
   ): PathRef {
