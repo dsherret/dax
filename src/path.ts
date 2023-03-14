@@ -297,6 +297,22 @@ export class PathRef {
     }
   }
 
+  /** Walks the file tree rooted at the current path, yielding each file or
+   * directory in the tree filtered according to the given options. */
+  async *walk(options?: fs.WalkOptions): AsyncIterableIterator<WalkEntry> {
+    for await (const entry of fs.walk(this.toString(), options)) {
+      yield this.#stdWalkEntryToDax(entry);
+    }
+  }
+
+  /** Synchronously walks the file tree rooted at the current path, yielding each
+   * file or directory in the tree filtered according to the given options. */
+  *walkSync(options?: fs.WalkOptions): Iterable<WalkEntry> {
+    for (const entry of fs.walkSync(this.toString(), options)) {
+      yield this.#stdWalkEntryToDax(entry);
+    }
+  }
+
   #stdWalkEntryToDax(entry: fs.WalkEntry): WalkEntry {
     return {
       ...entry,
@@ -744,6 +760,23 @@ export class PathRef {
   /** Removes the file or directory from the file system synchronously. */
   removeSync(options?: Deno.RemoveOptions): this {
     Deno.removeSync(this.#path, options);
+    return this;
+  }
+
+  /**
+   * Ensures that a directory is empty.
+   * Deletes directory contents if the directory is not empty.
+   * If the directory does not exist, it is created.
+   * The directory itself is not deleted.
+   */
+  async emptyDir(): Promise<this> {
+    await fs.emptyDir(this.toString());
+    return this;
+  }
+
+  /** Synchronous version of `emptyDir()` */
+  emptyDirSync(): this {
+    fs.emptyDirSync(this.toString());
     return this;
   }
 

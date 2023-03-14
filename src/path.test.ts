@@ -368,6 +368,41 @@ Deno.test("expandGlob", async () => {
   });
 });
 
+Deno.test("walk", async () => {
+  await withTempDir(async () => {
+    const dir = createPathRef("rootDir").mkdirSync().resolve();
+    dir.join("file1").writeTextSync("");
+    dir.join("file2").writeTextSync("");
+    const subDir = dir.join("dir").join("subDir");
+    subDir.join("file.txt").writeTextSync("");
+
+    const entries1 = [];
+    for await (const entry of dir.walk()) {
+      entries1.push(entry.path);
+    }
+    const entries2 = Array.from(dir.walkSync()).map((e) => e.path);
+
+    assertEquals(entries1, entries2);
+    assertEquals(entries1.length, 6);
+    const entryNames = entries1.map((e) => e.basename());
+    assertEquals(entryNames, [
+      "rootDir",
+      "dir",
+      "subDir",
+      "file.txt",
+      "file1",
+      "file2",
+    ]);
+
+    const subDir2 = dir.join("dir2");
+    subDir2.join("other.txt").writeTextSync("");
+    const entries3 = Array.from(subDir2.walkSync()).map((e) => e.path);
+    assertEquals(entries3.length, 2);
+    assertEquals(entries3[0].basename(), "dir2");
+    assertEquals(entries3[1].basename(), "other.txt");
+  });
+});
+
 Deno.test("readBytes", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
@@ -582,6 +617,32 @@ Deno.test("remove", async () => {
     path.writeTextSync("asdf");
     assert(path.existsSync());
     assert(!(await path.remove()).existsSync());
+  });
+});
+
+Deno.test("emptyDir", async () => {
+  await withTempDir(async (path) => {
+    const dir = path.join("subDir").mkdirSync();
+    const file = dir.join("file.txt").writeTextSync("text");
+    const subDir = dir.join("subDir").mkdirSync();
+    subDir.join("test").writeTextSync("");
+    assert((await dir.emptyDir()).existsSync());
+    assert(!file.existsSync());
+    assert(!subDir.existsSync());
+    assert(dir.existsSync());
+  });
+});
+
+Deno.test("emptyDirSync", async () => {
+  await withTempDir((path) => {
+    const dir = path.join("subDir").mkdirSync();
+    const file = dir.join("file.txt").writeTextSync("text");
+    const subDir = dir.join("subDir").mkdirSync();
+    subDir.join("test").writeTextSync("");
+    assert(dir.emptyDirSync().existsSync());
+    assert(!file.existsSync());
+    assert(!subDir.existsSync());
+    assert(dir.existsSync());
   });
 });
 
