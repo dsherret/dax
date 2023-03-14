@@ -116,7 +116,7 @@ Deno.test("$.request", (t) => {
             .url(new URL("/text-file", serverUrl))
             .showProgress()
             .pipeToPath(testFilePath);
-          assertEquals(downloadedFilePath.textSync(), "text".repeat(1000));
+          assertEquals(downloadedFilePath.readTextSync(), "text".repeat(1000));
           assertEquals(downloadedFilePath.toString(), path.resolve(testFilePath));
         }
         {
@@ -126,7 +126,7 @@ Deno.test("$.request", (t) => {
             .url(new URL("/text-file", serverUrl))
             .showProgress()
             .pipeToPath();
-          assertEquals(downloadedFilePath.textSync(), "text".repeat(1000));
+          assertEquals(downloadedFilePath.readTextSync(), "text".repeat(1000));
           assertEquals(downloadedFilePath.toString(), path.resolve("text-file"));
         }
         {
@@ -156,7 +156,7 @@ Deno.test("$.request", (t) => {
             .url(new URL("/text-file", serverUrl))
             .showProgress()
             .pipeToPath(tempDir);
-          assertEquals(downloadedFilePath.textSync(), "text".repeat(1000));
+          assertEquals(downloadedFilePath.readTextSync(), "text".repeat(1000));
           assertEquals(downloadedFilePath.toString(), path.join(tempDir, "text-file"));
         }
       } finally {

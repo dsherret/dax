@@ -441,58 +441,58 @@ export class PathRef {
   }
 
   /** Reads the bytes from the file. */
-  bytes(options?: Deno.ReadFileOptions): Promise<Uint8Array> {
+  readBytes(options?: Deno.ReadFileOptions): Promise<Uint8Array> {
     return Deno.readFile(this.#path, options);
   }
 
   /** Synchronously reads the bytes from the file. */
-  bytesSync(): Uint8Array {
+  readBytesSync(): Uint8Array {
     return Deno.readFileSync(this.#path);
   }
 
-  /** Calls `.bytes()`, but returns undefined if the path doesn't exist. */
-  maybeBytes(options?: Deno.ReadFileOptions): Promise<Uint8Array | undefined> {
-    return notFoundToUndefined(() => this.bytes(options));
+  /** Calls `.readBytes()`, but returns undefined if the path doesn't exist. */
+  readMaybeBytes(options?: Deno.ReadFileOptions): Promise<Uint8Array | undefined> {
+    return notFoundToUndefined(() => this.readBytes(options));
   }
 
-  /** Calls `.bytesSync()`, but returns undefined if the path doesn't exist. */
-  maybeBytesSync(): Uint8Array | undefined {
-    return notFoundToUndefinedSync(() => this.bytesSync());
+  /** Calls `.readBytesSync()`, but returns undefined if the path doesn't exist. */
+  readMaybeBytesSync(): Uint8Array | undefined {
+    return notFoundToUndefinedSync(() => this.readBytesSync());
   }
 
   /** Reads the text from the file. */
-  text(options?: Deno.ReadFileOptions): Promise<string> {
+  readText(options?: Deno.ReadFileOptions): Promise<string> {
     return Deno.readTextFile(this.#path, options);
   }
 
   /** Synchronously reads the text from the file. */
-  textSync(): string {
+  readTextSync(): string {
     return Deno.readTextFileSync(this.#path);
   }
 
-  /** Calls `.text()`, but returns undefined when the path doesn't exist.
+  /** Calls `.readText()`, but returns undefined when the path doesn't exist.
    * @remarks This still errors for other kinds of errors reading a file.
    */
-  maybeText(options?: Deno.ReadFileOptions): Promise<string | undefined> {
-    return notFoundToUndefined(() => this.text(options));
+  readMaybeText(options?: Deno.ReadFileOptions): Promise<string | undefined> {
+    return notFoundToUndefined(() => this.readText(options));
   }
 
-  /** Calls `.textSync()`, but returns undefined when the path doesn't exist.
+  /** Calls `.readTextSync()`, but returns undefined when the path doesn't exist.
    * @remarks This still errors for other kinds of errors reading a file.
    */
-  maybeTextSync(): string | undefined {
-    return notFoundToUndefinedSync(() => this.textSync());
+  readMaybeTextSync(): string | undefined {
+    return notFoundToUndefinedSync(() => this.readTextSync());
   }
 
   /** Reads and parses the file as JSON, throwing if it doesn't exist or is not valid JSON. */
-  async json<T>(options?: Deno.ReadFileOptions): Promise<T> {
-    return this.#parseJson<T>(await this.text(options));
+  async readJson<T>(options?: Deno.ReadFileOptions): Promise<T> {
+    return this.#parseJson<T>(await this.readText(options));
   }
 
   /** Synchronously reads and parses the file as JSON, throwing if it doesn't
    * exist or is not valid JSON. */
-  jsonSync<T>(): T {
-    return this.#parseJson<T>(this.textSync());
+  readJsonSync<T>(): T {
+    return this.#parseJson<T>(this.readTextSync());
   }
 
   #parseJson<T>(text: string) {
@@ -506,19 +506,19 @@ export class PathRef {
   }
 
   /**
-   * Calls `.json()`, but returns undefined if the file doesn't exist.
+   * Calls `.readJson()`, but returns undefined if the file doesn't exist.
    * @remarks This method will still throw if the file cannot be parsed as JSON.
    */
   maybeJson<T>(options?: Deno.ReadFileOptions): Promise<T | undefined> {
-    return notFoundToUndefined(() => this.json<T>(options));
+    return notFoundToUndefined(() => this.readJson<T>(options));
   }
 
   /**
-   * Calls `.jsonSync()`, but returns undefined if the file doesn't exist.
+   * Calls `.readJsonSync()`, but returns undefined if the file doesn't exist.
    * @remarks This method will still throw if the file cannot be parsed as JSON.
    */
-  maybeJsonSync<T>(): T | undefined {
-    return notFoundToUndefinedSync(() => this.jsonSync<T>());
+  readMaybeJsonSync<T>(): T | undefined {
+    return notFoundToUndefinedSync(() => this.readJsonSync<T>());
   }
 
   /** Writes out the provided bytes to the file. */
