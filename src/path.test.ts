@@ -252,11 +252,11 @@ Deno.test("createSymlinkTo", async () => {
     // invalid
     await assertRejects(
       async () => {
-        // @ts-expect-error
+        // @ts-expect-error should require an options bag
         await symlinkFile.createSymlinkTo(destFile);
       },
       Error,
-      "Please specify if this symlink is absolute or relative. Otherwise, provide the target text.",
+      "Please specify if this symlink is absolute or relative. Otherwise provide the target text.",
     );
   });
 });
@@ -291,11 +291,11 @@ Deno.test("createSymlinkToSync", async () => {
     // invalid
     assertThrows(
       () => {
-        // @ts-expect-error
+        // @ts-expect-error should require an options bag
         symlinkFile.createSymlinkToSync(destFile);
       },
       Error,
-      "Please specify if this symlink is absolute or relative. Otherwise, provide the target text.",
+      "Please specify if this symlink is absolute or relative. Otherwise provide the target text.",
     );
   });
 });
