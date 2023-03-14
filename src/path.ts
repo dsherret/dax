@@ -509,7 +509,7 @@ export class PathRef {
    * Calls `.readJson()`, but returns undefined if the file doesn't exist.
    * @remarks This method will still throw if the file cannot be parsed as JSON.
    */
-  maybeJson<T>(options?: Deno.ReadFileOptions): Promise<T | undefined> {
+  readMaybeJson<T>(options?: Deno.ReadFileOptions): Promise<T | undefined> {
     return notFoundToUndefined(() => this.readJson<T>(options));
   }
 

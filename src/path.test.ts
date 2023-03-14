@@ -427,17 +427,17 @@ Deno.test("readMaybeJson", async () => {
     file.writeJsonSync({ test: 123 });
     let data = file.readMaybeJsonSync();
     assertEquals(data, { test: 123 });
-    data = await file.maybeJson();
+    data = await file.readMaybeJson();
     assertEquals(data, { test: 123 });
     const nonExistent = createPathRef("not-exists");
     data = nonExistent.readMaybeJsonSync();
     assertEquals(data, undefined);
-    data = await nonExistent.maybeJson();
+    data = await nonExistent.readMaybeJson();
     assertEquals(data, undefined);
 
     file.writeTextSync("1 23 532lkjladf asd");
     assertThrows(() => file.readMaybeJsonSync(), Error, "Failed parsing JSON in 'file.json'.");
-    await assertRejects(() => file.maybeJson(), Error, "Failed parsing JSON in 'file.json'.");
+    await assertRejects(() => file.readMaybeJson(), Error, "Failed parsing JSON in 'file.json'.");
   });
 });
 
