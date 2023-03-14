@@ -28,7 +28,7 @@ import {
 import { colors, fs, outdent, path as stdPath, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
-import { createPathRef } from "./src/path.ts";
+import { createPathRef, PathRef } from "./src/path.ts";
 
 export { FsFileWrapper, PathRef } from "./src/path.ts";
 export type { WalkEntry } from "./src/path.ts";
@@ -162,7 +162,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
     options?: Create$Options<TNewExtras>,
   ): $Type<Omit<TExtras, keyof TNewExtras> & TNewExtras>;
   /** Changes the directory of the current process. */
-  cd(path: string | URL): void;
+  cd(path: string | URL | ImportMeta | PathRef): void;
   /**
    * Escapes an argument for the shell when NOT using the template
    * literal.
@@ -503,8 +503,13 @@ async function withRetries<TReturn>(
   throw new Error(`Failed after ${opts.count} attempts.`);
 }
 
-function cd(path: string | URL) {
-  Deno.chdir(path);
+function cd(path: string | URL | ImportMeta | PathRef) {
+  if (typeof path === "string" || path instanceof URL) {
+    path = new PathRef(path);
+  } else if (!(path instanceof PathRef)) {
+    path = new PathRef(path satisfies ImportMeta).parentOrThrow();
+  }
+  Deno.chdir(path.toString());
 }
 
 type ExtrasObject = Record<string, (...args: any[]) => unknown>;

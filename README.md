@@ -533,6 +533,10 @@ Changing the current working directory of the current process:
 ```ts
 $.cd("someDir");
 console.log(Deno.cwd()); // will be in someDir directory
+
+// or change the directory of the process to be in
+// the directory of the current script
+$.cd(import.meta);
 ```
 
 Sleeping asynchronously for a specified amount of time:
