@@ -10,9 +10,12 @@ export interface WalkEntry extends Deno.DirEntry {
   path: PathRef;
 }
 
-export interface SymlinkOptions extends Partial<Deno.SymlinkOptions> {
+export interface PathSymlinkOptions {
   /** Creates the symlink as absolute or relative. */
-  kind?: "absolute" | "relative";
+  kind: "absolute" | "relative";
+}
+
+export interface SymlinkOptions extends Partial<Deno.SymlinkOptions>, Partial<PathSymlinkOptions> {
 }
 
 /**
@@ -318,9 +321,19 @@ export class PathRef {
   }
 
   /**
-   * Creates a symlink at the provided path to the provided target returning the target path.
-   * @target - The target text or path of the target.
+   * Creates a symlink to the provided target path.
    */
+  async createSymlinkTo(
+    targetPath: URL | PathRef,
+    opts: Partial<Deno.SymlinkOptions> & PathSymlinkOptions,
+  ): Promise<void>;
+  /**
+   * Creates a symlink at the provided path with the provided target text.
+   */
+  async createSymlinkTo(
+    target: string,
+    opts?: SymlinkOptions,
+  ): Promise<void>;
   async createSymlinkTo(
     target: string | URL | PathRef,
     opts?: SymlinkOptions,
@@ -329,21 +342,35 @@ export class PathRef {
   }
 
   /**
-   * Synchronously creates a symlink at the provided path to the provided target returning the target path.
-   * @target - The target text or path of the target.
+   * Synchronously creates a symlink to the provided target path.
    */
+  createSymlinkToSync(
+    targetPath: URL | PathRef,
+    opts: Partial<Deno.SymlinkOptions> & PathSymlinkOptions,
+  ): void;
+  /**
+   * Synchronously creates a symlink at the provided path with the provided target text.
+   */
+  createSymlinkToSync(
+    target: string,
+    opts?: SymlinkOptions,
+  ): void;
   createSymlinkToSync(target: string | URL | PathRef, opts?: SymlinkOptions): void {
     createSymlinkSync(this.#resolveCreateSymlinkOpts(target, opts));
   }
 
   #resolveCreateSymlinkOpts(target: string | URL | PathRef, opts: SymlinkOptions | undefined): CreateSymlinkOpts {
-    if (opts?.kind == null && typeof target === "string") {
-      return {
-        fromPath: this.resolve(),
-        targetPath: ensurePathRef(target),
-        text: target,
-        type: opts?.type,
-      };
+    if (opts?.kind == null) {
+      if (typeof target === "string") {
+        return {
+          fromPath: this.resolve(),
+          targetPath: ensurePathRef(target),
+          text: target,
+          type: opts?.type,
+        };
+      } else {
+        throw new Error("Please specify if this symlink is absolute or relative. Otherwise provide the target text.");
+      }
     }
     const targetPath = ensurePathRef(target).resolve();
     if (opts?.kind === "relative") {
