@@ -496,14 +496,14 @@ srcDir.isAbsolute(); // true
 // join to get other paths and do actions on them
 const textFile = srcDir.join("subDir").join("file.txt");
 textFile.writeTextSync("some text");
-console.log(textFile.textSync()); // "some text"
+console.log(textFile.readTextSync()); // "some text"
 
 const jsonFile = srcDir.join("otherDir", "file.json");
 console.log(jsonFile.parentOrThrow()); // path for otherDir
 jsonFile.writeJsonSync({
   someValue: 5,
 });
-console.log(jsonFile.jsonSync().someValue); // 5
+console.log(jsonFile.readJsonSync().someValue); // 5
 ```
 
 It also works to provide these paths to commands:

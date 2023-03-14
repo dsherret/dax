@@ -368,84 +368,84 @@ Deno.test("expandGlob", async () => {
   });
 });
 
-Deno.test("bytes", async () => {
+Deno.test("readBytes", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
     const bytes = new TextEncoder().encode("asdf");
     file.writeSync(bytes);
-    assertEquals(file.bytesSync(), bytes);
-    assertEquals(await file.bytes(), bytes);
+    assertEquals(file.readBytesSync(), bytes);
+    assertEquals(await file.readBytes(), bytes);
     const nonExistent = createPathRef("not-exists");
-    assertThrows(() => nonExistent.bytesSync());
-    await assertRejects(() => nonExistent.bytes());
+    assertThrows(() => nonExistent.readBytesSync());
+    await assertRejects(() => nonExistent.readBytes());
   });
 });
 
-Deno.test("maybeBytes", async () => {
+Deno.test("readMaybeBytes", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
     const bytes = new TextEncoder().encode("asdf");
     await file.write(bytes);
-    assertEquals(file.maybeBytesSync(), bytes);
-    assertEquals(await file.maybeBytes(), bytes);
+    assertEquals(file.readMaybeBytesSync(), bytes);
+    assertEquals(await file.readMaybeBytes(), bytes);
     const nonExistent = createPathRef("not-exists");
-    assertEquals(await nonExistent.maybeText(), undefined);
-    assertEquals(nonExistent.maybeTextSync(), undefined);
+    assertEquals(await nonExistent.readMaybeText(), undefined);
+    assertEquals(nonExistent.readMaybeTextSync(), undefined);
   });
 });
 
-Deno.test("text", async () => {
+Deno.test("readText", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
     file.writeTextSync("asdf");
-    assertEquals(file.maybeTextSync(), "asdf");
-    assertEquals(await file.maybeText(), "asdf");
+    assertEquals(file.readMaybeTextSync(), "asdf");
+    assertEquals(await file.readMaybeText(), "asdf");
     const nonExistent = createPathRef("not-exists");
-    assertThrows(() => nonExistent.textSync());
-    await assertRejects(() => nonExistent.text());
+    assertThrows(() => nonExistent.readTextSync());
+    await assertRejects(() => nonExistent.readText());
   });
 });
 
-Deno.test("maybeText", async () => {
+Deno.test("readMaybeText", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
     file.writeTextSync("asdf");
-    assertEquals(file.maybeTextSync(), "asdf");
-    assertEquals(await file.maybeText(), "asdf");
+    assertEquals(file.readMaybeTextSync(), "asdf");
+    assertEquals(await file.readMaybeText(), "asdf");
     const nonExistent = createPathRef("not-exists");
-    assertEquals(await nonExistent.maybeText(), undefined);
-    assertEquals(nonExistent.maybeTextSync(), undefined);
+    assertEquals(await nonExistent.readMaybeText(), undefined);
+    assertEquals(nonExistent.readMaybeTextSync(), undefined);
   });
 });
 
-Deno.test("json", async () => {
+Deno.test("readJson", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.txt");
     file.writeJsonSync({ test: 123 });
-    let data = file.jsonSync();
+    let data = file.readJsonSync();
     assertEquals(data, { test: 123 });
-    data = await file.json();
+    data = await file.readJson();
     assertEquals(data, { test: 123 });
   });
 });
 
-Deno.test("maybeJson", async () => {
+Deno.test("readMaybeJson", async () => {
   await withTempDir(async () => {
     const file = createPathRef("file.json");
     file.writeJsonSync({ test: 123 });
-    let data = file.maybeJsonSync();
+    let data = file.readMaybeJsonSync();
     assertEquals(data, { test: 123 });
-    data = await file.maybeJson();
+    data = await file.readMaybeJson();
     assertEquals(data, { test: 123 });
     const nonExistent = createPathRef("not-exists");
-    data = nonExistent.maybeJsonSync();
+    data = nonExistent.readMaybeJsonSync();
     assertEquals(data, undefined);
-    data = await nonExistent.maybeJson();
+    data = await nonExistent.readMaybeJson();
     assertEquals(data, undefined);
 
     file.writeTextSync("1 23 532lkjladf asd");
-    assertThrows(() => file.maybeJsonSync(), Error, "Failed parsing JSON in 'file.json'.");
-    await assertRejects(() => file.maybeJson(), Error, "Failed parsing JSON in 'file.json'.");
+    assertThrows(() => file.readMaybeJsonSync(), Error, "Failed parsing JSON in 'file.json'.");
+    await assertRejects(() => file.readMaybeJson(), Error, "Failed parsing JSON in 'file.json'.");
   });
 });
 
@@ -458,16 +458,16 @@ Deno.test("write", async () => {
     const file4 = dir.join("subDir4/file.txt");
 
     await file1.writeText("test");
-    assertEquals(file1.textSync(), "test");
+    assertEquals(file1.readTextSync(), "test");
 
     file2.writeTextSync("test");
-    assertEquals(file2.textSync(), "test");
+    assertEquals(file2.readTextSync(), "test");
 
     await file3.write(new TextEncoder().encode("test"));
-    assertEquals(file3.textSync(), "test");
+    assertEquals(file3.readTextSync(), "test");
 
     file4.writeSync(new TextEncoder().encode("test"));
-    assertEquals(file4.textSync(), "test");
+    assertEquals(file4.readTextSync(), "test");
 
     // writing on top of a file it should return the original not found error
     const fileOnFile = file1.join("fileOnFile");
@@ -484,22 +484,22 @@ Deno.test("writeJson", async () => {
     await path.writeJson({
       prop: "test",
     });
-    assertEquals(path.textSync(), `{"prop":"test"}\n`);
+    assertEquals(path.readTextSync(), `{"prop":"test"}\n`);
     await path.writeJson({
       prop: 1,
     });
     // should truncate
-    assertEquals(path.textSync(), `{"prop":1}\n`);
+    assertEquals(path.readTextSync(), `{"prop":1}\n`);
 
     path.writeJsonSync({
       asdf: "test",
     });
-    assertEquals(path.textSync(), `{"asdf":"test"}\n`);
+    assertEquals(path.readTextSync(), `{"asdf":"test"}\n`);
     path.writeJsonSync({
       asdf: 1,
     });
     // should truncate
-    assertEquals(path.textSync(), `{"asdf":1}\n`);
+    assertEquals(path.readTextSync(), `{"asdf":1}\n`);
   });
 });
 
@@ -509,22 +509,22 @@ Deno.test("writeJsonPretty", async () => {
     await path.writeJsonPretty({
       prop: "test",
     });
-    assertEquals(path.textSync(), `{\n  "prop": "test"\n}\n`);
+    assertEquals(path.readTextSync(), `{\n  "prop": "test"\n}\n`);
     await path.writeJsonPretty({
       prop: 1,
     });
     // should truncate
-    assertEquals(path.textSync(), `{\n  "prop": 1\n}\n`);
+    assertEquals(path.readTextSync(), `{\n  "prop": 1\n}\n`);
 
     path.writeJsonPrettySync({
       asdf: "test",
     });
-    assertEquals(path.textSync(), `{\n  "asdf": "test"\n}\n`);
+    assertEquals(path.readTextSync(), `{\n  "asdf": "test"\n}\n`);
     path.writeJsonPrettySync({
       asdf: 1,
     });
     // should truncate
-    assertEquals(path.textSync(), `{\n  "asdf": 1\n}\n`);
+    assertEquals(path.readTextSync(), `{\n  "asdf": 1\n}\n`);
   });
 });
 
@@ -570,7 +570,7 @@ Deno.test("open", async () => {
     file = path.openSync({ write: true, append: true });
     await file.writeBytes(new TextEncoder().encode("3"));
     file.close();
-    assertEquals(path.textSync(), "12xt3");
+    assertEquals(path.readTextSync(), "12xt3");
   });
 });
 
@@ -591,10 +591,10 @@ Deno.test("copyFile", async () => {
     const newPath = await path.copyFile("other.txt");
     assert(path.existsSync());
     assert(newPath.existsSync());
-    assertEquals(newPath.textSync(), "text");
+    assertEquals(newPath.readTextSync(), "text");
     const newPath2 = path.copyFileSync("other2.txt");
     assert(newPath2.existsSync());
-    assertEquals(newPath2.textSync(), "text");
+    assertEquals(newPath2.readTextSync(), "text");
   });
 });
 
@@ -618,7 +618,7 @@ Deno.test("pipeTo", async () => {
     const otherFilePath = textFile.parentOrThrow().join("other.txt");
     const otherFile = otherFilePath.openSync({ write: true, create: true });
     await textFile.pipeTo(otherFile.writable);
-    assertEquals(otherFilePath.textSync(), largeText);
+    assertEquals(otherFilePath.readTextSync(), largeText);
   });
 });
 
