@@ -318,7 +318,7 @@ export class PathRef {
   async createSymlinkTo(
     target: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<this> {
+  ): Promise<void> {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     await createSymlink({
@@ -327,13 +327,12 @@ export class PathRef {
       text: to.#path,
       type: opts?.type,
     });
-    return this;
   }
 
   /**
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
    */
-  createSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): this {
+  createSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): void {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     createSymlinkSync({
@@ -342,7 +341,6 @@ export class PathRef {
       text: to.#path,
       type: opts?.type,
     });
-    return this;
   }
 
   /**
@@ -353,7 +351,7 @@ export class PathRef {
   async createSymlinkToAsRelative(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<this> {
+  ): Promise<void> {
     const {
       linkPathRef,
       thisResolved,
@@ -365,7 +363,6 @@ export class PathRef {
       text: relativePath,
       type: opts?.type,
     });
-    return this;
   }
 
   /**
@@ -376,7 +373,7 @@ export class PathRef {
   createSymlinkToAsRelativeSync(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): this {
+  ): void {
     const {
       linkPathRef,
       thisResolved,
@@ -388,7 +385,6 @@ export class PathRef {
       text: relativePath,
       type: opts?.type,
     });
-    return this;
   }
 
   #getSymlinkToAsRelativeParts(linkPath: string | URL | PathRef) {
