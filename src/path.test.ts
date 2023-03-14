@@ -39,7 +39,8 @@ Deno.test("isFile", () => {
 Deno.test("isSymlink", async () => {
   await withTempDir(() => {
     const file = createPathRef("file.txt").writeTextSync("");
-    const symlinkFile = createPathRef("test.txt").createSymlinkToSync(file);
+    const symlinkFile = createPathRef("test.txt");
+    symlinkFile.createSymlinkToSync(file);
     assert(symlinkFile.isSymlink());
     assert(!file.isSymlink());
   });
