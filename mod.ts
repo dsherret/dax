@@ -506,9 +506,7 @@ async function withRetries<TReturn>(
 function cd(path: string | URL | ImportMeta | PathRef) {
   if (typeof path === "string" || path instanceof URL) {
     path = new PathRef(path);
-  } else if (path instanceof PathRef) {
-    path = path;
-  } else {
+  } else if (!(path instanceof PathRef)) {
     path = new PathRef(path satisfies ImportMeta).parentOrThrow();
   }
   Deno.chdir(path.toString());
