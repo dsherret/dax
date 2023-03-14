@@ -347,10 +347,18 @@ export class PathRef {
     }
     const targetPath = ensurePathRef(target).resolve();
     if (opts?.kind === "relative") {
+      const fromPath = this.resolve();
+      let relativePath: string;
+      if (fromPath.dirname() === targetPath.dirname()) {
+        // we don't want it to do `../basename`
+        relativePath = targetPath.basename();
+      } else {
+        relativePath = fromPath.relative(targetPath);
+      }
       return {
-        fromPath: this.resolve(),
+        fromPath,
         targetPath,
-        text: this.relative(targetPath),
+        text: relativePath,
         type: opts?.type,
       };
     } else {
