@@ -318,7 +318,7 @@ export class PathRef {
   async createSymlinkTo(
     target: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
+  ): Promise<this> {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     await createSymlink({
@@ -327,14 +327,13 @@ export class PathRef {
       text: to.#path,
       type: opts?.type,
     });
-    return to;
+    return this;
   }
 
   /**
    * Synchronously creates a symlink at the provided path to the provided target returning the target path.
-   * @returns The resolved target path.
    */
-  createSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): PathRef {
+  createSymlinkToSync(target: string | URL | PathRef, opts?: Deno.SymlinkOptions): this {
     const from = this.resolve();
     const to = ensurePathRef(target).resolve();
     createSymlinkSync({
@@ -343,108 +342,64 @@ export class PathRef {
       text: to.#path,
       type: opts?.type,
     });
-    return to;
+    return this;
   }
 
   /**
-   * Creates a symlink at the specified path which points to the current path
-   * using an absolute path.
+   * Creates a symlink at the current path that points to the specified path using
+   * a relative path.
    * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
    */
-  async createAbsoluteSymlinkAt(
+  async createSymlinkToAsRelative(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
-    const linkPathRef = ensurePathRef(linkPath).resolve();
-    const thisResolved = this.resolve();
-    await createSymlink({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: thisResolved.#path,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  /**
-   * Creates a symlink at the specified path which points to the current path
-   * using an absolute path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  createAbsoluteSymlinkAtSync(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): PathRef {
-    const linkPathRef = ensurePathRef(linkPath).resolve();
-    const thisResolved = this.resolve();
-    createSymlinkSync({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
-      text: thisResolved.#path,
-      type: opts?.type,
-    });
-    return linkPathRef;
-  }
-
-  /**
-   * Creates a symlink at the specified path which points to the current path
-   * using a relative path.
-   * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
-   */
-  async createSymlinkRelativeTo(
-    linkPath: string | URL | PathRef,
-    opts?: Deno.SymlinkOptions,
-  ): Promise<PathRef> {
+  ): Promise<this> {
     const {
       linkPathRef,
       thisResolved,
       relativePath,
-    } = this.#getRelativeSymlinkAtParts(linkPath);
+    } = this.#getSymlinkToAsRelativeParts(linkPath);
     await createSymlink({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
+      toPath: linkPathRef,
+      fromPath: thisResolved,
       text: relativePath,
       type: opts?.type,
     });
-    return linkPathRef;
+    return this;
   }
 
   /**
-   * Synchronously creates a symlink at the specified path which points to the current
-   * path using a relative path.
+   * Creates a symlink at the current path that points to the specified path using
+   * a relative path.
    * @param linkPath The path to create a symlink at which points at the current path.
-   * @returns The destination path.
    */
-  createSymlinkRelativeToSync(
+  createSymlinkToAsRelativeSync(
     linkPath: string | URL | PathRef,
     opts?: Deno.SymlinkOptions,
-  ): PathRef {
+  ): this {
     const {
       linkPathRef,
       thisResolved,
       relativePath,
-    } = this.#getRelativeSymlinkAtParts(linkPath);
+    } = this.#getSymlinkToAsRelativeParts(linkPath);
     createSymlinkSync({
-      toPath: thisResolved,
-      fromPath: linkPathRef,
+      toPath: linkPathRef,
+      fromPath: thisResolved,
       text: relativePath,
       type: opts?.type,
     });
-    return linkPathRef;
+    return this;
   }
 
-  #getRelativeSymlinkAtParts(linkPath: string | URL | PathRef) {
+  #getSymlinkToAsRelativeParts(linkPath: string | URL | PathRef) {
     const linkPathRef = ensurePathRef(linkPath).resolve();
     const thisResolved = this.resolve();
     let relativePath: string;
     if (linkPathRef.dirname() === thisResolved.dirname()) {
       // we don't want it to do `../basename`
-      relativePath = linkPathRef.basename();
+      relativePath = thisResolved.basename();
     } else {
-      relativePath = linkPathRef.relative(thisResolved);
+      relativePath = thisResolved.relative(linkPathRef);
     }
     return {
       thisResolved,
