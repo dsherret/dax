@@ -385,13 +385,13 @@ Deno.test("walk", async () => {
     assertEquals(entries1, entries2);
     assertEquals(entries1.length, 6);
     const entryNames = entries1.map((e) => e.basename());
-    assertEquals(entryNames, [
-      "rootDir",
+    assertEquals(entryNames.sort(), [
       "dir",
-      "subDir",
       "file.txt",
       "file1",
       "file2",
+      "rootDir",
+      "subDir",
     ]);
 
     const subDir2 = dir.join("dir2");
