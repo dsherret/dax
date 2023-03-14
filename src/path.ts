@@ -76,6 +76,11 @@ export class PathRef {
     return stdPath.toFileUrl(resolvedPath.toString());
   }
 
+  /** If this path reference is the same as another one. */
+  equals(otherPath: PathRef): boolean {
+    return this.resolve().toString() === otherPath.resolve().toString();
+  }
+
   /** Joins the provided path segments onto this path. */
   join(...pathSegments: string[]): PathRef {
     return new PathRef(stdPath.join(this.#path, ...pathSegments));

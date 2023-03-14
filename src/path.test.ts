@@ -15,6 +15,13 @@ Deno.test("custom inspect", () => {
   assertEquals(Deno.inspect(path), 'PathRef("src")');
 });
 
+Deno.test("equals", async () => {
+  const path = createPathRef("src");
+  assert(path.equals(createPathRef("src")));
+  assert(!path.equals(createPathRef("src2")));
+  assert(path.equals(createPathRef("src").resolve()));
+});
+
 Deno.test("join", () => {
   const path = createPathRef("src");
   const newPath = path.join("other", "test");
