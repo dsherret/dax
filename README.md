@@ -214,7 +214,7 @@ example
 
 Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-)).
 
-That said, since enabling this has a low change of breaking downstream code, you can mutate a `$` to enable it by calling `$.setPrintCommand(true);`.
+You can mutate a `$` to always print commands by calling `$.setPrintCommand(true);`.  That said, mutating `$` can break downstream code that relies on the default behavior of `$`.
 
 ```ts
 $.setPrintCommand(true);
