@@ -91,9 +91,16 @@ export class PathRef {
     if (this.#knownResolved && pathSegments.length === 0) {
       return this;
     }
-    const pathRef = new PathRef(stdPath.resolve(this.#path, ...pathSegments));
-    pathRef.#knownResolved = true;
-    return pathRef;
+
+    const resolvedPath = stdPath.resolve(this.#path, ...pathSegments);
+    if (pathSegments.length === 0 && resolvedPath === this.#path) {
+      this.#knownResolved = true;
+      return this;
+    } else {
+      const pathRef = new PathRef(resolvedPath);
+      pathRef.#knownResolved = true;
+      return pathRef;
+    }
   }
 
   /**

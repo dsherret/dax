@@ -104,6 +104,15 @@ Deno.test("resolve", () => {
   assert(assetsDir === assetsDir.resolve());
 });
 
+Deno.test("known resolved", () => {
+  // there are more tests elsewhere
+  const srcDir = createPathRef("src").resolve();
+  const newPath = createPathRef(srcDir.toString());
+
+  // should be the same object since the existing path was resolved
+  assert(newPath === newPath.resolve());
+});
+
 Deno.test("stat", async () => {
   const stat1 = await createPathRef("src").stat();
   assertEquals(stat1?.isDirectory, true);
