@@ -377,7 +377,7 @@ Deno.test("expandGlob", async () => {
 
 Deno.test("walk", async () => {
   await withTempDir(async () => {
-    const dir = createPathRef("rootDir").mkdirSync().resolve();
+    const dir = createPathRef("rootDir").mkdirSync();
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
     const subDir = dir.join("dir").join("subDir");
@@ -389,6 +389,7 @@ Deno.test("walk", async () => {
     }
     const entries2 = Array.from(dir.walkSync()).map((e) => e.path);
 
+    assertEquals(entries1[0].toString(), dir.resolve().toString());
     assertEquals(entries1, entries2);
     assertEquals(entries1.length, 6);
     const entryNames = entries1.map((e) => e.basename());
@@ -404,6 +405,7 @@ Deno.test("walk", async () => {
     const subDir2 = dir.join("dir2");
     subDir2.join("other.txt").writeTextSync("");
     const entries3 = Array.from(subDir2.walkSync()).map((e) => e.path);
+    assertEquals(entries3[0].toString(), subDir2.resolve().toString());
     assertEquals(entries3.length, 2);
     assertEquals(entries3[0].basename(), "dir2");
     assertEquals(entries3[1].basename(), "other.txt");

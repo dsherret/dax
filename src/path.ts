@@ -283,7 +283,7 @@ export class PathRef {
   /** Expands the glob using the current path as the root. */
   async *expandGlob(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
     const entries = fs.expandGlob(glob, {
-      root: this.#path,
+      root: this.resolve().toString(),
       ...options,
     });
     for await (const entry of entries) {
@@ -294,7 +294,7 @@ export class PathRef {
   /** Synchronously expands the glob using the current path as the root. */
   *expandGlobSync(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
     const entries = fs.expandGlobSync(glob, {
-      root: this.#path,
+      root: this.resolve().toString(),
       ...options,
     });
     for (const entry of entries) {
@@ -305,7 +305,9 @@ export class PathRef {
   /** Walks the file tree rooted at the current path, yielding each file or
    * directory in the tree filtered according to the given options. */
   async *walk(options?: fs.WalkOptions): AsyncIterableIterator<WalkEntry> {
-    for await (const entry of fs.walk(this.toString(), options)) {
+    // Resolve the path before walking so that these paths always point to
+    // absolute paths in the case that someone changes the cwd after walking.
+    for await (const entry of fs.walk(this.resolve().toString(), options)) {
       yield this.#stdWalkEntryToDax(entry);
     }
   }
@@ -313,7 +315,7 @@ export class PathRef {
   /** Synchronously walks the file tree rooted at the current path, yielding each
    * file or directory in the tree filtered according to the given options. */
   *walkSync(options?: fs.WalkOptions): Iterable<WalkEntry> {
-    for (const entry of fs.walkSync(this.toString(), options)) {
+    for (const entry of fs.walkSync(this.resolve().toString(), options)) {
       yield this.#stdWalkEntryToDax(entry);
     }
   }
