@@ -602,6 +602,41 @@ Deno.test("exporting env should modify real environment when something changed v
   }
 });
 
+Deno.test("setting an empty env var should work", async () => {
+  const text = await $`VAR= deno eval 'console.log("VAR: " + Deno.env.get("VAR"))'`.text();
+  assertEquals(text, "VAR: ");
+});
+
+Deno.test("unsetting env var should work", async () => {
+  const text = await $`unset VAR ; deno eval 'console.log("VAR: " + Deno.env.get("VAR"))'`
+    .env("VAR", "1")
+    .text();
+  assertEquals(text, "VAR: undefined");
+});
+
+Deno.test("unsetting multiple env vars should work", async () => {
+  const text =
+    await $`unset VAR1 VAR2 ; deno eval 'console.log("VAR: " + Deno.env.get("VAR1") + Deno.env.get("VAR2") + Deno.env.get("VAR3"))'`
+      .env({
+        "VAR1": "test",
+        "VAR2": "test",
+        "VAR3": "test",
+      })
+      .text();
+  assertEquals(text, "VAR: undefinedundefinedtest");
+});
+
+Deno.test("unset with -f should error", async () => {
+  const result = await $`unset -f VAR1 && echo $VAR1`
+    .env({ "VAR1": "test" })
+    .stdout("piped")
+    .stderr("piped")
+    .noThrow();
+  assertEquals(result.code, 1);
+  assertEquals(result.stderr, "unset: unsupported flag: -f\n");
+  assertEquals(result.stdout, "");
+});
+
 Deno.test("cwd should be resolved based on cwd at time of method call and not execution", async () => {
   const previousCwd = Deno.cwd();
   try {

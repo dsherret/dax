@@ -159,7 +159,7 @@ class ShellEnv implements Env {
     if (Deno.build.os === "windows") {
       key = key.toUpperCase();
     }
-    if (value == null || value.length === 0) {
+    if (value == null) {
       delete this.#envVars[key];
     } else {
       this.#envVars[key] = value;
@@ -243,6 +243,9 @@ export class Context {
           break;
         case "shellvar":
           this.setShellVar(change.name, change.value);
+          break;
+        case "unsetvar":
+          this.setShellVar(change.name, undefined);
           break;
         default: {
           const _assertNever: never = change;

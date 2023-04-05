@@ -32,7 +32,7 @@ export interface ContinueExecuteResult {
  *
  * Used for registering custom commands.
  */
-export type EnvChange = SetEnvVarChange | SetShellVarChange | CdChange;
+export type EnvChange = SetEnvVarChange | SetShellVarChange | UnsetVarChange | CdChange;
 
 /** Change that sets an environment variable (ex. `export ENV_VAR=VALUE`)
  *
@@ -52,6 +52,15 @@ export interface SetShellVarChange {
   kind: "shellvar";
   name: string;
   value: string;
+}
+
+/** Change that deletes the environment variable (ex. `unset ENV_VAR`).
+ *
+ * Used for registering custom commands.
+ */
+export interface UnsetVarChange {
+  kind: "unsetvar";
+  name: string;
 }
 
 /** Change that alters the current working directory.

@@ -14,7 +14,7 @@ export async function cdCommand(context: CommandContext): Promise<ExecuteResult>
       }],
     };
   } catch (err) {
-    await context.stderr.writeLine(`cd: ${err?.message ?? err}`);
+    context.stderr.writeLine(`cd: ${err?.message ?? err}`);
     return resultFromCode(1);
   }
 }
