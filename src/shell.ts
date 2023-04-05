@@ -159,7 +159,7 @@ class ShellEnv implements Env {
     if (Deno.build.os === "windows") {
       key = key.toUpperCase();
     }
-    if (value == null || value.length === 0) {
+    if (value == null) {
       delete this.#envVars[key];
     } else {
       this.#envVars[key] = value;
@@ -244,6 +244,10 @@ export class Context {
         case "shellvar":
           this.setShellVar(change.name, change.value);
           break;
+        case "unsetvar":
+          this.setShellVar(change.name, undefined);
+          this.setEnvVar(change.name, undefined);
+          break;
         default: {
           const _assertNever: never = change;
           throw new Error(`Not implemented env change: ${change}`);
@@ -272,12 +276,10 @@ export class Context {
     }
     if (this.#env.getEnvVar(key) != null || key === "PWD") {
       this.setEnvVar(key, value);
+    } else if (value == null) {
+      delete this.#shellVars[key];
     } else {
-      if (value == null || value.length === 0) {
-        delete this.#shellVars[key];
-      } else {
-        this.#shellVars[key] = value;
-      }
+      this.#shellVars[key] = value;
     }
   }
 

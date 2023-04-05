@@ -1,5 +1,6 @@
 import { CommandHandler } from "./command_handler.ts";
 import { cdCommand } from "./commands/cd.ts";
+import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
@@ -8,6 +9,8 @@ import { rmCommand } from "./commands/rm.ts";
 import { pwdCommand } from "./commands/pwd.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
+import { touchCommand } from "./commands/touch.ts";
+import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
@@ -21,9 +24,7 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
-import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
-import { touchCommand } from "./commands/touch.ts";
 import { PathRef } from "./path.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
@@ -59,6 +60,7 @@ const builtInCommands = {
   mv: mvCommand,
   pwd: pwdCommand,
   touch: touchCommand,
+  unset: unsetCommand,
 };
 
 /** @internal */

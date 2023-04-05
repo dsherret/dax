@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExitExecuteResult } from "../result.ts";
 
-export async function exitCommand(context: CommandContext): Promise<ExitExecuteResult> {
+export function exitCommand(context: CommandContext): ExitExecuteResult {
   try {
     const code = parseArgs(context.args);
     return {
@@ -9,7 +9,7 @@ export async function exitCommand(context: CommandContext): Promise<ExitExecuteR
       code,
     };
   } catch (err) {
-    await context.stderr.writeLine(`exit: ${err?.message ?? err}`);
+    context.stderr.writeLine(`exit: ${err?.message ?? err}`);
     // impl. note: bash returns 2 on exit parse failure, deno_task_shell returns 1
     return {
       kind: "exit",
