@@ -608,7 +608,7 @@ Deno.test("setting an empty env var should work", async () => {
 });
 
 Deno.test("unsetting env var should work", async () => {
-  const text = await $`unset VAR ; deno eval 'console.log("VAR: " + Deno.env.get("VAR"))'`
+  const text = await $`unset VAR && deno eval 'console.log("VAR: " + Deno.env.get("VAR"))'`
     .env("VAR", "1")
     .text();
   assertEquals(text, "VAR: undefined");
@@ -616,7 +616,7 @@ Deno.test("unsetting env var should work", async () => {
 
 Deno.test("unsetting multiple env vars should work", async () => {
   const text =
-    await $`unset VAR1 VAR2 ; deno eval 'console.log("VAR: " + Deno.env.get("VAR1") + Deno.env.get("VAR2") + Deno.env.get("VAR3"))'`
+    await $`unset VAR1 VAR2 && deno eval 'console.log("VAR: " + Deno.env.get("VAR1") + Deno.env.get("VAR2") + Deno.env.get("VAR3"))'`
       .env({
         "VAR1": "test",
         "VAR2": "test",
