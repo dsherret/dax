@@ -768,9 +768,7 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
   const realEnvironment = new DenoWhichRealEnvironment();
   const commandPath = await which(commandName, {
     os: Deno.build.os,
-    fileExists(path: string) {
-      return realEnvironment.fileExists(path);
-    },
+    stat: realEnvironment.stat,
     env(key) {
       return context.getVar(key);
     },
