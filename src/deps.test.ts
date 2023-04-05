@@ -6,9 +6,9 @@ export {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-} from "https://deno.land/std@0.179.0/testing/asserts.ts";
-export { writableStreamFromWriter } from "https://deno.land/std@0.179.0/streams/writable_stream_from_writer.ts";
-export { serve } from "https://deno.land/std@0.179.0/http/server.ts";
+} from "https://deno.land/std@0.182.0/testing/asserts.ts";
+export { writableStreamFromWriter } from "https://deno.land/std@0.182.0/streams/writable_stream_from_writer.ts";
+export { serve } from "https://deno.land/std@0.182.0/http/server.ts";
 
 /**
  * Creates a temporary directory, changes the cwd to this directory,
