@@ -246,6 +246,7 @@ export class Context {
           break;
         case "unsetvar":
           this.setShellVar(change.name, undefined);
+          this.setEnvVar(change.name, undefined);
           break;
         default: {
           const _assertNever: never = change;
@@ -275,12 +276,10 @@ export class Context {
     }
     if (this.#env.getEnvVar(key) != null || key === "PWD") {
       this.setEnvVar(key, value);
+    } else if (value == null) {
+      delete this.#shellVars[key];
     } else {
-      if (value == null || value.length === 0) {
-        delete this.#shellVars[key];
-      } else {
-        this.#shellVars[key] = value;
-      }
+      this.#shellVars[key] = value;
     }
   }
 
