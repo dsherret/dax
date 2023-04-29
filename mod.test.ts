@@ -73,19 +73,19 @@ Deno.test("should capture stderr when piped", async () => {
 });
 
 Deno.test("should capture stderr when inherited and piped", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("inheritPiped");
+  const output = await $`deno eval -q 'console.error(5);'`.stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should get combined stdout and stderr when specified", async () => {
-  const output = await $`echo 1 ; sleep 0.5 ; deno eval 'console.error(2);'`.captureCombined();
+  const output = await $`echo 1 ; sleep 0.5 ; deno eval -q 'console.error(2);'`.captureCombined();
   assertEquals(output.code, 0);
   assertEquals(output.combined, "1\n2\n");
 });
 
 Deno.test("should not get combined stdout and stderr when not calling combined output", async () => {
-  const output = await $`deno eval 'console.error("should output");'`.stdout("piped").stderr("piped");
+  const output = await $`deno eval -q 'console.error("should output");'`.stdout("piped").stderr("piped");
   assertEquals(output.code, 0);
   assertThrows(
     () => output.combined,
@@ -813,7 +813,7 @@ Deno.test("streaming api", async () => {
 
   // stderr
   {
-    const child = $`deno eval 'console.error(1); console.error(2)'`.stderr("piped").spawn();
+    const child = $`deno eval -q 'console.error(1); console.error(2)'`.stderr("piped").spawn();
     const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stderr())
       .text();
@@ -822,7 +822,7 @@ Deno.test("streaming api", async () => {
 
   // both
   {
-    const child = $`deno eval 'console.log(1); setTimeout(() => console.error(2), 10)'`
+    const child = $`deno eval -q 'console.log(1); setTimeout(() => console.error(2), 10)'`
       .stdout("piped")
       .stderr("piped")
       .spawn();
@@ -848,7 +848,7 @@ Deno.test("streaming api", async () => {
         }
       },
     });
-    const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+    const text = await $`deno eval -q 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(stream)
       .text();
     assertEquals(text, "1\n2");
