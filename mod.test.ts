@@ -6,9 +6,10 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
+  readerFromStreamReader,
   withTempDir,
 } from "./src/deps.test.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./src/deps.ts";
+import { Buffer, colors, path } from "./src/deps.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
