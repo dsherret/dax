@@ -3,6 +3,7 @@ import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod
 import {
   assert,
   assertEquals,
+  assertMatch,
   assertRejects,
   assertStringIncludes,
   assertThrows,
@@ -10,7 +11,6 @@ import {
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
-import { assertMatch } from "https://deno.land/std@0.182.0/testing/asserts.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
