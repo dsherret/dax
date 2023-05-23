@@ -535,8 +535,31 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     throw new Error("A command must be set before it can be spawned.");
   }
 
+  const toLog = [];
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
+    toLog.push(
+      colors.white(">"),
+      colors.blue(state.command),
+    );
+    if (state.cwd) {
+      toLog.push(
+        colors.white("\ncwd: "),
+        colors.cyan(state.cwd),
+      );
+    }
+    if (Object.keys(state.env).length != 0) {
+      toLog.push(colors.white("\nenv: "));
+      for (const [key, value] of Object.entries(state.env)) {
+        if (value) {
+          toLog.push(
+            colors.cyan(key),
+            colors.white("="),
+            colors.cyan(value),
+          );
+        }
+      }
+    }
+    state.printCommandLogger.getValue()(...toLog);
   }
 
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();

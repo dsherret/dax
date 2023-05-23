@@ -1099,7 +1099,7 @@ Deno.test("printCommand", async () => {
   const command = $`echo 6`.printCommand(true);
   command.setPrintCommandLogger(() => {}); // no-op
   await command;
-  await $`echo 7`.printCommand(true);
+  await $`echo 7`.env("hello", "world").cwd("/tmp").printCommand(true);
 
   assertEquals(errorLogs, [
     [colors.white(">"), colors.blue("echo 1")],
