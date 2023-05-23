@@ -314,6 +314,9 @@ export class Context {
       get cwd() {
         return context.getCwd();
       },
+      get env() {
+        return context.getEnvVars();
+      },
       get stdin() {
         return context.stdin;
       },

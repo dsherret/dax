@@ -1,5 +1,6 @@
 import { CommandHandler } from "./command_handler.ts";
 import { cdCommand } from "./commands/cd.ts";
+import { printEnvCommand } from "./commands/printenv.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
 import { exitCommand } from "./commands/exit.ts";
@@ -49,6 +50,7 @@ const textDecoder = new TextDecoder();
 
 const builtInCommands = {
   cd: cdCommand,
+  printenv: printEnvCommand,
   echo: echoCommand,
   exit: exitCommand,
   export: exportCommand,

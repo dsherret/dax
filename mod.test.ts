@@ -10,6 +10,7 @@ import {
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
+import { assertMatch } from "https://deno.land/std@0.182.0/testing/asserts.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -1424,5 +1425,23 @@ Deno.test("cd", () => {
     assert(Deno.cwd().endsWith("src"));
   } finally {
     Deno.chdir(cwd);
+  }
+});
+
+Deno.test("printenv", async () => {
+  {
+    const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
+    assertMatch(result, /hello=world/);
+    assertMatch(result, /ab=cd/);
+  }
+  {
+    const result = await $`printenv hello ab`.env("hello", "world").env("ab", "cd").stdout("piped");
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "world\ncd\n");
+  }
+  {
+    const result = await $`printenv hello doesntExist`.env("hello", "world").env("ab", "cd").noThrow().stdout("piped");
+    assertEquals(result.code, 1);
+    assertEquals(result.stdout, "world\n");
   }
 });
