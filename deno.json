@@ -4,19 +4,14 @@
   },
   "fmt": {
     "proseWrap": "preserve",
-    "lineWidth": 120,
-    "exclude": [
-      "target/"
-    ]
+    "lineWidth": 120
   },
   "lint": {
     "rules": {
       "exclude": ["ban-types", "no-explicit-any", "no-this-alias"]
-    },
-    "files": {
-      "exclude": [
-        "target/"
-      ]
     }
-  }
+  },
+  "exclude": [
+    "target/"
+  ]
 }
