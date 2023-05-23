@@ -1105,7 +1105,16 @@ Deno.test("printCommand", async () => {
     [colors.white(">"), colors.blue("echo 1")],
     [colors.white(">"), colors.blue("echo 3")],
     [colors.white(">"), colors.blue("echo 5")],
-    [colors.white(">"), colors.blue("echo 7")],
+    [
+      colors.white(">"),
+      colors.blue("echo 7"),
+      colors.white("\ncwd:"),
+      colors.cyan("/tmp"),
+      colors.white("\nenv:"),
+      colors.cyan("hello"),
+      colors.white("="),
+      colors.cyan("world"),
+    ],
   ]);
 });
 
