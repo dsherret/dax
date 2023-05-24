@@ -8,7 +8,7 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
     if (Deno.build.os === "windows" && context.args.some((arg) => context.env[arg.toUpperCase()] === undefined)) {
       return resultFromCode(1);
     }
-    if (Deno.build.os === "linux" && context.args.some((arg) => context.env[arg] === undefined)) {
+    if (Deno.build.os !== "windows" && context.args.some((arg) => context.env[arg] === undefined)) {
       return resultFromCode(1);
     }
     return resultFromCode(0);
