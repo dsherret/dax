@@ -25,7 +25,7 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
 function executePrintEnv(env: Record<string, string>, args: string[]) {
   if (args.length === 0) {
     return Object.entries(env)
-      .map(([key, val]) => `${key}=${val}`)
+      .map(([key, val]) => `${key.toLowerCase()}=${val}`) // toLowerCase for windows (env vars are upcased)
       .join("\n");
   } else {
     return Object.entries(env)

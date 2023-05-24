@@ -1431,13 +1431,8 @@ Deno.test("cd", () => {
 Deno.test("printenv", async () => {
   {
     const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
-    if (Deno.build.os === "windows") {
-      assertMatch(result, /HELLO=world/);
-      assertMatch(result, /AB=cd/);
-    } else {
-      assertMatch(result, /hello=world/);
-      assertMatch(result, /ab=cd/);
-    }
+    assertMatch(result, /hello=world/);
+    assertMatch(result, /ab=cd/);
   }
   {
     const result = await $`printenv hello ab`.env("hello", "world").env("ab", "cd").stdout("piped");
