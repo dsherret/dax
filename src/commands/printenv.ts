@@ -2,13 +2,17 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult {
+  let args;
+  if (Deno.build.os === "windows") {
+    args = context.args.map((arg) => arg.toUpperCase());
+  } else {
+    args = context.args;
+  }
+
   try {
-    const result = executePrintEnv(context.env, context.args);
+    const result = executePrintEnv(context.env, args);
     context.stdout.writeLine(result);
-    if (Deno.build.os === "windows" && context.args.some((arg) => context.env[arg.toUpperCase()] === undefined)) {
-      return resultFromCode(1);
-    }
-    if (Deno.build.os !== "windows" && context.args.some((arg) => context.env[arg] === undefined)) {
+    if (args.some((arg) => context.env[arg] === undefined)) {
       return resultFromCode(1);
     }
     return resultFromCode(0);
@@ -19,9 +23,6 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
 }
 
 function executePrintEnv(env: Record<string, string>, args: string[]) {
-  if (Deno.build.os === "windows") {
-    args = args.map((arg) => arg.toUpperCase());
-  }
   if (args.length === 0) {
     return Object.entries(env)
       .map(([key, val]) => `${key}=${val}`)
