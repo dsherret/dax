@@ -24,6 +24,10 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
   }
 }
 
+/** follows printenv on linux:
+- if arguments are provided, return a string containing a list of all env variables as `repeat(KEY=VALUE\n)`
+- if no arguments are provided, return a string containing a list of the values of the provided env vars as `repeat(VALUE\n)`
+**/
 function executePrintEnv(env: Record<string, string>, args: string[]) {
   if (args.length === 0) {
     return Object.entries(env)
