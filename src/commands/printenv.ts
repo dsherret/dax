@@ -2,11 +2,13 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult {
-  console.log(context);
   try {
     const result = executePrintEnv(context.env, context.args);
     context.stdout.writeLine(result);
-    if (context.args.some((arg) => context.env[arg] === undefined)) {
+    if (Deno.build.os === "windows" && context.args.some((arg) => context.env[arg.toUpperCase()] === undefined)) {
+      return resultFromCode(1);
+    }
+    if (Deno.build.os === "linux" && context.args.some((arg) => context.env[arg] === undefined)) {
       return resultFromCode(1);
     }
     return resultFromCode(0);
