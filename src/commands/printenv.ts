@@ -2,6 +2,7 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult {
+  console.log(context);
   try {
     const result = executePrintEnv(context.env, context.args);
     context.stdout.writeLine(result);
