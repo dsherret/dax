@@ -1440,15 +1440,13 @@ Deno.test("printenv", async () => {
     }
   }
   {
-    console.log(1);
     const result = await $`printenv hello ab`.env("hello", "world").env("ab", "cd").stdout("piped");
-    console.log(2);
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "world\ncd\n");
   }
-  // {
-  //   const result = await $`printenv hello doesntExist`.env("hello", "world").env("ab", "cd").noThrow().stdout("piped");
-  //   assertEquals(result.code, 1);
-  //   assertEquals(result.stdout, "world\n");
-  // }
+  {
+    const result = await $`printenv hello doesntExist`.env("hello", "world").env("ab", "cd").noThrow().stdout("piped");
+    assertEquals(result.code, 1);
+    assertEquals(result.stdout, "world\n");
+  }
 });

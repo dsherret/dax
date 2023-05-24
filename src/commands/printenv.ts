@@ -19,6 +19,9 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
 }
 
 function executePrintEnv(env: Record<string, string>, args: string[]) {
+  if (Deno.build.os === "windows") {
+    args = args.map((arg) => arg.toUpperCase());
+  }
   if (args.length === 0) {
     return Object.entries(env)
       .map(([key, val]) => `${key}=${val}`)
