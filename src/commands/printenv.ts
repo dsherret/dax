@@ -2,6 +2,7 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult {
+  // windows expects env vars to be upcased
   let args;
   if (Deno.build.os === "windows") {
     args = context.args.map((arg) => arg.toUpperCase());
@@ -12,6 +13,7 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
   try {
     const result = executePrintEnv(context.env, args);
     context.stdout.writeLine(result);
+    // this is what printenv in linux does (on my testing)
     if (args.some((arg) => context.env[arg] === undefined)) {
       return resultFromCode(1);
     }
