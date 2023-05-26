@@ -723,6 +723,7 @@ Currently implemented (though not every option is supported):
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
 - [`touch`](https://man7.org/linux/man-pages/man1/touch.1.html) - Creates a file (note: flags have not been implemented yet).
 - [`unset`](https://man7.org/linux/man-pages/man1/unset.1p.html) - Unsets an environment variable.
+- [`printenv`](https://man7.org/linux/man-pages/man1/printenv.1.html) - print all or part of environment
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
