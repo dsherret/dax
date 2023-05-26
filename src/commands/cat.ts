@@ -25,33 +25,29 @@ async function executeCat(context: CommandContext) {
   const buf = new Uint8Array(1024);
 
   for (const path of flags.paths) {
-    if (path === "-") {
-      if (typeof context.stdin === "object") {
+    if (path === "-") { // read from stdin
+      if (typeof context.stdin === "object") { // stdin is a Deno.Reader (is there a better way to check for this?)
         while (true) {
           const size = await context.stdin.read(buf);
           if (!size || size === 0) break;
           else context.stdout.writeSync(buf.slice(0, size));
         }
       }
-      // context.stdout.writeSync(context.stdin.re)
     } else {
+      let file;
       try {
-        const file = Deno.openSync(pathUtils.join(context.cwd, path), { read: true });
+        file = Deno.openSync(pathUtils.join(context.cwd, path), { read: true });
         while (true) {
-          // NOTE: rust supports cancellation
-          // ```rs
-          // if context.state.token().is_cancelled() {
-          //      return Ok(ExecuteResult::for_cancellation());
-          // }
-          // ```
+          // NOTE: rust supports cancellation here
           const size = file.readSync(buf);
           if (!size || size === 0) break;
           else context.stdout.writeSync(buf.slice(0, size));
         }
-        file.close();
       } catch (err) {
         context.stderr.writeLine(`cat ${path}: ${err}`);
         exit_code = 1;
+      } finally {
+        if (file) file.close();
       }
     }
   }
