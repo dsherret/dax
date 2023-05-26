@@ -1426,3 +1426,30 @@ Deno.test("cd", () => {
     Deno.chdir(cwd);
   }
 });
+
+Deno.test("cat", async () => {
+  await withTempDir(async () => {
+    Deno.writeTextFileSync("hello", "hello world");
+    assertEquals(
+      await $`cat hello`.text(),
+      "hello world",
+    );
+    Deno.writeTextFileSync("hello2", "hello world2");
+    assertEquals(
+      await $`cat hello hello2`.text(),
+      "hello worldhello world2",
+    );
+    assertEquals(
+      await $`cat`.stdinText("helloz").text(),
+      "helloz",
+    );
+    assertEquals(
+      await $`cat -`.stdinText("helloz").text(),
+      "helloz",
+    );
+    assertEquals(
+      await $`cat hello - hello2`.stdinText("helloz").text(),
+      "hello worldhellozhello world2",
+    );
+  });
+});

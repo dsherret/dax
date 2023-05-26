@@ -2,6 +2,7 @@ import { CommandHandler } from "./command_handler.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
+import { catCommand } from "./commands/cat.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { mkdirCommand } from "./commands/mkdir.ts";
@@ -50,6 +51,7 @@ const textDecoder = new TextDecoder();
 const builtInCommands = {
   cd: cdCommand,
   echo: echoCommand,
+  cat: catCommand,
   exit: exitCommand,
   export: exportCommand,
   sleep: sleepCommand,
