@@ -5,7 +5,6 @@ Deno.test("test cat parse args", () => {
   assertEquals(parseCatArgs([]), {
     paths: ["-"],
   });
-  //  codeium: follow the commented rust code and port it to deno
   assertEquals(parseCatArgs(["path"]), {
     paths: ["path"],
   });
