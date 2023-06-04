@@ -1468,11 +1468,22 @@ Deno.test("cat", async () => {
 Deno.test("printenv", async () => {
   {
     const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
-    assertMatch(result, /hello=world/);
-    assertMatch(result, /ab=cd/);
+    if (Deno.build.os === "windows") {
+      assertMatch(result, /HELLO=world/);
+      assertMatch(result, /AB=cd/);
+    } else {
+      assertMatch(result, /hello=world/);
+      assertMatch(result, /ab=cd/);
+    }
   }
   {
     const result = await $`printenv hello ab`.env("hello", "world").env("ab", "cd").stdout("piped");
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "world\ncd\n");
+  }
+  if (Deno.build.os === "windows") {
+    // windows is case insensitive
+    const result = await $`printenv HeLlO aB`.env("hello", "world").env("ab", "cd").stdout("piped");
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "world\ncd\n");
   }
