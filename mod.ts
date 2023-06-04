@@ -827,7 +827,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
  */
 export function build$<TExtras extends ExtrasObject = {}>(
   options: Create$Options<TExtras> = {},
-) {
+): $Type<TExtras> {
   return build$FromState(buildInitial$State({
     isGlobal: false,
     ...options,

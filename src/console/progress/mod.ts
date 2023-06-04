@@ -54,7 +54,7 @@ export class ProgressBar {
   }
 
   /** Sets the prefix message/word, which will be displayed in green. */
-  prefix(prefix: string | undefined) {
+  prefix(prefix: string | undefined): this {
     this.#state.prefix = prefix;
     if (prefix != null && prefix.length > 0) {
       this.#logIfNonInteractive();
@@ -63,7 +63,7 @@ export class ProgressBar {
   }
 
   /** Sets the message the progress bar will display after the prefix in white. */
-  message(message: string | undefined) {
+  message(message: string | undefined): this {
     this.#state.message = message;
 
     if (message != null && message.length > 0) {
@@ -73,7 +73,7 @@ export class ProgressBar {
   }
 
   /** Sets how to format the length values. */
-  kind(kind: "raw" | "bytes") {
+  kind(kind: "raw" | "bytes"): this {
     this.#state.kind = kind;
     return this;
   }
@@ -93,36 +93,36 @@ export class ProgressBar {
   }
 
   /** Sets the current position of the progress bar. */
-  position(position: number) {
+  position(position: number): this {
     this.#state.currentPos = position;
     return this;
   }
 
   /** Increments the position of the progress bar. */
-  increment(inc = 1) {
+  increment(inc = 1): this {
     this.#state.currentPos += inc;
     return this;
   }
 
   /** Sets the total length of the progress bar. */
-  length(size: number | undefined) {
+  length(size: number | undefined): this {
     this.#state.length = size;
     return this;
   }
 
   /** Whether the progress bar should output a summary when finished. */
-  noClear(value = true) {
+  noClear(value = true): this {
     this.#noClear = value;
     return this;
   }
 
   /** Forces a render to the console. */
-  forceRender() {
+  forceRender(): void {
     return forceRender();
   }
 
   /** Finish showing the progress bar. */
-  finish() {
+  finish(): void {
     if (removeProgressBar(this.#pb)) {
       this.#state.hasCompleted = true;
       if (this.#noClear) {

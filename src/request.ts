@@ -93,12 +93,12 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** Fetches and gets the response. */
-  fetch() {
+  fetch(): Promise<RequestResult> {
     return makeRequest(this.#getClonedState());
   }
 
   /** Specifies the URL to send the request to. */
-  url(value: string | URL | undefined) {
+  url(value: string | URL | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.url = value;
     });
@@ -160,37 +160,37 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     });
   }
 
-  body(value: BodyInit | undefined) {
+  body(value: BodyInit | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.body = value;
     });
   }
 
-  cache(value: RequestCache | undefined) {
+  cache(value: RequestCache | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.cache = value;
     });
   }
 
-  integrity(value: string | undefined) {
+  integrity(value: string | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.integrity = value;
     });
   }
 
-  keepalive(value: boolean) {
+  keepalive(value: boolean): RequestBuilder {
     return this.#newWithState((state) => {
       state.keepalive = value;
     });
   }
 
-  method(value: string) {
+  method(value: string): RequestBuilder {
     return this.#newWithState((state) => {
       state.method = value;
     });
   }
 
-  mode(value: RequestMode) {
+  mode(value: RequestMode): RequestBuilder {
     return this.#newWithState((state) => {
       state.mode = value;
     });
@@ -203,19 +203,19 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     });
   }
 
-  redirect(value: RequestRedirect) {
+  redirect(value: RequestRedirect): RequestBuilder {
     return this.#newWithState((state) => {
       state.redirect = value;
     });
   }
 
-  referrer(value: string | undefined) {
+  referrer(value: string | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.referrer = value;
     });
   }
 
-  referrerPolicy(value: ReferrerPolicy | undefined) {
+  referrerPolicy(value: ReferrerPolicy | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.referrerPolicy = value;
     });
@@ -240,26 +240,26 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** Timeout the request after the specified delay. */
-  timeout(delay: Delay | undefined) {
+  timeout(delay: Delay | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.timeout = delay == null ? undefined : delayToMs(delay);
     });
   }
 
   /** Fetches and gets the response as an array buffer. */
-  async arrayBuffer() {
+  async arrayBuffer(): Promise<ArrayBuffer> {
     const response = await this.fetch();
     return response.arrayBuffer();
   }
 
   /** Fetches and gets the response as a blob. */
-  async blob() {
+  async blob(): Promise<Blob> {
     const response = await this.fetch();
     return response.blob();
   }
 
   /** Fetches and gets the response as form data. */
-  async formData() {
+  async formData(): Promise<FormData> {
     const response = await this.fetch();
     return response.formData();
   }
@@ -280,13 +280,13 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** Fetches and gets the response as text. */
-  async text() {
+  async text(): Promise<string> {
     const response = await this.fetch();
     return response.text();
   }
 
   /** Pipes the response body to the provided writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
     const response = await this.fetch();
     return await response.pipeTo(dest, options);
   }
@@ -380,37 +380,37 @@ export class RequestResult {
   }
 
   /** Raw response. */
-  get response() {
+  get response(): Response {
     return this.#response;
   }
 
   /** Response headers. */
-  get headers() {
+  get headers(): Headers {
     return this.#response.headers;
   }
 
   /** If the response had a 2xx code. */
-  get ok() {
+  get ok(): boolean {
     return this.#response.ok;
   }
 
   /** If the response is the result of a redirect. */
-  get redirected() {
+  get redirected(): boolean {
     return this.#response.redirected;
   }
 
   /** Status code of the response. */
-  get status() {
+  get status(): number {
     return this.#response.status;
   }
 
   /** Status text of the response. */
-  get statusText() {
+  get statusText(): string {
     return this.#response.statusText;
   }
 
   /** URL of the response. */
-  get url() {
+  get url(): string {
     return this.#response.url;
   }
 
@@ -420,7 +420,7 @@ export class RequestResult {
    * This might be useful if the request was built with `.noThrow()`, but
    * otherwise this is called automatically for any non-2xx response codes.
    */
-  throwIfNotOk() {
+  throwIfNotOk(): void {
     if (!this.ok) {
       this.#response.body?.cancel().catch(() => {
         // ignore
@@ -434,7 +434,7 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async arrayBuffer() {
+  async arrayBuffer(): Promise<ArrayBuffer> {
     if (this.#response.status === 404) {
       await this.#response.body?.cancel();
       return undefined!;
@@ -447,7 +447,7 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async blob() {
+  async blob(): Promise<Blob> {
     if (this.#response.status === 404) {
       await this.#response.body?.cancel();
       return undefined!;
@@ -460,7 +460,7 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async formData() {
+  async formData(): Promise<FormData> {
     if (this.#response.status === 404) {
       await this.#response.body?.cancel();
       return undefined!;
@@ -486,7 +486,7 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async text() {
+  async text(): Promise<string> {
     if (this.#response.status === 404) {
       // most people don't need to bother with this and if they do, they will
       // need to opt-in with `noThrow()`. So just assert non-nullable
@@ -498,7 +498,7 @@ export class RequestResult {
   }
 
   /** Pipes the response body to the provided writable stream. */
-  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions) {
+  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
     return this.#getDownloadBody().pipeTo(dest, options);
   }
 
