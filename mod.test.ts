@@ -1451,5 +1451,15 @@ Deno.test("cat", async () => {
       await $`cat hello - hello2`.stdinText("helloz").text(),
       "hello worldhellozhello world2",
     );
+    {
+      const result = await $`cat -`.stderr("piped").noThrow();
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "cat: not supported. stdin was 'inherit'\n");
+    }
+    {
+      const result = await $`cat -`.stdin("null").stderr("piped").noThrow();
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "cat: not supported. stdin was 'null'\n");
+    }
   });
 });

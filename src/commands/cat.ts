@@ -26,12 +26,15 @@ async function executeCat(context: CommandContext) {
 
   for (const path of flags.paths) {
     if (path === "-") { // read from stdin
-      if (typeof context.stdin === "object") { // stdin is a Deno.Reader (is there a better way to check for this?)
+      if (typeof context.stdin === "object") { // stdin is a Deno.Reader
         while (true) {
           const size = await context.stdin.read(buf);
           if (!size || size === 0) break;
           else context.stdout.writeSync(buf.slice(0, size));
         }
+      } else {
+        const _assertValue: "null" | "inherit" = context.stdin;
+        throw new Error(`not supported. stdin was '${context.stdin}'`);
       }
     } else {
       let file;
