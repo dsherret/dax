@@ -61,6 +61,7 @@ export class PathRef {
     return instance?.constructor?.instanceofSymbol === PathRef.instanceofSymbol;
   }
 
+  /** @internal */
   [Symbol.for("Deno.customInspect")]() {
     return `PathRef("${this.#path}")`;
   }
@@ -288,7 +289,10 @@ export class PathRef {
   }
 
   /** Expands the glob using the current path as the root. */
-  async *expandGlob(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
+  async *expandGlob(
+    glob: string | URL,
+    options?: Omit<fs.ExpandGlobOptions, "root">,
+  ): AsyncGenerator<WalkEntry, void, unknown> {
     const entries = fs.expandGlob(glob, {
       root: this.resolve().toString(),
       ...options,
@@ -299,7 +303,10 @@ export class PathRef {
   }
 
   /** Synchronously expands the glob using the current path as the root. */
-  *expandGlobSync(glob: string | URL, options?: Omit<fs.ExpandGlobOptions, "root">) {
+  *expandGlobSync(
+    glob: string | URL,
+    options?: Omit<fs.ExpandGlobOptions, "root">,
+  ): Generator<WalkEntry, void, unknown> {
     const entries = fs.expandGlobSync(glob, {
       root: this.resolve().toString(),
       ...options,

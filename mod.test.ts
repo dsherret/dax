@@ -1428,6 +1428,43 @@ Deno.test("cd", () => {
   }
 });
 
+Deno.test("cat", async () => {
+  await withTempDir(async () => {
+    Deno.writeTextFileSync("hello", "hello world");
+    assertEquals(
+      await $`cat hello`.text(),
+      "hello world",
+    );
+    Deno.writeTextFileSync("hello2", "hello world2");
+    assertEquals(
+      await $`cat hello hello2`.text(),
+      "hello worldhello world2",
+    );
+    assertEquals(
+      await $`cat`.stdinText("helloz").text(),
+      "helloz",
+    );
+    assertEquals(
+      await $`cat -`.stdinText("helloz").text(),
+      "helloz",
+    );
+    assertEquals(
+      await $`cat hello - hello2`.stdinText("helloz").text(),
+      "hello worldhellozhello world2",
+    );
+    {
+      const result = await $`cat -`.stderr("piped").noThrow();
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "cat: not supported. stdin was 'inherit'\n");
+    }
+    {
+      const result = await $`cat -`.stdin("null").stderr("piped").noThrow();
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "cat: not supported. stdin was 'null'\n");
+    }
+  });
+});
+
 Deno.test("printenv", async () => {
   {
     const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();

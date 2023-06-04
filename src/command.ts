@@ -3,6 +3,7 @@ import { cdCommand } from "./commands/cd.ts";
 import { printEnvCommand } from "./commands/printenv.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
+import { catCommand } from "./commands/cat.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { mkdirCommand } from "./commands/mkdir.ts";
@@ -52,6 +53,7 @@ const builtInCommands = {
   cd: cdCommand,
   printenv: printEnvCommand,
   echo: echoCommand,
+  cat: catCommand,
   exit: exitCommand,
   export: exportCommand,
   sleep: sleepCommand,
@@ -155,7 +157,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /**
    * Register a command.
    */
-  registerCommand(command: string, handleFn: CommandHandler) {
+  registerCommand(command: string, handleFn: CommandHandler): CommandBuilder {
     validateCommandName(command);
     return this.#newWithState((state) => {
       state.commands[command] = handleFn;
@@ -165,7 +167,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /**
    * Register multilple commands.
    */
-  registerCommands(commands: Record<string, CommandHandler>) {
+  registerCommands(commands: Record<string, CommandHandler>): CommandBuilder {
     let command: CommandBuilder = this;
     for (const [key, value] of Object.entries(commands)) {
       command = command.registerCommand(key, value);
@@ -176,14 +178,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /**
    * Unregister a command.
    */
-  unregisterCommand(command: string) {
+  unregisterCommand(command: string): CommandBuilder {
     return this.#newWithState((state) => {
       delete state.commands[command];
     });
   }
 
   /** Sets the raw command to execute. */
-  command(command: string | string[]) {
+  command(command: string | string[]): CommandBuilder {
     return this.#newWithState((state) => {
       if (typeof command === "string") {
         state.command = command;
@@ -194,7 +196,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** The command should not throw when it fails or times out. */
-  noThrow(value = true) {
+  noThrow(value = true): CommandBuilder {
     return this.#newWithState((state) => {
       state.noThrow = value;
     });
@@ -206,7 +208,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * This will set both stdout and stderr to "piped" if not already "piped"
    * or "inheritPiped".
    */
-  captureCombined(value = true) {
+  captureCombined(value = true): CommandBuilder {
     return this.#newWithState((state) => {
       state.combinedStdoutStderr = value;
       if (value) {
@@ -228,7 +230,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * For this reason, if you are setting stdin to something other than "inherit" or
    * "null", then it's recommended to set this each time you spawn a command.
    */
-  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>) {
+  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>): CommandBuilder {
     return this.#newWithState((state) => {
       if (reader === "inherit" || reader === "null") {
         state.stdin = reader;
@@ -245,12 +247,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * @remarks See the remarks on stdin. The same applies here.
    */
-  stdinText(text: string) {
+  stdinText(text: string): CommandBuilder {
     return this.stdin(new TextEncoder().encode(text));
   }
 
   /** Set the stdout kind. */
-  stdout(kind: ShellPipeWriterKind) {
+  stdout(kind: ShellPipeWriterKind): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
@@ -262,7 +264,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Set the stderr kind. */
-  stderr(kind: ShellPipeWriterKind) {
+  stderr(kind: ShellPipeWriterKind): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
@@ -297,7 +299,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the current working directory to use when executing this command. */
-  cwd(dirPath: string | URL | PathRef) {
+  cwd(dirPath: string | URL | PathRef): CommandBuilder {
     return this.#newWithState((state) => {
       state.cwd = dirPath instanceof URL
         ? path.fromFileUrl(dirPath)
@@ -320,7 +322,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * console.log(Deno.cwd()); // will be in the src directory
    * ```
    */
-  exportEnv(value = true) {
+  exportEnv(value = true): CommandBuilder {
     return this.#newWithState((state) => {
       state.exportEnv = value;
     });
@@ -343,7 +345,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * example
    * ```
    */
-  printCommand(value = true) {
+  printCommand(value = true): CommandBuilder {
     return this.#newWithState((state) => {
       state.printCommand = value;
     });
@@ -353,7 +355,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Mutates the command builder to change the logger used
    * for `printCommand()`.
    */
-  setPrintCommandLogger(logger: (...args: any[]) => void) {
+  setPrintCommandLogger(logger: (...args: any[]) => void): void {
     this.#state.printCommandLogger.setValue(logger);
   }
 
@@ -369,7 +371,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * await $`echo 1`.quiet("stderr");
    * ```
    */
-  quiet(kind: "stdout" | "stderr" | "both" = "both") {
+  quiet(kind: "stdout" | "stderr" | "both" = "both"): CommandBuilder {
     return this.#newWithState((state) => {
       if (kind === "both" || kind === "stdout") {
         state.stdoutKind = getQuietKind(state.stdoutKind);
@@ -402,7 +404,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * Note that when using `.noThrow()` this won't cause an error to
    * be thrown when timing out.
    */
-  timeout(delay: Delay | undefined) {
+  timeout(delay: Delay | undefined): CommandBuilder {
     return this.#newWithState((state) => {
       state.timeout = delay == null ? undefined : delayToMs(delay);
     });
@@ -417,7 +419,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
-  async bytes() {
+  async bytes(): Promise<Uint8Array> {
     return (await this.quiet("stdout")).stdoutBytes;
   }
 
@@ -430,12 +432,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdout.replace(/\r?\n$/, "");
    * ```
    */
-  async text() {
+  async text(): Promise<string> {
     return (await this.quiet("stdout")).stdout.replace(/\r?\n$/, "");
   }
 
   /** Gets the text as an array of lines. */
-  async lines() {
+  async lines(): Promise<string[]> {
     const text = await this.text();
     return text.split(/\r?\n/g);
   }
@@ -477,11 +479,11 @@ export class CommandChild extends Promise<CommandResult> {
   }
 
   /** Cancels the executing command if able. */
-  abort() {
+  abort(): void {
     this.#abortController?.abort();
   }
 
-  stdout() {
+  stdout(): ReadableStream<Uint8Array> {
     const buffer = this.#pipedStdoutBuffer;
     this.#assertBufferStreamable("stdout", buffer);
     this.#pipedStdoutBuffer = "consumed";
@@ -491,7 +493,7 @@ export class CommandChild extends Promise<CommandResult> {
     return this.#bufferToStream(buffer);
   }
 
-  stderr() {
+  stderr(): ReadableStream<Uint8Array> {
     const buffer = this.#pipedStderrBuffer;
     this.#assertBufferStreamable("stderr", buffer);
     this.#pipedStderrBuffer = "consumed";
@@ -715,7 +717,7 @@ export class CommandResult {
   #memoizedStdout: string | undefined;
 
   /** Raw decoded stdout text. */
-  get stdout() {
+  get stdout(): string {
     if (!this.#memoizedStdout) {
       this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
     }
@@ -729,7 +731,7 @@ export class CommandResult {
    *
    * @remarks Will throw if it can't be parsed as JSON.
    */
-  get stdoutJson() {
+  get stdoutJson(): any {
     if (this.#memoizedStdoutJson == null) {
       this.#memoizedStdoutJson = JSON.parse(this.stdout);
     }
@@ -754,7 +756,7 @@ export class CommandResult {
   #memoizedStderr: string | undefined;
 
   /** Raw decoded stdout text. */
-  get stderr() {
+  get stderr(): string {
     if (!this.#memoizedStderr) {
       this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
     }
@@ -768,7 +770,7 @@ export class CommandResult {
    *
    * @remarks Will throw if it can't be parsed as JSON.
    */
-  get stderrJson() {
+  get stderrJson(): any {
     if (this.#memoizedStderrJson == null) {
       this.#memoizedStderrJson = JSON.parse(this.stderr);
     }
@@ -793,7 +795,7 @@ export class CommandResult {
   #memoizedCombined: string | undefined;
 
   /** Raw combined stdout and stderr text. */
-  get combined() {
+  get combined(): string {
     if (!this.#memoizedCombined) {
       this.#memoizedCombined = textDecoder.decode(this.combinedBytes);
     }

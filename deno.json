@@ -3,24 +3,15 @@
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.10.2/main.ts --out ./src/lib"
   },
   "fmt": {
-    "options": {
-      "proseWrap": "preserve",
-      "lineWidth": 120
-    },
-    "files": {
-      "exclude": [
-        "target/"
-      ]
-    }
+    "proseWrap": "preserve",
+    "lineWidth": 120
   },
   "lint": {
     "rules": {
       "exclude": ["ban-types", "no-explicit-any", "no-this-alias"]
-    },
-    "files": {
-      "exclude": [
-        "target/"
-      ]
     }
-  }
+  },
+  "exclude": [
+    "target/"
+  ]
 }
