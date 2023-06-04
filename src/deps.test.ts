@@ -3,6 +3,7 @@ import { createPathRef, PathRef } from "./path.ts";
 export {
   assert,
   assertEquals,
+  assertMatch,
   assertRejects,
   assertStringIncludes,
   assertThrows,

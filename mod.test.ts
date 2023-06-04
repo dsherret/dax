@@ -3,6 +3,7 @@ import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod
 import {
   assert,
   assertEquals,
+  assertMatch,
   assertRejects,
   assertStringIncludes,
   assertThrows,
@@ -1462,4 +1463,33 @@ Deno.test("cat", async () => {
       assertEquals(result.stderr, "cat: not supported. stdin was 'null'\n");
     }
   });
+});
+
+Deno.test("printenv", async () => {
+  {
+    const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
+    if (Deno.build.os === "windows") {
+      assertMatch(result, /HELLO=world/);
+      assertMatch(result, /AB=cd/);
+    } else {
+      assertMatch(result, /hello=world/);
+      assertMatch(result, /ab=cd/);
+    }
+  }
+  {
+    const result = await $`printenv hello ab`.env("hello", "world").env("ab", "cd").stdout("piped");
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "world\ncd\n");
+  }
+  if (Deno.build.os === "windows") {
+    // windows is case insensitive
+    const result = await $`printenv HeLlO aB`.env("hello", "world").env("ab", "cd").stdout("piped");
+    assertEquals(result.code, 0);
+    assertEquals(result.stdout, "world\ncd\n");
+  }
+  {
+    const result = await $`printenv hello doesntExist`.env("hello", "world").env("ab", "cd").noThrow().stdout("piped");
+    assertEquals(result.code, 1);
+    assertEquals(result.stdout, "world\n");
+  }
 });

@@ -14,6 +14,7 @@ export interface CommandPipeWriter extends Deno.WriterSync {
 export interface CommandContext {
   get args(): string[];
   get cwd(): string;
+  get env(): Record<string, string>;
   get stdin(): CommandPipeReader;
   get stdout(): CommandPipeWriter;
   get stderr(): CommandPipeWriter;
