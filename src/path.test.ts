@@ -1,6 +1,10 @@
-import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows, withTempDir as innerWithTempDir } from "./deps.test.ts";
 import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
+
+function withTempDir(action: (path: PathRef) => Promise<void> | void) {
+  return innerWithTempDir((path) => action(createPathRef(path).resolve()));
+}
 
 Deno.test("create from path ref", () => {
   const path = createPathRef("src");

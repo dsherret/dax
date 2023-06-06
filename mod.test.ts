@@ -1,5 +1,5 @@
 import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler, PathRef } from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -8,9 +8,13 @@ import {
   assertStringIncludes,
   assertThrows,
   readerFromStreamReader,
-  withTempDir,
+  withTempDir as innerWithTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
+
+function withTempDir(action: (path: PathRef) => Promise<void> | void) {
+  return innerWithTempDir((path) => action($.path(path).resolve()));
+}
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");

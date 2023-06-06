@@ -1,5 +1,3 @@
-import { createPathRef, PathRef } from "./path.ts";
-
 export {
   assert,
   assertEquals,
@@ -16,12 +14,12 @@ export { serve } from "https://deno.land/std@0.182.0/http/server.ts";
  * Creates a temporary directory, changes the cwd to this directory,
  * then cleans up and restores the cwd when complete.
  */
-export async function withTempDir(action: (path: PathRef) => Promise<void> | void) {
+export async function withTempDir(action: (path: string) => Promise<void> | void) {
   const originalDirPath = Deno.cwd();
   const dirPath = Deno.makeTempDirSync();
   Deno.chdir(dirPath);
   try {
-    await action(createPathRef(dirPath).resolve());
+    await action(dirPath);
   } finally {
     try {
       await Deno.remove(dirPath, { recursive: true });
