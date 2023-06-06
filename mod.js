@@ -1,4 +1,15 @@
 /// <reference types="./mod.d.ts" />
+import * as pack36 from "https://deno.land/std@0.182.0/fmt/colors.ts";
+import * as pack37 from "https://deno.land/std@0.182.0/fs/mod.ts";
+import * as pack38 from "https://deno.land/std@0.182.0/io/buffer.ts";
+import * as pack39 from "https://deno.land/std@0.182.0/io/buf_reader.ts";
+import * as pack40 from "https://deno.land/std@0.182.0/path/mod.ts";
+import * as pack41 from "https://deno.land/std@0.182.0/streams/read_all.ts";
+import * as pack42 from "https://deno.land/std@0.182.0/streams/reader_from_stream_reader.ts";
+import * as pack43 from "https://deno.land/std@0.182.0/streams/write_all.ts";
+import * as pack44 from "https://deno.land/x/dir@1.5.1/data_local_dir/mod.ts";
+import * as pack45 from "https://deno.land/x/outdent@v0.8.0/src/index.ts";
+import * as pack46 from "https://deno.land/x/which@0.3.0/mod.ts";
 const pack0 = {
   CommandBuilder: undefined,
   CommandChild: undefined,
@@ -165,17 +176,6 @@ const pack3 = {
   writeAll: undefined,
   writeAllSync: undefined,
 };
-import * as pack36 from "https://deno.land/std@0.182.0/fmt/colors.ts";
-import * as pack37 from "https://deno.land/std@0.182.0/fs/mod.ts";
-import * as pack38 from "https://deno.land/std@0.182.0/io/buffer.ts";
-import * as pack39 from "https://deno.land/std@0.182.0/io/buf_reader.ts";
-import * as pack40 from "https://deno.land/std@0.182.0/path/mod.ts";
-import * as pack41 from "https://deno.land/std@0.182.0/streams/read_all.ts";
-import * as pack42 from "https://deno.land/std@0.182.0/streams/reader_from_stream_reader.ts";
-import * as pack43 from "https://deno.land/std@0.182.0/streams/write_all.ts";
-import * as pack44 from "https://deno.land/x/dir@1.5.1/data_local_dir/mod.ts";
-import * as pack45 from "https://deno.land/x/outdent@v0.8.0/src/index.ts";
-import * as pack46 from "https://deno.land/x/which@0.3.0/mod.ts";
 const pack4 = {
   wasmInstance: undefined,
 };
