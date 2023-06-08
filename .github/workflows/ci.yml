@@ -36,6 +36,10 @@ jobs:
       - name: test
         run: deno test -A
 
+      - name: pack
+        run: deno task pack
+
+        # todo: move this step into denoland/publish-folder
       - name: Get tag version
         if: contains(matrix.os, 'ubuntu') && startsWith(github.ref, 'refs/tags/')
         id: get_tag_version
