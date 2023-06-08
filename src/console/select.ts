@@ -1,4 +1,4 @@
-import { colors } from "../deps.ts";
+import * as colors from "$std/fmt/colors.ts";
 import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
 
 /** Options for showing a selection that only has one result. */

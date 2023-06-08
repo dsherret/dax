@@ -1,4 +1,4 @@
-import { colors } from "../deps.ts";
+import * as colors from "$std/fmt/colors.ts";
 import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
 
 /** Single options within a multi-select option. */

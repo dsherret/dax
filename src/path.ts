@@ -1,4 +1,6 @@
-import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+import * as fs from "$std/fs/mod.ts";
+import * as stdPath from "$std/path/mod.ts";
+import { writeAll, writeAllSync } from "$std/streams/write_all.ts";
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 

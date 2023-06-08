@@ -1,5 +1,6 @@
 {
   "tasks": {
+    "pack": "mkdir -p dist && cp src/lib/rs_lib_bg.wasm dist/rs_lib_bg.wasm && deno run -A ../fuser/main.ts mod.ts dist",
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.10.2/main.ts --out ./src/lib"
   },
   "fmt": {
@@ -11,7 +12,15 @@
       "exclude": ["ban-types", "no-explicit-any", "no-this-alias"]
     }
   },
+  "imports": {
+    "@/": "./src/",
+    "$std/": "https://deno.land/std@0.182.0/",
+    "dir": "https://deno.land/x/dir@1.5.1/data_local_dir/mod.ts",
+    "outdent": "https://deno.land/x/outdent@v0.8.0/src/index.ts",
+    "which": "https://deno.land/x/which@0.3.0/mod.ts"
+  },
   "exclude": [
-    "target/"
+    "target/",
+    "dist/"
   ]
 }

@@ -1,6 +1,6 @@
+import * as fs from "$std/fs/mod.ts";
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath, safeLstat } from "../common.ts";
-import { fs } from "../deps.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export async function testCommand(context: CommandContext): Promise<ExecuteResult> {

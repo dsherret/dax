@@ -1,5 +1,5 @@
+import * as path from "$std/path/mod.ts";
 import { CommandContext } from "../command_handler.ts";
-import { path } from "../deps.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 

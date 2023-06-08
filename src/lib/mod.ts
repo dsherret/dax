@@ -1,4 +1,6 @@
-import { fs, localDataDir, path } from "../deps.ts";
+import localDataDir from "dir";
+import * as fs from "$std/fs/mod.ts";
+import * as path from "$std/path/mod.ts";
 import { instantiate } from "./rs_lib.generated.js";
 
 export type WasmInstance = Awaited<ReturnType<typeof instantiate>>;

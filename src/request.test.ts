@@ -1,5 +1,8 @@
-import { Buffer, path } from "./deps.ts";
-import { assertEquals, assertRejects, serve, writableStreamFromWriter } from "./deps.test.ts";
+import { serve } from "$std/http/server.ts";
+import { Buffer } from "$std/io/buffer.ts";
+import * as path from "$std/path/mod.ts";
+import { writableStreamFromWriter } from "$std/streams/writable_stream_from_writer.ts";
+import { assertEquals, assertRejects } from "$std/testing/asserts.ts";
 import { RequestBuilder } from "./request.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {

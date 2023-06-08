@@ -1,4 +1,9 @@
-import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "./src/command.ts";
+import outdent from "outdent";
+import * as colors from "$std/fmt/colors.ts";
+import * as stdPath from "$std/path/mod.ts";
+import * as fs from "$std/fs/mod.ts";
+import { which, whichSync } from "which";
+import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "@/command.ts";
 import {
   Box,
   Delay,
@@ -8,7 +13,7 @@ import {
   formatMillis,
   LoggerTreeBox,
   TreeBox,
-} from "./src/common.ts";
+} from "@/common.ts";
 import {
   confirm,
   ConfirmOptions,
@@ -24,16 +29,13 @@ import {
   PromptOptions,
   select,
   SelectOptions,
-} from "./src/console/mod.ts";
-import { colors, fs, outdent, path as stdPath, which, whichSync } from "./src/deps.ts";
-import { wasmInstance } from "./src/lib/mod.ts";
-import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
-import { createPathRef, PathRef } from "./src/path.ts";
+} from "@/console/mod.ts";
+import { wasmInstance } from "@/lib/mod.ts";
+import { createPathRef, PathRef } from "@/path.ts";
+import { RequestBuilder, withProgressBarFactorySymbol } from "@/request.ts";
 
-export { FsFileWrapper, PathRef } from "./src/path.ts";
-export type { PathSymlinkOptions, SymlinkOptions, WalkEntry } from "./src/path.ts";
-export { CommandBuilder, CommandResult } from "./src/command.ts";
-export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
+export { CommandBuilder, CommandResult } from "@/command.ts";
+export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "@/command_handler.ts";
 export type {
   ConfirmOptions,
   MultiSelectOption,
@@ -42,8 +44,10 @@ export type {
   ProgressOptions,
   PromptOptions,
   SelectOptions,
-} from "./src/console/mod.ts";
-export { RequestBuilder, RequestResult } from "./src/request.ts";
+} from "@/console/mod.ts";
+export { FsFileWrapper, PathRef } from "@/path.ts";
+export type { PathSymlinkOptions, SymlinkOptions, WalkEntry } from "@/path.ts";
+export { RequestBuilder, RequestResult } from "@/request.ts";
 // these are used when registering commands
 export type {
   CdChange,
@@ -53,7 +57,7 @@ export type {
   ExitExecuteResult,
   SetEnvVarChange,
   SetShellVarChange,
-} from "./src/result.ts";
+} from "@/result.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).

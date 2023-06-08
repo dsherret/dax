@@ -1,5 +1,8 @@
-import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import * as colors from "$std/fmt/colors.ts";
+import { Buffer } from "$std/io/buffer.ts";
+import * as path from "$std/path/mod.ts";
+import { readAll } from "$std/streams/read_all.ts";
+import { readerFromStreamReader } from "$std/streams/reader_from_stream_reader.ts";
 import {
   assert,
   assertEquals,
@@ -7,10 +10,9 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  readerFromStreamReader,
-  withTempDir,
-} from "./src/deps.test.ts";
-import { Buffer, colors, path } from "./src/deps.ts";
+} from "$std/testing/asserts.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import { withTempDir } from "@/test_helpers.ts";
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");

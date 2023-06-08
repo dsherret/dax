@@ -1,6 +1,7 @@
+import * as path from "$std/path/mod.ts";
+import { RealEnvironment as DenoWhichEnvironment, which } from "which";
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
-import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
@@ -761,7 +762,7 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
     };
   }
 
-  const realEnvironment = new DenoWhichRealEnvironment();
+  const realEnvironment = new DenoWhichEnvironment();
   const commandPath = await which(commandName, {
     os: Deno.build.os,
     stat: realEnvironment.stat,

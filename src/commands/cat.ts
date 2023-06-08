@@ -1,7 +1,7 @@
+import * as pathUtils from "$std/path/mod.ts";
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { path as pathUtils } from "../deps.ts";
 
 interface CatFlags {
   paths: string[];

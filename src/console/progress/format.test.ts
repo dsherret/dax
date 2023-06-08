@@ -1,4 +1,4 @@
-import { assertEquals } from "../../deps.test.ts";
+import { assertEquals } from "$std/testing/asserts.ts";
 import { humanDownloadSize } from "./format.ts";
 
 Deno.test("should format bytes", () => {

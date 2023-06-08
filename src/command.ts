@@ -1,21 +1,26 @@
+import * as colors from "$std/fmt/colors.ts";
+import { Buffer } from "$std/io/buffer.ts";
+import * as path from "$std/path/mod.ts";
+import { readerFromStreamReader } from "$std/streams/reader_from_stream_reader.ts";
 import { CommandHandler } from "./command_handler.ts";
+import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
-import { printEnvCommand } from "./commands/printenv.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
-import { catCommand } from "./commands/cat.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { mkdirCommand } from "./commands/mkdir.ts";
-import { rmCommand } from "./commands/rm.ts";
+import { printEnvCommand } from "./commands/printenv.ts";
 import { pwdCommand } from "./commands/pwd.ts";
+import { rmCommand } from "./commands/rm.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
+import { isShowingProgressBars } from "./console/progress/interval.ts";
+import { PathRef } from "./path.ts";
 import {
   CapturingBufferWriter,
   InheritStaticTextBypassWriter,
@@ -26,8 +31,6 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
-import { isShowingProgressBars } from "./console/progress/interval.ts";
-import { PathRef } from "./path.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 

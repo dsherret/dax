@@ -1,5 +1,6 @@
+import { Buffer } from "$std/io/buffer.ts";
+import { writeAllSync } from "$std/streams/write_all.ts";
 import { logger } from "./console/logger.ts";
-import { Buffer, writeAllSync } from "./deps.ts";
 
 const encoder = new TextEncoder();
 

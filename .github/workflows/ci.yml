@@ -12,6 +12,8 @@ jobs:
     if: |
       github.event_name == 'push' ||
       !startsWith(github.event.pull_request.head.label, 'dsherret:')
+      && github.ref_name != 'build'
+      && !startsWith(github.ref, 'refs/tags/release/')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -33,3 +35,16 @@ jobs:
 
       - name: test
         run: deno test -A
+
+      - name: Get tag version
+        if: contains(matrix.os, 'ubuntu') && startsWith(github.ref, 'refs/tags/')
+        id: get_tag_version
+        run: echo TAG_VERSION=release/${GITHUB_REF/refs\/tags\//} >> $GITHUB_OUTPUT
+
+      - name: Build and publish if tag
+        uses: denoland/publish-folder@82ce065074e7174baf444332c4b7c40869a4909a
+        if: contains(matrix.os, 'ubuntu')
+        with:
+          folder: dist
+          tag: ${{ steps.get_tag_version.outputs.TAG_VERSION }}
+          token: ${{ secrets.DENOBOT_PAT }}

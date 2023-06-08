@@ -1,8 +1,8 @@
+import * as path from "$std/path/mod.ts";
 import { CommandContext } from "../command_handler.ts";
+import { resolvePath, safeLstat } from "../common.ts";
 import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { resolvePath, safeLstat } from "../common.ts";
-import { path } from "../deps.ts";
 
 export async function cpCommand(
   context: CommandContext,

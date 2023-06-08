@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
 import { safeLstat } from "../common.ts";
+import { ExecuteResult, resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function mkdirCommand(

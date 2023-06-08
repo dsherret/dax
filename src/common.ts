@@ -1,5 +1,6 @@
+import { BufReader } from "$std/io/buf_reader.ts";
+import * as path from "$std/path/mod.ts";
 import { logger } from "./console/mod.ts";
-import { BufReader, path } from "./deps.ts";
 
 /**
  * Delay used for certain actions.

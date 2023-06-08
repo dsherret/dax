@@ -1,4 +1,4 @@
-import { assertEquals } from "../../deps.test.ts";
+import { assertEquals } from "$std/testing/asserts.ts";
 import { wasmInstance } from "../../lib/mod.ts";
 import { renderProgressBar } from "./mod.ts";
 
