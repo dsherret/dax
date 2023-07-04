@@ -677,6 +677,24 @@ Deno.test("copyFile", async () => {
   });
 });
 
+Deno.test("copyFileToDir", async () => {
+  await withTempDir(async () => {
+    const path = createPathRef("file.txt")
+      .writeTextSync("text");
+    const dir = createPathRef("dir").mkdirSync();
+    const newPath = await path.copyFileToDir(dir);
+    assert(path.existsSync());
+    assert(newPath.existsSync());
+    assertEquals(dir.join("file.txt").toString(), newPath.toString());
+    assertEquals(newPath.readTextSync(), "text");
+    const dir2 = createPathRef("dir2").mkdirSync();
+    const newPath2 = path.copyFileToDir(dir2);
+    assert(newPath2.existsSync());
+    assertEquals(newPath2.readTextSync(), "text");
+    assertEquals(newPath2.toString(), dir2.join("file.txt").toString());
+  });
+});
+
 Deno.test("rename", async () => {
   await withTempDir(async () => {
     const path = createPathRef("file.txt").writeTextSync("");
