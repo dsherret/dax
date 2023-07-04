@@ -688,7 +688,7 @@ Deno.test("copyFileToDir", async () => {
     assertEquals(dir.join("file.txt").toString(), newPath.toString());
     assertEquals(newPath.readTextSync(), "text");
     const dir2 = createPathRef("dir2").mkdirSync();
-    const newPath2 = path.copyFileToDir(dir2);
+    const newPath2 = path.copyFileToDirSync(dir2);
     assert(newPath2.existsSync());
     assertEquals(newPath2.readTextSync(), "text");
     assertEquals(newPath2.toString(), dir2.join("file.txt").toString());
