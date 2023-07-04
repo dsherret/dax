@@ -825,10 +825,10 @@ export class PathRef {
    * Copies the file to the specified directory.
    * @returns The destination file path.
    */
-  copyFileToDir(destinationDirPath: string | URL | PathRef): PathRef {
+  copyFileToDir(destinationDirPath: string | URL | PathRef): Promise<PathRef> {
     const destinationPath = ensurePathRef(destinationDirPath)
       .join(this.basename());
-    return this.copyFileSync(destinationPath);
+    return this.copyFile(destinationPath);
   }
 
   /**
