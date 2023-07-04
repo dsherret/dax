@@ -802,8 +802,8 @@ export class PathRef {
   }
 
   /**
-   * Copies the file returning a promise that resolves to
-   * the destination path.
+   * Copies the file to the specified destination path.
+   * @returns The destination file path.
    */
   copyFile(destinationPath: string | URL | PathRef): Promise<PathRef> {
     const pathRef = ensurePathRef(destinationPath);
@@ -812,13 +812,33 @@ export class PathRef {
   }
 
   /**
-   * Copies the file returning a promise that resolves to
-   * the destination path synchronously.
+   * Copies the file to the destination path synchronously.
+   * @returns The destination file path.
    */
   copyFileSync(destinationPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(destinationPath);
     Deno.copyFileSync(this.#path, pathRef.#path);
     return pathRef;
+  }
+
+  /**
+   * Copies the file to the specified directory.
+   * @returns The destination file path.
+   */
+  copyFileToDir(destinationDirPath: string | URL | PathRef): PathRef {
+    const destinationPath = ensurePathRef(destinationDirPath)
+      .join(this.basename());
+    return this.copyFileSync(destinationPath);
+  }
+
+  /**
+   * Copies the file to the specified directory synchronously.
+   * @returns The destination file path.
+   */
+  copyFileToDirSync(destinationDirPath: string | URL | PathRef): PathRef {
+    const destinationPath = ensurePathRef(destinationDirPath)
+      .join(this.basename());
+    return this.copyFileSync(destinationPath);
   }
 
   /**
