@@ -1515,11 +1515,9 @@ Deno.test("should error creating a command signal", () => {
 });
 
 Deno.test("should receive signal when listening", { ignore: Deno.build.os === "windows" }, async () => {
-  const p =
-    $`deno eval 'Deno.addSignalListener("SIGBREAK", () => { console.log("RECEIVED SIGBREAK"); }); Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT"));'`
-      .spawn();
+  const p = $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT"));'`
+    .spawn();
   await $.sleep(20);
-  p.kill("SIGBREAK");
   p.kill("SIGINT");
   await $.sleep(20);
   // now terminate it
