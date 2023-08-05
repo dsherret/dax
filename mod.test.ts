@@ -696,7 +696,7 @@ Deno.test("abort", async () => {
   await assertRejects(
     async () => {
       const child = command.spawn();
-      child.abort();
+      child.kill();
       await child;
     },
     Error,
@@ -704,7 +704,7 @@ Deno.test("abort", async () => {
   );
 
   const child = command.noThrow().spawn();
-  child.abort();
+  child.kill();
   const result = await child;
   assertEquals(result.code, 124);
 });
@@ -895,7 +895,7 @@ Deno.test("streaming api stdin not used in provided command", async () => {
     .stdin(stdout)
     .text();
   assertEquals(text, "1");
-  child.abort();
+  child.kill();
   await assertRejects(
     async () => {
       await child;

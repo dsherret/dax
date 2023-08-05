@@ -239,9 +239,9 @@ Instead of awaiting the template literal, you can get a command child by calling
 ```ts
 const child = $`echo 1 && sleep 100 && echo 2`.spawn();
 
-// abort the child after 1s
+// kill the child after 1s
 await $.sleep("1s");
-child.abort();
+child.kill(); // or provide other signals like "SIGKILL". It uses "SIGTERM" by default
 
 await child; // Error: Aborted with exit code: 124
 ```

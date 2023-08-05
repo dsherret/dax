@@ -478,15 +478,12 @@ export class CommandChild extends Promise<CommandResult> {
     this.#commandSignalController = options.commandSignalController;
   }
 
-  /** Cancels the executing command, sending any spawned child process a SIGTERM if able. */
-  abort(): void {
-    this.#commandSignalController?.abort();
-  }
-
   /** Send a signal to the executing command's child process. Note that SIGTERM,
-   * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP will also abort the command.
+   * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP will cause the entire command
+   * to be considered "aborted" and will return a 124 exit code, while other signals
+   * will just be forwarded to the command.
    */
-  kill(signal: Deno.Signal): void {
+  kill(signal: Deno.Signal = "SIGTERM"): void {
     this.#commandSignalController?.sendSignal(signal);
   }
 
