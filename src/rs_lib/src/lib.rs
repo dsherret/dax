@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -28,9 +29,9 @@ pub enum WasmTextItem {
 impl WasmTextItem {
   pub fn as_text_item(&self) -> TextItem {
     match self {
-      WasmTextItem::Text(text) => TextItem::Text(text.as_str()),
+      WasmTextItem::Text(text) => TextItem::Text(Cow::Borrowed(text.as_str())),
       WasmTextItem::HangingText { text, indent } => TextItem::HangingText {
-        text: text.as_str(),
+        text: Cow::Borrowed(text.as_str()),
         indent: *indent,
       },
     }
@@ -51,8 +52,9 @@ pub fn static_text_render_text(
   rows: usize,
 ) -> Result<Option<String>, JsValue> {
   let items: Vec<WasmTextItem> = serde_wasm_bindgen::from_value(items)?;
+  let items = items.iter().map(|t| t.as_text_item()).collect::<Vec<_>>();
   Ok(STATIC_TEXT.lock().unwrap().render_items_with_size(
-    items.iter().map(|i| i.as_text_item()),
+    items.iter(),
     ConsoleSize {
       cols: Some(cols as u16),
       rows: Some(rows as u16),
@@ -78,14 +80,15 @@ pub fn static_text_render_once(
   rows: usize,
 ) -> Result<Option<String>, JsValue> {
   let items: Vec<WasmTextItem> = serde_wasm_bindgen::from_value(items)?;
+  let items = items.iter().map(|t| t.as_text_item()).collect::<Vec<_>>();
   let mut static_text = ConsoleStaticText::new(move || ConsoleSize {
     cols: Some(cols as u16),
     rows: Some(rows as u16),
   });
-  Ok(static_text.render_items(items.iter().map(|i| i.as_text_item())))
+  Ok(static_text.render_items(items.iter()))
 }
 
 #[wasm_bindgen]
 pub fn strip_ansi_codes(text: String) -> String {
-  console_static_text::strip_ansi_codes(&text).to_string()
+  console_static_text::ansi::strip_ansi_codes(&text).to_string()
 }
