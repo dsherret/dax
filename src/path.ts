@@ -263,8 +263,6 @@ export class PathRef {
   /** Gets the relative path from this path to the specified path. */
   relative(to: string | URL | PathRef): string {
     const toPathRef = ensurePathRef(to);
-    console.log(this.resolve().#path, toPathRef.resolve().#path);
-    console.log(stdPath.relative(this.resolve().#path, toPathRef.resolve().#path));
     return stdPath.relative(this.resolve().#path, toPathRef.resolve().#path);
   }
 
