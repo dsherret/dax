@@ -13,7 +13,7 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, filterEmptyRecordValues, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
