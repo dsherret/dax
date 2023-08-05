@@ -1,5 +1,5 @@
 import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler, CommandSignal } from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -873,7 +873,7 @@ Deno.test("streaming api errors while streaming", async () => {
   }
 
   {
-    const child = $`echo 1 && echo 2 && sleep 0.5 && exit 1`.stdout("piped").spawn();
+    const child = $`echo 1 && echo 2 && sleep 0.6 && exit 1`.stdout("piped").spawn();
     const stdout = child.stdout();
 
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
@@ -1507,10 +1507,10 @@ Deno.test("should give nice error message when cwd directory does not exist", as
 Deno.test("should error creating a command signal", () => {
   assertThrows(
     () => {
-      new (CommandSignal as any)();
+      new (KillSignal as any)();
     },
     Error,
-    "Constructing instances of CommandSignal is not permitted.",
+    "Constructing instances of KillSignal is not permitted.",
   );
 });
 
@@ -1527,3 +1527,93 @@ Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "l
   p.kill("SIGKILL");
   assertEquals((await p).stdout, "started\nRECEIVED SIGINT\n");
 });
+
+Deno.test("signal listening in registered commands", async () => {
+  const commandBuilder = new CommandBuilder().noThrow().registerCommand("listen", (handler) => {
+    return new Promise((resolve) => {
+      function listener(signal: Deno.Signal) {
+        if (signal === "SIGKILL") {
+          resolve({
+            kind: "exit",
+            code: 1,
+          });
+          handler.signal.removeListener(listener);
+        } else {
+          handler.stderr.writeLine(signal);
+        }
+      }
+
+      handler.signal.addListener(listener);
+    });
+  });
+  const $ = build$({ commandBuilder });
+
+  const child = $`listen`.stderr("piped").spawn();
+  await $.sleep(5); // let the command start up
+  child.kill("SIGINT");
+  child.kill("SIGBREAK");
+  child.kill("SIGKILL");
+
+  const result = await child;
+  assertEquals(result.code, 1);
+  assertEquals(result.stderr, "SIGINT\nSIGBREAK\n");
+});
+
+Deno.test("should support setting a command signal", async () => {
+  const controller = new KillSignalController();
+  const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
+  const $ = build$({ commandBuilder });
+  const startTime = new Date().getTime();
+
+  const processes = [
+    $`sleep 100s`.spawn(),
+    $`sleep 100s`.spawn(),
+    $`sleep 100s`.spawn(),
+    // this will be triggered as well because this signal
+    // will be linked to the parent signal
+    $`sleep 100s`.signal(new KillSignalController().signal),
+  ];
+
+  const subController = new KillSignalController();
+  const p = $`sleep 100s`.signal(subController.signal).spawn();
+
+  await $.sleep("5ms");
+
+  subController.kill();
+
+  await p;
+
+  const restPromise = Promise.all(processes);
+  await ensurePromiseNotResolved(restPromise);
+
+  controller.kill();
+
+  await restPromise;
+  const endTime = new Date().getTime();
+  assert(endTime - startTime < 1000);
+});
+
+Deno.test("ensure KillSignalController readme example works", async () => {
+  const controller = new KillSignalController();
+  const signal = controller.signal;
+  const startTime = new Date().getTime();
+
+  const promise = Promise.all([
+    $`sleep 1000s`.signal(signal),
+    $`sleep 2000s`.signal(signal),
+    $`sleep 3000s`.signal(signal),
+  ]);
+
+  $.sleep("5ms").then(() => controller.kill("SIGKILL"));
+
+  await assertRejects(() => promise, Error, "Aborted with exit code: 124");
+  const endTime = new Date().getTime();
+  assert(endTime - startTime < 1000);
+});
+
+function ensurePromiseNotResolved(promise: Promise<unknown>) {
+  return new Promise<void>((resolve, reject) => {
+    promise.then(() => reject(new Error("Promise was resolved")));
+    setTimeout(resolve, 1);
+  });
+}
