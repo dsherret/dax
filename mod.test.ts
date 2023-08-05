@@ -1493,3 +1493,13 @@ Deno.test("printenv", async () => {
     assertEquals(result.stdout, "world\n");
   }
 });
+
+Deno.test("should give nice error message when cwd directory does not exist", async () => {
+  await assertRejects(
+    async () => {
+      await $`deno eval 'console.log(5)'`.cwd("./non_existent/directory");
+    },
+    Error,
+    "Failed to launch command because the cwd does not exist",
+  );
+});

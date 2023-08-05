@@ -1,6 +1,6 @@
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
-import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
+import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
@@ -578,12 +578,24 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     stdout: getStdioStringValue(context.stdout.kind),
     stderr: getStdioStringValue(context.stderr.kind),
   };
-  const p = new Deno.Command(resolvedCommand.path, {
-    args: commandArgs.slice(1),
-    cwd: context.getCwd(),
-    env: context.getEnvVars(),
-    ...pipeStringVals,
-  }).spawn();
+  let p: Deno.ChildProcess;
+  const cwd = context.getCwd();
+  try {
+    p = new Deno.Command(resolvedCommand.path, {
+      args: commandArgs.slice(1),
+      cwd,
+      env: context.getEnvVars(),
+      ...pipeStringVals,
+    }).spawn();
+  } catch (err) {
+    if (err.code === "ENOENT" && !fs.existsSync(cwd)) {
+      throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
+        cause: err,
+      });
+    } else {
+      throw err;
+    }
+  }
   const abortListener = () => p.kill("SIGKILL");
   context.signal.addEventListener("abort", abortListener);
   const completeController = new AbortController();
