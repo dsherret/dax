@@ -1,7 +1,9 @@
 {
   "exec": {
-    "associations": "**/*.rs",
-    "rustfmt": "rustfmt"
+    "commands": [{
+      "command": "rustfmt",
+      "exts": ["rs"]
+    }]
   },
   "typescript": {
     "deno": true,
@@ -10,7 +12,6 @@
   "markdown": {
     "lineWidth": 120
   },
-  "includes": ["**/*.{ts,tsx,js,jsx,cjs,mjs,json,md,toml,rs}"],
   "excludes": [
     "**/node_modules",
     "**/*-lock.json",
@@ -18,10 +19,10 @@
     "**/*.generated.js"
   ],
   "plugins": [
-    "https://plugins.dprint.dev/typescript-0.84.2.wasm",
-    "https://plugins.dprint.dev/json-0.17.2.wasm",
-    "https://plugins.dprint.dev/markdown-0.15.2.wasm",
+    "https://plugins.dprint.dev/typescript-0.85.1.wasm",
+    "https://plugins.dprint.dev/json-0.17.4.wasm",
+    "https://plugins.dprint.dev/markdown-0.15.3.wasm",
     "https://plugins.dprint.dev/toml-0.5.4.wasm",
-    "https://plugins.dprint.dev/exec-0.3.5.json@d687dda57be0fe9a0088ccdaefa5147649ff24127d8b3ea227536c68ee7abeab"
+    "https://plugins.dprint.dev/exec-0.4.3.json@42343548b8022c99b1d750be6b894fe6b6c7ee25f72ae9f9082226dd2e515072"
   ]
 }
