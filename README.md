@@ -225,7 +225,7 @@ await $`echo ${text}`; // will output `> echo example` before running the comman
 
 ### Timeout a command
 
-This will exit with code 124.
+This will exit with code 124 after 1 second.
 
 ```ts
 // timeout a command after a specified time
