@@ -1,6 +1,5 @@
 {
   "tasks": {
-    "bench": "deno bench -A",
     "test": "deno test -A",
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.10.2/main.ts --sync --out ./src/lib"
   },
