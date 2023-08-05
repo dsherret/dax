@@ -1,5 +1,5 @@
 import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler, CommandSignal } from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -696,7 +696,7 @@ Deno.test("abort", async () => {
   await assertRejects(
     async () => {
       const child = command.spawn();
-      child.abort();
+      child.kill();
       await child;
     },
     Error,
@@ -704,7 +704,7 @@ Deno.test("abort", async () => {
   );
 
   const child = command.noThrow().spawn();
-  child.abort();
+  child.kill();
   const result = await child;
   assertEquals(result.code, 124);
 });
@@ -895,7 +895,7 @@ Deno.test("streaming api stdin not used in provided command", async () => {
     .stdin(stdout)
     .text();
   assertEquals(text, "1");
-  child.abort();
+  child.kill();
   await assertRejects(
     async () => {
       await child;
@@ -1502,4 +1502,28 @@ Deno.test("should give nice error message when cwd directory does not exist", as
     Error,
     "Failed to launch command because the cwd does not exist",
   );
+});
+
+Deno.test("should error creating a command signal", () => {
+  assertThrows(
+    () => {
+      new (CommandSignal as any)();
+    },
+    Error,
+    "Constructing instances of CommandSignal is not permitted.",
+  );
+});
+
+Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "linux" }, async () => {
+  const p =
+    $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT")); console.log("started"); setTimeout(() => {}, 10_000)'`
+      .noThrow()
+      .stdout("piped")
+      .spawn();
+  await $.sleep(60);
+  p.kill("SIGINT");
+  await $.sleep(30);
+  // now terminate it
+  p.kill("SIGKILL");
+  assertEquals((await p).stdout, "started\nRECEIVED SIGINT\n");
 });

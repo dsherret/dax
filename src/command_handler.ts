@@ -1,4 +1,5 @@
 import { ExecuteResult } from "./result.ts";
+import type { CommandSignal } from "./command.ts";
 
 /** Used to read from stdin. */
 export type CommandPipeReader = "inherit" | "null" | Deno.Reader;
@@ -18,7 +19,7 @@ export interface CommandContext {
   get stdin(): CommandPipeReader;
   get stdout(): CommandPipeWriter;
   get stderr(): CommandPipeWriter;
-  get signal(): AbortSignal;
+  get signal(): CommandSignal;
 }
 
 /** Handler for executing a command. */

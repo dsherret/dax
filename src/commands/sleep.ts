@@ -5,13 +5,20 @@ export async function sleepCommand(context: CommandContext): Promise<ExecuteResu
   try {
     const ms = parseArgs(context.args);
     await new Promise<void>((resolve) => {
-      const timeoutId = setTimeout(listener, ms);
-      context.signal.addEventListener("abort", listener);
+      const timeoutId = setTimeout(finish, ms);
+      context.signal.addListener(signalListener);
 
-      function listener() {
+      function signalListener(_signal: Deno.Signal) {
+        // finish if it was a signal that caused an abort, otherwise ignore
+        if (context.signal.aborted) {
+          finish();
+        }
+      }
+
+      function finish() {
         resolve();
         clearInterval(timeoutId);
-        context.signal.removeEventListener("abort", listener);
+        context.signal.removeListener(signalListener);
       }
     });
     if (context.signal.aborted) {
