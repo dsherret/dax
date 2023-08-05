@@ -708,6 +708,35 @@ Deno.test("rename", async () => {
   });
 });
 
+Deno.test("renameToDir", async () => {
+  await withTempDir(async () => {
+    const path = createPathRef("file.txt")
+      .writeTextSync("text");
+    const dir = createPathRef("dir").mkdirSync();
+    const newPath = await path.renameToDir(dir);
+    assert(!path.existsSync());
+    assert(newPath.existsSync());
+    assertEquals(dir.join("file.txt").toString(), newPath.toString());
+    assertEquals(newPath.readTextSync(), "text");
+    const dir2 = createPathRef("dir2").mkdirSync();
+    const newPath2 = newPath.renameToDirSync(dir2);
+    assert(!newPath.existsSync());
+    assert(newPath2.existsSync());
+    assertEquals(newPath2.readTextSync(), "text");
+    assertEquals(newPath2.toString(), dir2.join("file.txt").toString());
+
+    // now try a directory
+    await dir2.renameToDir(dir);
+    assert(dir.join("dir2").join("file.txt").existsSync());
+
+    // try a directory sync
+    const subDir = dir.join("subdir");
+    subDir.mkdirSync();
+    dir.join("dir2").renameToDirSync(subDir);
+    assert(subDir.join("dir2").join("file.txt").existsSync());
+  });
+});
+
 Deno.test("pipeTo", async () => {
   await withTempDir(async () => {
     const largeText = "asdf".repeat(100_000);
