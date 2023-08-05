@@ -1,5 +1,12 @@
 import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler, CommandSignal } from "./mod.ts";
+import $, {
+  build$,
+  CommandBuilder,
+  CommandContext,
+  CommandHandler,
+  CommandSignal,
+  CommandSignalController,
+} from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -1526,4 +1533,25 @@ Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "l
   // now terminate it
   p.kill("SIGKILL");
   assertEquals((await p).stdout, "started\nRECEIVED SIGINT\n");
+});
+
+Deno.test("should support setting a command signal", async () => {
+  const controller = new CommandSignalController();
+  const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
+  const $ = build$({ commandBuilder });
+  const startTime = new Date().getTime();
+
+  const processes = [
+    $`sleep 100s`.spawn(),
+    $`sleep 100s`.spawn(),
+    $`sleep 100s`.spawn(),
+  ];
+
+  await $.sleep("5ms");
+
+  controller.kill();
+
+  await Promise.all(processes);
+  const endTime = new Date().getTime();
+  assert(endTime - startTime < 1000);
 });
