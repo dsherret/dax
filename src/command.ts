@@ -13,7 +13,7 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, LoggerTreeBox, ReadonlyBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
@@ -205,9 +205,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
-  /** Sets the command signal that can be used to create */
+  /** Sets the command signal that will be passed to all commands
+   * created with this command builder.
+   */
   signal(signal: CommandSignal): CommandBuilder {
     return this.#newWithState((state) => {
+      if (state.signal != null) {
+        state.signal.addListener((signal) => {
+          signal.kill(signal);
+        });
+      }
       state.signal = signal;
     });
   }
@@ -870,14 +877,14 @@ const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
 /** Similar to an AbortController, but for sending signals to commands. */
 export class CommandSignalController {
-  #abortController: AbortController;
+  #aborted: Box<boolean>;
   #listeners: ((signal: Deno.Signal) => void)[];
   #commandSignal: CommandSignal;
 
   constructor() {
-    this.#abortController = new AbortController();
+    this.#aborted = new Box(false);
     this.#listeners = [];
-    this.#commandSignal = new CommandSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#abortController.signal, this.#listeners);
+    this.#commandSignal = new CommandSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#aborted, this.#listeners);
   }
 
   get signal(): CommandSignal {
@@ -898,7 +905,7 @@ export class CommandSignalController {
       case "SIGQUIT":
       case "SIGINT":
       case "SIGSTOP":
-        this.#abortController.abort();
+        this.#aborted.value = true;
         break;
       default:
         break;
@@ -919,19 +926,22 @@ export class CommandSignalController {
  */
 export class CommandSignal {
   #listeners: ((signal: Deno.Signal) => void)[];
-  #abortSignal: AbortSignal;
+  #isAborted: ReadonlyBox<boolean>;
 
   /** @internal */
-  constructor(symbol: Symbol, abortSignal: AbortSignal, listeners: ((signal: Deno.Signal) => void)[]) {
+  constructor(symbol: Symbol, isAborted: ReadonlyBox<boolean>, listeners: ((signal: Deno.Signal) => void)[]) {
     if (symbol !== SHELL_SIGNAL_CTOR_SYMBOL) {
       throw new Error("Constructing instances of CommandSignal is not permitted.");
     }
-    this.#abortSignal = abortSignal;
+    this.#isAborted = isAborted;
     this.#listeners = listeners;
   }
 
+  /** Returns if the command signal has ever received a SIGTERM,
+   * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP
+   */
   get aborted(): boolean {
-    return this.#abortSignal.aborted;
+    return this.#isAborted.value;
   }
 
   addListener(listener: (signal: Deno.Signal) => void) {

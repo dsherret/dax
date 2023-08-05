@@ -123,6 +123,10 @@ export function resolvePath(cwd: string, arg: string) {
   return path.resolve(path.isAbsolute(arg) ? arg : path.join(cwd, arg));
 }
 
+export interface ReadonlyBox<T> {
+  readonly value: T;
+}
+
 export class Box<T> {
   constructor(public value: T) {
   }
