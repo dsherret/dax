@@ -515,6 +515,8 @@ Deno.test("write", async () => {
 
     file2.writeTextSync("test");
     assertEquals(file2.readTextSync(), "test");
+    file2.writeTextSync("\ntest", { append: true });
+    assertEquals(file2.readTextSync(), "test\ntest");
 
     await file3.write(new TextEncoder().encode("test"));
     assertEquals(file3.readTextSync(), "test");

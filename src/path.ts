@@ -689,7 +689,7 @@ export class PathRef {
   /** Opens a file for writing, but handles if the directory does not exist. */
   #openFileForWritingSync(options: Deno.WriteFileOptions | undefined) {
     try {
-      return this.openSync({ write: true, create: true, truncate: true, ...options });
+      return this.openSync({ write: true, create: true, truncate: options?.append !== true, ...options });
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) {
         // attempt to create the parent directory when it doesn't exist
