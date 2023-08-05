@@ -464,23 +464,30 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 export class CommandChild extends Promise<CommandResult> {
   #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
   #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
-  #abortController: AbortController | undefined;
+  #commandSignalController: CommandSignalController | undefined;
 
   /** @internal */
   constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
     pipedStdoutBuffer: PipedBuffer | undefined;
     pipedStderrBuffer: PipedBuffer | undefined;
-    abortController: AbortController | undefined;
-  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, abortController: undefined }) {
+    commandSignalController: CommandSignalController | undefined;
+  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, commandSignalController: undefined }) {
     super(executor);
     this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
     this.#pipedStderrBuffer = options.pipedStderrBuffer;
-    this.#abortController = options.abortController;
+    this.#commandSignalController = options.commandSignalController;
   }
 
-  /** Cancels the executing command if able. */
+  /** Cancels the executing command, sending any spawned child process a SIGTERM if able. */
   abort(): void {
-    this.#abortController?.abort();
+    this.#commandSignalController?.abort();
+  }
+
+  /** Send a signal to the executing command's child process. Note that SIGTERM,
+   * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP will also abort the command.
+   */
+  kill(signal: Deno.Signal): void {
+    this.#commandSignalController?.sendSignal(signal);
   }
 
   stdout(): ReadableStream<Uint8Array> {
@@ -553,17 +560,17 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
 
-  const abortController = new AbortController();
-  const abortSignal = abortController.signal;
+  const commandSignalController = new CommandSignalController();
   let timeoutId: number | undefined;
   let timedOut = false;
   if (state.timeout != null) {
     timeoutId = setTimeout(() => {
       timedOut = true;
-      abortController.abort();
+      commandSignalController.abort();
     }, state.timeout);
   }
   const command = state.command;
+  const signal = commandSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
@@ -577,7 +584,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         commands: state.commands,
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
-        signal: abortSignal,
+        signal,
       });
       if (code !== 0 && !state.noThrow) {
         if (stdin instanceof ReadableStream) {
@@ -585,7 +592,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
             stdin.cancel();
           }
         }
-        if (abortSignal.aborted) {
+        if (signal.aborted) {
           throw new Error(`${timedOut ? "Timed out" : "Aborted"} with exit code: ${code}`);
         } else {
           throw new Error(`Exited with code: ${code}`);
@@ -611,7 +618,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }, {
     pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
     pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
-    abortController,
+    commandSignalController,
   });
 
   function takeStdin() {
@@ -835,5 +842,76 @@ export function escapeArg(arg: string) {
 function validateCommandName(command: string) {
   if (command.match(/^[a-zA-Z0-9-_]+$/) == null) {
     throw new Error("Invalid command name");
+  }
+}
+
+const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
+
+class CommandSignalController {
+  #abortController: AbortController;
+  #listeners: ((signal: Deno.Signal) => void)[];
+  #commandSignal: CommandSignal;
+
+  constructor() {
+    this.#abortController = new AbortController();
+    this.#listeners = [];
+    this.#commandSignal = new CommandSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#abortController.signal, this.#listeners);
+  }
+
+  abort() {
+    this.sendSignal("SIGTERM");
+  }
+
+  get signal() {
+    return this.#commandSignal;
+  }
+
+  sendSignal(signal: Deno.Signal) {
+    // consider the command aborted if the signal is any one of these
+    switch (signal) {
+      case "SIGTERM":
+      case "SIGKILL":
+      case "SIGABRT":
+      case "SIGQUIT":
+      case "SIGINT":
+      case "SIGSTOP":
+        this.#abortController.abort();
+        break;
+      default:
+        break;
+    }
+
+    for (const listener of this.#listeners) {
+      listener(signal);
+    }
+  }
+}
+
+export class CommandSignal {
+  #listeners: ((signal: Deno.Signal) => void)[];
+  #abortSignal: AbortSignal;
+
+  /** @internal */
+  constructor(symbol: Symbol, abortSignal: AbortSignal, listeners: ((signal: Deno.Signal) => void)[]) {
+    if (symbol !== SHELL_SIGNAL_CTOR_SYMBOL) {
+      throw new Error("Constructing instances of CommandSignal is not permitted.");
+    }
+    this.#abortSignal = abortSignal;
+    this.#listeners = listeners;
+  }
+
+  get aborted() {
+    return this.#abortSignal.aborted;
+  }
+
+  addListener(listener: (signal: Deno.Signal) => void) {
+    this.#listeners.push(listener);
+  }
+
+  removeListener(listener: (signal: Deno.Signal) => void) {
+    const index = this.#listeners.indexOf(listener);
+    if (index >= 0) {
+      this.#listeners.splice(index, 1);
+    }
   }
 }

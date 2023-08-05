@@ -1,5 +1,5 @@
 import { readAll } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler } from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler, CommandSignal } from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -1502,4 +1502,27 @@ Deno.test("should give nice error message when cwd directory does not exist", as
     Error,
     "Failed to launch command because the cwd does not exist",
   );
+});
+
+Deno.test("should error creating a command signal", () => {
+  assertThrows(
+    () => {
+      new (CommandSignal as any)();
+    },
+    Error,
+    "Constructing instances of CommandSignal is not permitted.",
+  );
+});
+
+Deno.test("should receive signal when listening", { ignore: Deno.build.os === "windows" }, async () => {
+  const p =
+    $`deno eval 'Deno.addSignalListener("SIGBREAK", () => { console.log("RECEIVED SIGBREAK"); }); Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT"));'`
+      .spawn();
+  await $.sleep(20);
+  p.kill("SIGBREAK");
+  p.kill("SIGINT");
+  await $.sleep(20);
+  // now terminate it
+  p.kill("SIGKILL");
+  assertEquals((await p).stdout, "");
 });

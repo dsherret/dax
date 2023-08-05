@@ -1,3 +1,4 @@
+import { CommandSignal } from "./command.ts";
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
@@ -205,7 +206,7 @@ export class Context {
   #env: Env;
   #shellVars: Record<string, string>;
   #commands: Record<string, CommandHandler>;
-  #signal: AbortSignal;
+  #signal: CommandSignal;
 
   constructor(opts: {
     stdin: ShellPipeReader;
@@ -214,7 +215,7 @@ export class Context {
     env: Env;
     commands: Record<string, CommandHandler>;
     shellVars: Record<string, string>;
-    signal: AbortSignal;
+    signal: CommandSignal;
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
@@ -357,7 +358,7 @@ export interface SpawnOpts {
   commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
-  signal: AbortSignal;
+  signal: CommandSignal;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
@@ -597,8 +598,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       throw err;
     }
   }
-  const abortListener = () => p.kill("SIGKILL");
-  context.signal.addEventListener("abort", abortListener);
+  const listener = (signal: Deno.Signal) => p.kill(signal);
+  context.signal.addListener(listener);
   const completeController = new AbortController();
   const completeSignal = completeController.signal;
   let stdinError: unknown | undefined;
@@ -644,7 +645,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     }
   } finally {
     completeController.abort();
-    context.signal.removeEventListener("abort", abortListener);
+    context.signal.removeListener(listener);
 
     // ensure this is done before exiting... it will never throw
     await stdinPromise;
