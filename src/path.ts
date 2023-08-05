@@ -266,12 +266,12 @@ export class PathRef {
     return stdPath.relative(this.resolve().#path, toPathRef.resolve().#path);
   }
 
-  /** Gets if the path exists. Beaware of TOCTOU issues. */
+  /** Gets if the path exists. Beware of TOCTOU issues. */
   exists(): Promise<boolean> {
     return this.lstat().then((info) => info != null);
   }
 
-  /** Synchronously gets if the path exists. Beaware of TOCTOU issues. */
+  /** Synchronously gets if the path exists. Beware of TOCTOU issues. */
   existsSync(): boolean {
     return this.lstatSync() != null;
   }
@@ -840,7 +840,7 @@ export class PathRef {
   }
 
   /**
-   * Renames the file or directory returning a promise that resolves to
+   * Moves the file or directory returning a promise that resolves to
    * the renamed path.
    */
   rename(newPath: string | URL | PathRef): Promise<PathRef> {
@@ -849,13 +849,33 @@ export class PathRef {
   }
 
   /**
-   * Renames the file or directory returning a promise that resolves to
+   * Moves the file or directory returning a promise that resolves to
    * the renamed path synchronously.
    */
   renameSync(newPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(newPath);
     Deno.renameSync(this.#path, pathRef.#path);
     return pathRef;
+  }
+
+  /**
+   * Moves the file or directory to the specified directory.
+   * @returns The destination file path.
+   */
+  renameToDir(destinationDirPath: string | URL | PathRef): Promise<PathRef> {
+    const destinationPath = ensurePathRef(destinationDirPath)
+      .join(this.basename());
+    return this.rename(destinationPath);
+  }
+
+  /**
+   * Moves the file or directory to the specified directory synchronously.
+   * @returns The destination file path.
+   */
+  renameToDirSync(destinationDirPath: string | URL | PathRef): PathRef {
+    const destinationPath = ensurePathRef(destinationDirPath)
+      .join(this.basename());
+    return this.renameSync(destinationPath);
   }
 
   /** Opens the file and pipes it to the writable stream. */
