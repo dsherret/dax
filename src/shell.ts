@@ -585,6 +585,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       args: commandArgs.slice(1),
       cwd,
       env: context.getEnvVars(),
+      clearEnv: true,
       ...pipeStringVals,
     }).spawn();
   } catch (err) {
