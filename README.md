@@ -241,7 +241,7 @@ const child = $`echo 1 && sleep 100 && echo 2`.spawn();
 
 // kill the child after 1s
 await $.sleep("1s");
-child.kill(); // or provide other signals like "SIGKILL". It uses "SIGTERM" by default
+child.kill(); // defaults to "SIGTERM"
 
 await child; // Error: Aborted with exit code: 124
 ```
@@ -262,7 +262,7 @@ const promise = Promise.all([
   $`sleep 3000s`.signal(signal),
 ]);
 
-$.sleep("1s").then(() => controller.kill("SIGKILL"));
+$.sleep("1s").then(() => controller.kill()); // defaults to "SIGTERM"
 
 await promise; // throws after 1 second
 ```

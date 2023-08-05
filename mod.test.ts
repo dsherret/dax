@@ -873,7 +873,7 @@ Deno.test("streaming api errors while streaming", async () => {
   }
 
   {
-    const child = $`echo 1 && echo 2 && sleep 0.5 && exit 1`.stdout("piped").spawn();
+    const child = $`echo 1 && echo 2 && sleep 0.6 && exit 1`.stdout("piped").spawn();
     const stdout = child.stdout();
 
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
