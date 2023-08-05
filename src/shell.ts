@@ -588,7 +588,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       ...pipeStringVals,
     }).spawn();
   } catch (err) {
-    if (!fs.existsSync(cwd)) {
+    if (err.code === "ENOENT" && !fs.existsSync(cwd)) {
       throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
         cause: err,
       });
