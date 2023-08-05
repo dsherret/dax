@@ -638,8 +638,6 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         code: 1,
         kind: "exit",
       };
-    } else if (context.signal.aborted) {
-      return getAbortedResult();
     } else {
       return resultFromCode(status.code);
     }

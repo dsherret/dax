@@ -495,8 +495,8 @@ export class CommandChild extends Promise<CommandResult> {
 
   /** Send a signal to the executing command's child process. Note that SIGTERM,
    * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP will cause the entire command
-   * to be considered "aborted" and will return a 124 exit code, while other signals
-   * will just be forwarded to the command.
+   * to be considered "aborted" and if part of a command runs after this has occurred
+   * it will return a 124 exit code. Other signals will just be forwarded to the command.
    *
    * Defaults to "SIGTERM".
    */
@@ -601,7 +601,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     try {
       const list = parseCommand(command);
       const stdin = takeStdin();
-      const code = await spawn(list, {
+      let code = await spawn(list, {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
         stdout,
         stderr,
@@ -611,16 +611,24 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         exportEnv: state.exportEnv,
         signal,
       });
-      if (code !== 0 && !state.noThrow) {
-        if (stdin instanceof ReadableStream) {
-          if (!stdin.locked) {
-            stdin.cancel();
-          }
+      if (code !== 0) {
+        if (timedOut) {
+          // override the code in the case of a timeout that resulted in a failure
+          code = 124;
         }
-        if (signal.aborted) {
-          throw new Error(`${timedOut ? "Timed out" : "Aborted"} with exit code: ${code}`);
-        } else {
-          throw new Error(`Exited with code: ${code}`);
+        if (!state.noThrow) {
+          if (stdin instanceof ReadableStream) {
+            if (!stdin.locked) {
+              stdin.cancel();
+            }
+          }
+          if (timedOut) {
+            throw new Error(`Timed out with exit code: ${code}`);
+          } else if (signal.aborted) {
+            throw new Error(`${timedOut ? "Timed out" : "Aborted"} with exit code: ${code}`);
+          } else {
+            throw new Error(`Exited with code: ${code}`);
+          }
         }
       }
       resolve(

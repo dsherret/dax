@@ -1534,8 +1534,8 @@ Deno.test("signal listening in registered commands", async () => {
       function listener(signal: Deno.Signal) {
         if (signal === "SIGKILL") {
           resolve({
-            kind: "exit",
-            code: 1,
+            kind: "continue",
+            code: 135,
           });
           handler.signal.removeListener(listener);
         } else {
@@ -1548,15 +1548,32 @@ Deno.test("signal listening in registered commands", async () => {
   });
   const $ = build$({ commandBuilder });
 
-  const child = $`listen`.stderr("piped").spawn();
-  await $.sleep(5); // let the command start up
-  child.kill("SIGINT");
-  child.kill("SIGBREAK");
-  child.kill("SIGKILL");
+  {
+    const child = $`listen`.stderr("piped").spawn();
+    await $.sleep(5); // let the command start up
+    child.kill("SIGINT");
+    child.kill("SIGBREAK");
+    child.kill("SIGKILL");
 
-  const result = await child;
-  assertEquals(result.code, 1);
-  assertEquals(result.stderr, "SIGINT\nSIGBREAK\n");
+    const result = await child;
+    assertEquals(result.code, 135);
+    assertEquals(result.stderr, "SIGINT\nSIGBREAK\n");
+  }
+
+  {
+    // now try killing while running and having a command launch afterwards on failure
+    const child = $`listen || echo 1`.stderr("piped").spawn();
+    await $.sleep(5); // let the command start up
+    child.kill("SIGINT");
+    child.kill("SIGBREAK");
+    child.kill("SIGKILL");
+
+    const result = await child;
+    // exit code should be the abort code in this case because it tried
+    // to launch `echo 1` after the command was killed
+    assertEquals(result.code, 124);
+    assertEquals(result.stderr, "SIGINT\nSIGBREAK\n");
+  }
 });
 
 Deno.test("should support setting a command signal", async () => {
