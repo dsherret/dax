@@ -1515,13 +1515,15 @@ Deno.test("should error creating a command signal", () => {
 });
 
 Deno.test("should receive signal when listening", { ignore: Deno.build.os === "windows" }, async () => {
-  const p = $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT"));'`
-    .noThrow()
-    .spawn();
-  await $.sleep(20);
+  const p =
+    $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT")); console.log("started"); setTimeout(() => {}, 10_000)'`
+      .noThrow()
+      .stdout("piped")
+      .spawn();
+  await $.sleep(50);
   p.kill("SIGINT");
   await $.sleep(20);
   // now terminate it
   p.kill("SIGKILL");
-  assertEquals((await p).stdout, "");
+  assertEquals((await p).stdout, "started\nRECEIVED SIGINT\n");
 });
