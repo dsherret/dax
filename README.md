@@ -246,6 +246,29 @@ child.kill(); // or provide other signals like "SIGKILL". It uses "SIGTERM" by d
 await child; // Error: Aborted with exit code: 124
 ```
 
+#### `KillSignalController`
+
+In some cases you might want to send signals to many commands at the same time. This is possible via a `KillSignalController`.
+
+```ts
+import $, { KillSignalController } from "...";
+
+const controller = new KillSignalController();
+const signal = controller.signal;
+
+const promise = Promise.all([
+  $`sleep 1000s`.signal(signal),
+  $`sleep 2000s`.signal(signal),
+  $`sleep 3000s`.signal(signal),
+]);
+
+$.sleep("1s").then(() => controller.kill("SIGKILL"));
+
+await promise; // throws after 1 second
+```
+
+Combining this with the `CommandBuilder` API and building your own `$` as shown later in the documentation, can be extremely useful for sending a `Deno.Signal` to all commands you've spawned.
+
 ### Exporting the environment of the shell to JavaScript
 
 When executing commands in the shell, the environment will be contained to the shell and not exported to the current process. For example:

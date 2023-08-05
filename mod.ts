@@ -32,7 +32,7 @@ import { createPathRef, PathRef } from "./src/path.ts";
 
 export { FsFileWrapper, PathRef } from "./src/path.ts";
 export type { PathSymlinkOptions, SymlinkOptions, WalkEntry } from "./src/path.ts";
-export { CommandBuilder, CommandResult, CommandSignal, CommandSignalController } from "./src/command.ts";
+export { CommandBuilder, CommandResult, KillSignal, KillSignalController } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export type {
   ConfirmOptions,

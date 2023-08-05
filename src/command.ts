@@ -13,7 +13,7 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, LoggerTreeBox, ReadonlyBox } from "./common.ts";
+import { Box, delayToMs, filterEmptyRecordValues, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
@@ -45,7 +45,7 @@ interface CommandBuilderState {
   printCommand: boolean;
   printCommandLogger: LoggerTreeBox;
   timeout: number | undefined;
-  signal: CommandSignal | undefined;
+  signal: KillSignal | undefined;
 }
 
 const textDecoder = new TextDecoder();
@@ -208,14 +208,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Sets the command signal that will be passed to all commands
    * created with this command builder.
    */
-  signal(signal: CommandSignal): CommandBuilder {
+  signal(killSignal: KillSignal): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.signal != null) {
-        state.signal.addListener((signal) => {
-          signal.kill(signal);
-        });
+        state.signal.linkChild(killSignal);
       }
-      state.signal = signal;
+      state.signal = killSignal;
     });
   }
 
@@ -481,18 +479,18 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 export class CommandChild extends Promise<CommandResult> {
   #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
   #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
-  #commandSignalController: CommandSignalController | undefined;
+  #killSignalController: KillSignalController | undefined;
 
   /** @internal */
   constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
     pipedStdoutBuffer: PipedBuffer | undefined;
     pipedStderrBuffer: PipedBuffer | undefined;
-    commandSignalController: CommandSignalController | undefined;
-  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, commandSignalController: undefined }) {
+    killSignalController: KillSignalController | undefined;
+  } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, killSignalController: undefined }) {
     super(executor);
     this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
     this.#pipedStderrBuffer = options.pipedStderrBuffer;
-    this.#commandSignalController = options.commandSignalController;
+    this.#killSignalController = options.killSignalController;
   }
 
   /** Send a signal to the executing command's child process. Note that SIGTERM,
@@ -503,7 +501,7 @@ export class CommandChild extends Promise<CommandResult> {
    * Defaults to "SIGTERM".
    */
   kill(signal?: Deno.Signal): void {
-    this.#commandSignalController?.kill(signal);
+    this.#killSignalController?.kill(signal);
   }
 
   stdout(): ReadableStream<Uint8Array> {
@@ -578,10 +576,10 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
   const parentSignal = state.signal;
   let cleanupSignalListener: (() => void) | undefined;
-  const commandSignalController = new CommandSignalController();
+  const killSignalController = new KillSignalController();
   if (parentSignal != null) {
     const parentSignalListener = (signal: Deno.Signal) => {
-      commandSignalController.kill(signal);
+      killSignalController.kill(signal);
     };
     parentSignal.addListener(parentSignalListener);
     cleanupSignalListener = () => {
@@ -593,11 +591,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   if (state.timeout != null) {
     timeoutId = setTimeout(() => {
       timedOut = true;
-      commandSignalController.kill();
+      killSignalController.kill();
     }, state.timeout);
   }
   const command = state.command;
-  const signal = commandSignalController.signal;
+  const signal = killSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
@@ -646,7 +644,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }, {
     pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
     pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
-    commandSignalController,
+    killSignalController,
   });
 
   function takeStdin() {
@@ -875,20 +873,26 @@ function validateCommandName(command: string) {
 
 const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
+interface KillSignalState {
+  aborted: boolean;
+  listeners: ((signal: Deno.Signal) => void)[];
+}
+
 /** Similar to an AbortController, but for sending signals to commands. */
-export class CommandSignalController {
-  #aborted: Box<boolean>;
-  #listeners: ((signal: Deno.Signal) => void)[];
-  #commandSignal: CommandSignal;
+export class KillSignalController {
+  #state: KillSignalState;
+  #killSignal: KillSignal;
 
   constructor() {
-    this.#aborted = new Box(false);
-    this.#listeners = [];
-    this.#commandSignal = new CommandSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#aborted, this.#listeners);
+    this.#state = {
+      aborted: false,
+      listeners: [],
+    };
+    this.#killSignal = new KillSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#state);
   }
 
-  get signal(): CommandSignal {
-    return this.#commandSignal;
+  get signal(): KillSignal {
+    return this.#killSignal;
   }
 
   /** Send a signal to the downstream child process. Note that SIGTERM,
@@ -897,61 +901,83 @@ export class CommandSignalController {
    * signals will just be forwarded to the commands.
    */
   kill(signal: Deno.Signal = "SIGTERM") {
-    // consider the command aborted if the signal is any one of these
-    switch (signal) {
-      case "SIGTERM":
-      case "SIGKILL":
-      case "SIGABRT":
-      case "SIGQUIT":
-      case "SIGINT":
-      case "SIGSTOP":
-        this.#aborted.value = true;
-        break;
-      default:
-        break;
-    }
-
-    for (const listener of this.#listeners) {
-      listener(signal);
-    }
+    sendSignalToState(this.#state, signal);
   }
 }
 
 /** Similar to `AbortSignal`, but for `Deno.Signal`.
  *
- * A `CommandSignal` is considered aborted if its controller
+ * A `KillSignal` is considered aborted if its controller
  * receives SIGTERM, SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP.
  *
- * These can be created via a `CommandSignalController`.
+ * These can be created via a `KillSignalController`.
  */
-export class CommandSignal {
-  #listeners: ((signal: Deno.Signal) => void)[];
-  #isAborted: ReadonlyBox<boolean>;
+export class KillSignal {
+  #state: KillSignalState;
 
   /** @internal */
-  constructor(symbol: Symbol, isAborted: ReadonlyBox<boolean>, listeners: ((signal: Deno.Signal) => void)[]) {
+  constructor(symbol: Symbol, state: KillSignalState) {
     if (symbol !== SHELL_SIGNAL_CTOR_SYMBOL) {
-      throw new Error("Constructing instances of CommandSignal is not permitted.");
+      throw new Error("Constructing instances of KillSignal is not permitted.");
     }
-    this.#isAborted = isAborted;
-    this.#listeners = listeners;
+    this.#state = state;
   }
 
   /** Returns if the command signal has ever received a SIGTERM,
    * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP
    */
   get aborted(): boolean {
-    return this.#isAborted.value;
+    return this.#state.aborted;
+  }
+
+  /**
+   * Causes the provided kill signal to be triggered when this
+   * signal receives a signal.
+   */
+  linkChild(killSignal: KillSignal): { unsubscribe(): void } {
+    const listener = (signal: Deno.Signal) => {
+      sendSignalToState(killSignal.#state, signal);
+    };
+    this.addListener(listener);
+    return {
+      unsubscribe: () => {
+        this.removeListener(listener);
+      },
+    };
   }
 
   addListener(listener: (signal: Deno.Signal) => void) {
-    this.#listeners.push(listener);
+    this.#state.listeners.push(listener);
   }
 
   removeListener(listener: (signal: Deno.Signal) => void) {
-    const index = this.#listeners.indexOf(listener);
+    const index = this.#state.listeners.indexOf(listener);
     if (index >= 0) {
-      this.#listeners.splice(index, 1);
+      this.#state.listeners.splice(index, 1);
     }
+  }
+}
+
+function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
+  if (signalCausesAbort(signal)) {
+    state.aborted = true;
+  }
+  for (const listener of state.listeners) {
+    listener(signal);
+  }
+}
+
+function signalCausesAbort(signal: Deno.Signal) {
+  // consider the command aborted if the signal is any one of these
+  switch (signal) {
+    case "SIGTERM":
+    case "SIGKILL":
+    case "SIGABRT":
+    case "SIGQUIT":
+    case "SIGINT":
+    case "SIGSTOP":
+      return true;
+    default:
+      return false;
   }
 }

@@ -1,12 +1,5 @@
 import { readAll } from "./src/deps.ts";
-import $, {
-  build$,
-  CommandBuilder,
-  CommandContext,
-  CommandHandler,
-  CommandSignal,
-  CommandSignalController,
-} from "./mod.ts";
+import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -1514,10 +1507,10 @@ Deno.test("should give nice error message when cwd directory does not exist", as
 Deno.test("should error creating a command signal", () => {
   assertThrows(
     () => {
-      new (CommandSignal as any)();
+      new (KillSignal as any)();
     },
     Error,
-    "Constructing instances of CommandSignal is not permitted.",
+    "Constructing instances of KillSignal is not permitted.",
   );
 });
 
@@ -1567,7 +1560,7 @@ Deno.test("signal listening in registered commands", async () => {
 });
 
 Deno.test("should support setting a command signal", async () => {
-  const controller = new CommandSignalController();
+  const controller = new KillSignalController();
   const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
   const $ = build$({ commandBuilder });
   const startTime = new Date().getTime();
@@ -1576,13 +1569,51 @@ Deno.test("should support setting a command signal", async () => {
     $`sleep 100s`.spawn(),
     $`sleep 100s`.spawn(),
     $`sleep 100s`.spawn(),
+    // this will be triggered as well because this signal
+    // will be linked to the parent signal
+    $`sleep 100s`.signal(new KillSignalController().signal),
   ];
+
+  const subController = new KillSignalController();
+  const p = $`sleep 100s`.signal(subController.signal).spawn();
 
   await $.sleep("5ms");
 
+  subController.kill();
+
+  await p;
+
+  const restPromise = Promise.all(processes);
+  await ensurePromiseNotResolved(restPromise);
+
   controller.kill();
 
-  await Promise.all(processes);
+  await restPromise;
   const endTime = new Date().getTime();
   assert(endTime - startTime < 1000);
 });
+
+Deno.test("ensure KillSignalController readme example works", async () => {
+  const controller = new KillSignalController();
+  const signal = controller.signal;
+  const startTime = new Date().getTime();
+
+  const promise = Promise.all([
+    $`sleep 1000s`.signal(signal),
+    $`sleep 2000s`.signal(signal),
+    $`sleep 3000s`.signal(signal),
+  ]);
+
+  $.sleep("5ms").then(() => controller.kill("SIGKILL"));
+
+  await assertRejects(() => promise, Error, "Aborted with exit code: 124");
+  const endTime = new Date().getTime();
+  assert(endTime - startTime < 1000);
+});
+
+function ensurePromiseNotResolved(promise: Promise<unknown>) {
+  return new Promise<void>((resolve, reject) => {
+    promise.then(() => reject(new Error("Promise was resolved")));
+    setTimeout(resolve, 1);
+  });
+}

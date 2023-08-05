@@ -1,4 +1,4 @@
-import { CommandSignal } from "./command.ts";
+import { KillSignal } from "./command.ts";
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
@@ -206,7 +206,7 @@ export class Context {
   #env: Env;
   #shellVars: Record<string, string>;
   #commands: Record<string, CommandHandler>;
-  #signal: CommandSignal;
+  #signal: KillSignal;
 
   constructor(opts: {
     stdin: ShellPipeReader;
@@ -215,7 +215,7 @@ export class Context {
     env: Env;
     commands: Record<string, CommandHandler>;
     shellVars: Record<string, string>;
-    signal: CommandSignal;
+    signal: KillSignal;
   }) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
@@ -358,7 +358,7 @@ export interface SpawnOpts {
   commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
-  signal: CommandSignal;
+  signal: KillSignal;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
