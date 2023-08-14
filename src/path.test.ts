@@ -94,6 +94,91 @@ Deno.test("ancestors", () => {
   }
 });
 
+Deno.test("components", () => {
+  {
+    const srcDir = createPathRef("src").resolve();
+    const components = Array.from(srcDir.components());
+    for (const component of components) {
+      assert(!component.includes("/"));
+      assert(!component.includes("\\"));
+    }
+    assertEquals(components.length, srcDir.toString().split(stdPath.SEP).length);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+  {
+    const srcDir = createPathRef("../src");
+    const components = Array.from(srcDir.components());
+    assertEquals(components, ["..", "src"]);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+  {
+    const srcDir = createPathRef("./src");
+    const components = Array.from(srcDir.components());
+    assertEquals(components, ["src"]);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+  // trailing slash
+  {
+    const srcDir = createPathRef("./src/");
+    const components = Array.from(srcDir.components());
+    assertEquals(components, ["src"]);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+
+  // current dir
+  {
+    const srcDir = createPathRef(".");
+    const components = Array.from(srcDir.components());
+    // todo: is this correct?
+    assertEquals(components, ["."]);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+
+  // empty dir
+  {
+    const srcDir = createPathRef("src/test//asdf");
+    const components = Array.from(srcDir.components());
+    // todo: is this correct?
+    assertEquals(components, ["src", "test", "asdf"]);
+    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+  }
+});
+
+Deno.test("startsWith", () => {
+  {
+    const srcDir = createPathRef("src").resolve();
+    const thisDir = createPathRef(".").resolve();
+    assert(srcDir.startsWith(thisDir));
+    assert(!thisDir.startsWith(srcDir));
+  }
+});
+
+Deno.test("endsWith", () => {
+  {
+    const srcDir = createPathRef("src").resolve();
+    const thisDir = createPathRef(".").resolve();
+    assert(!srcDir.endsWith(thisDir));
+    assert(!thisDir.endsWith(srcDir));
+    assert(srcDir.endsWith("src"));
+  }
+  // nested
+  {
+    const nestedDir = createPathRef("src/nested");
+    assert(nestedDir.endsWith("src/nested"));
+  }
+  // trailing slash
+  {
+    const nestedDir = createPathRef("src/nested/");
+    assert(nestedDir.endsWith("src/nested"));
+    assert(nestedDir.endsWith("src/nested/"));
+  }
+  // the same, then not
+  {
+    const nestedDir = createPathRef("src/nested").resolve();
+    assert(!nestedDir.endsWith("test/src/nested"));
+  }
+});
+
 Deno.test("resolve", () => {
   // there are more tests elsewhere
   const srcDir = createPathRef("src").resolve();
@@ -663,6 +748,41 @@ Deno.test("emptyDirSync", async () => {
     assert(!file.existsSync());
     assert(!subDir.existsSync());
     assert(dir.existsSync());
+  });
+});
+
+Deno.test("ensureDir", async () => {
+  await withTempDir(async (path) => {
+    const dir = path.join("subDir").mkdirSync();
+    const file = dir.join("file.txt").writeTextSync("text");
+    const subDir = dir.join("subDir").mkdirSync();
+    subDir.join("test").writeTextSync("");
+    assert((await dir.ensureDir()).existsSync());
+    assert(file.existsSync());
+    assert(subDir.existsSync());
+    assert((await subDir.join("sub/sub").ensureDir()).existsSync());
+  });
+});
+
+Deno.test("ensureDirSync", async () => {
+  await withTempDir((path) => {
+    const dir = path.join("subDir").mkdirSync();
+    const file = dir.join("file.txt").writeTextSync("text");
+    const subDir = dir.join("subDir").mkdirSync();
+    subDir.join("test").writeTextSync("");
+    assert(dir.ensureDirSync().isDir());
+    assert(file.existsSync());
+    assert(subDir.existsSync());
+    assert(subDir.join("sub/sub").ensureDirSync().isDir());
+  });
+});
+
+Deno.test("ensureFile", async () => {
+  await withTempDir(async (path) => {
+    const dir = path.join("subDir");
+    const file = dir.join("file.txt");
+    assert((await file.ensureFile()).isFile());
+    assert(dir.join("sub.txt").ensureFileSync().isFile());
   });
 });
 
