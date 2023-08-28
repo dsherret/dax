@@ -53,7 +53,7 @@ Deno.test("should not get stderr when inherited only (default)", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") when building the command.`,
+    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("inheritPiped") when building the command.`,
   );
 });
 
@@ -63,7 +63,7 @@ Deno.test("should not get stderr when null", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("capture") when building the command.`,
+    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("inheritPiped") when building the command.`,
   );
 });
 
