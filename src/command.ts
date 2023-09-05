@@ -788,7 +788,7 @@ export class CommandResult {
     }
     if (typeof this.#stdout === "string") {
       throw new Error(
-        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("capture") when building the command.`,
+        `Stdout was not piped (was ${this.#stdout}). Call .stdout("piped") or .stdout("inheritPiped") when building the command.`,
       );
     }
     return this.#stdout.bytes({ copy: false });
@@ -827,7 +827,7 @@ export class CommandResult {
     }
     if (typeof this.#stderr === "string") {
       throw new Error(
-        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("capture") when building the command.`,
+        `Stderr was not piped (was ${this.#stderr}). Call .stderr("piped") or .stderr("inheritPiped") when building the command.`,
       );
     }
     return this.#stderr.bytes({ copy: false });
