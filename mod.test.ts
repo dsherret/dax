@@ -1236,7 +1236,7 @@ Deno.test("copy test", async () => {
     newFile.writeTextSync("test");
     await $`cp ${newFile} ${destDir}`;
 
-    assert(destDir.isDir());
+    assert(destDir.isDirSync());
     assert(newFile.existsSync());
     assert(destDir.join("new.txt").existsSync());
 
@@ -1302,7 +1302,7 @@ Deno.test("move test", async () => {
     const newFile = dir.join("new.txt");
     newFile.writeTextSync("test");
     await $`mv ${newFile} ${destDir}`;
-    assert(destDir.isDir());
+    assert(destDir.isDirSync());
     assert(!newFile.existsSync());
     assert(destDir.join("new.txt").existsSync());
 

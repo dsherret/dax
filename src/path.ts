@@ -114,17 +114,17 @@ export class PathRef {
   }
 
   /** Follows symlinks and gets if this path is a directory. */
-  isDir(): boolean {
+  isDirSync(): boolean {
     return this.statSync()?.isDirectory ?? false;
   }
 
   /** Follows symlinks and gets if this path is a file. */
-  isFile(): boolean {
+  isFileSync(): boolean {
     return this.statSync()?.isFile ?? false;
   }
 
   /** Gets if this path is a symlink. */
-  isSymlink(): boolean {
+  isSymlinkSync(): boolean {
     return this.lstatSync()?.isSymlink ?? false;
   }
 
