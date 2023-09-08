@@ -1,4 +1,21 @@
-import { fs, path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+import {
+  emptyDir,
+  emptyDirSync,
+  ensureDir,
+  ensureDirSync,
+  ensureFile,
+  ensureFileSync,
+  expandGlob,
+  expandGlobSync,
+  path as stdPath,
+  walk,
+  walkSync,
+  writeAll,
+  writeAllSync,
+} from "./deps.ts";
+
+export type ExpandGlobOptions = import("./deps.ts").ExpandGlobOptions;
+export type WalkOptions = import("./deps.ts").WalkOptions;
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
@@ -215,6 +232,110 @@ export class PathRef {
     }
   }
 
+  *components(): Generator<string> {
+    const path = this.normalize();
+    let last_index = 0;
+
+    // yield the prefix
+    if (path.#path.startsWith("\\\\?\\")) {
+      last_index = nextSlash(path.#path, 4);
+      if (last_index === -1) {
+        yield path.#path;
+        return;
+      } else {
+        yield path.#path.substring(0, last_index);
+        last_index += 1; // move past next slash
+      }
+    } else if (path.#path.startsWith("/")) {
+      // move past the initial slash
+      last_index += 1;
+    }
+
+    while (true) {
+      const index = nextSlash(path.#path, last_index);
+      if (index < 0) {
+        const part = path.#path.substring(last_index);
+        if (part.length > 0) {
+          yield part;
+        }
+        return;
+      }
+      yield path.#path.substring(last_index, index);
+      last_index = index + 1;
+    }
+
+    function nextSlash(path: string, start: number) {
+      for (let i = start; i < path.length; i++) {
+        const c = path.charCodeAt(i);
+        if (c === 47 || c === 92) {
+          return i;
+        }
+      }
+      return -1;
+    }
+  }
+
+  // This is private because this doesn't handle stuff like `\\?\` at the start
+  // so it's only used internally with #endsWith for perf. API consumers should
+  // use .components()
+  *#rcomponents(): Generator<string> {
+    const path = this.normalize();
+    let last_index = undefined;
+    while (last_index == null || last_index > 0) {
+      const index = nextSlash(path.#path, last_index == null ? undefined : last_index - 1);
+      if (index < 0) {
+        const part = path.#path.substring(0, last_index);
+        if (part.length > 0) {
+          yield part;
+        }
+        return;
+      }
+      const part = path.#path.substring(index + 1, last_index);
+      if (last_index != null || part.length > 0) {
+        yield part;
+      }
+      last_index = index;
+    }
+
+    function nextSlash(path: string, start: number | undefined) {
+      for (let i = start ?? path.length - 1; i >= 0; i--) {
+        const c = path.charCodeAt(i);
+        if (c === 47 || c === 92) {
+          return i;
+        }
+      }
+      return -1;
+    }
+  }
+
+  startsWith(path: PathRef | URL | string): boolean {
+    const startsWithComponents = ensurePathRef(path).components();
+    for (const component of this.components()) {
+      const next = startsWithComponents.next();
+      if (next.done) {
+        return true;
+      }
+      if (next.value !== component) {
+        return false;
+      }
+    }
+    return startsWithComponents.next().done ?? true;
+  }
+
+  endsWith(path: PathRef | URL | string): boolean {
+    const endsWithComponents = ensurePathRef(path).#rcomponents();
+    for (const component of this.#rcomponents()) {
+      const next = endsWithComponents.next();
+      if (next.done) {
+        return true;
+      }
+      if (next.value !== component) {
+        return false;
+      }
+    }
+    return endsWithComponents.next().done ?? true;
+  }
+
   /** Gets the parent directory or returns undefined if the parent is the root directory. */
   parent(): PathRef | undefined {
     const resolvedPath = this.resolve();
@@ -289,9 +410,9 @@ export class PathRef {
   /** Expands the glob using the current path as the root. */
   async *expandGlob(
     glob: string | URL,
-    options?: Omit<fs.ExpandGlobOptions, "root">,
+    options?: Omit<ExpandGlobOptions, "root">,
   ): AsyncGenerator<WalkEntry, void, unknown> {
-    const entries = fs.expandGlob(glob, {
+    const entries = expandGlob(glob, {
       root: this.resolve().toString(),
       ...options,
     });
@@ -303,9 +424,9 @@ export class PathRef {
   /** Synchronously expands the glob using the current path as the root. */
   *expandGlobSync(
     glob: string | URL,
-    options?: Omit<fs.ExpandGlobOptions, "root">,
+    options?: Omit<ExpandGlobOptions, "root">,
   ): Generator<WalkEntry, void, unknown> {
-    const entries = fs.expandGlobSync(glob, {
+    const entries = expandGlobSync(glob, {
       root: this.resolve().toString(),
       ...options,
     });
@@ -316,23 +437,23 @@ export class PathRef {
 
   /** Walks the file tree rooted at the current path, yielding each file or
    * directory in the tree filtered according to the given options. */
-  async *walk(options?: fs.WalkOptions): AsyncIterableIterator<WalkEntry> {
+  async *walk(options?: WalkOptions): AsyncIterableIterator<WalkEntry> {
     // Resolve the path before walking so that these paths always point to
     // absolute paths in the case that someone changes the cwd after walking.
-    for await (const entry of fs.walk(this.resolve().toString(), options)) {
+    for await (const entry of walk(this.resolve().toString(), options)) {
       yield this.#stdWalkEntryToDax(entry);
     }
   }
 
   /** Synchronously walks the file tree rooted at the current path, yielding each
    * file or directory in the tree filtered according to the given options. */
-  *walkSync(options?: fs.WalkOptions): Iterable<WalkEntry> {
-    for (const entry of fs.walkSync(this.resolve().toString(), options)) {
+  *walkSync(options?: WalkOptions): Iterable<WalkEntry> {
+    for (const entry of walkSync(this.resolve().toString(), options)) {
       yield this.#stdWalkEntryToDax(entry);
     }
   }
 
-  #stdWalkEntryToDax(entry: fs.WalkEntry): WalkEntry {
+  #stdWalkEntryToDax(entry: import("./deps.ts").WalkEntry): WalkEntry {
     return {
       ...entry,
       path: new PathRef(entry.path),
@@ -789,13 +910,51 @@ export class PathRef {
    * The directory itself is not deleted.
    */
   async emptyDir(): Promise<this> {
-    await fs.emptyDir(this.toString());
+    await emptyDir(this.toString());
     return this;
   }
 
   /** Synchronous version of `emptyDir()` */
   emptyDirSync(): this {
-    fs.emptyDirSync(this.toString());
+    emptyDirSync(this.toString());
+    return this;
+  }
+
+  /** Ensures that the directory exists.
+   * If the directory structure does not exist, it is created. Like mkdir -p.
+   */
+  async ensureDir(): Promise<this> {
+    await ensureDir(this.toString());
+    return this;
+  }
+
+  /** Synchronously ensures that the directory exists.
+   * If the directory structure does not exist, it is created. Like mkdir -p.
+   */
+  ensureDirSync(): this {
+    ensureDirSync(this.toString());
+    return this;
+  }
+
+  /**
+   * Ensures that the file exists.
+   * If the file that is requested to be created is in directories that do
+   * not exist these directories are created. If the file already exists,
+   * it is NOTMODIFIED.
+   */
+  async ensureFile(): Promise<this> {
+    await ensureFile(this.toString());
+    return this;
+  }
+
+  /**
+   * Synchronously ensures that the file exists.
+   * If the file that is requested to be created is in directories that do
+   * not exist these directories are created. If the file already exists,
+   * it is NOTMODIFIED.
+   */
+  ensureFileSync(): this {
+    ensureFileSync(this.toString());
     return this;
   }
 

@@ -8,3 +8,11 @@ export { readerFromStreamReader } from "https://deno.land/std@0.182.0/streams/re
 export { writeAll, writeAllSync } from "https://deno.land/std@0.182.0/streams/write_all.ts";
 export { outdent } from "https://deno.land/x/outdent@v0.8.0/src/index.ts";
 export { RealEnvironment as DenoWhichRealEnvironment, which, whichSync } from "https://deno.land/x/which@0.3.0/mod.ts";
+
+export { emptyDir, emptyDirSync } from "https://deno.land/std@0.182.0/fs/empty_dir.ts";
+export { ensureDir, ensureDirSync } from "https://deno.land/std@0.182.0/fs/ensure_dir.ts";
+export { ensureFile, ensureFileSync } from "https://deno.land/std@0.182.0/fs/ensure_file.ts";
+export { expandGlob, type ExpandGlobOptions, expandGlobSync } from "https://deno.land/std@0.182.0/fs/expand_glob.ts";
+export { move, moveSync } from "https://deno.land/std@0.182.0/fs/move.ts";
+export { copy, copySync } from "https://deno.land/std@0.182.0/fs/copy.ts";
+export { walk, type WalkEntry, WalkError, type WalkOptions, walkSync } from "https://deno.land/std@0.182.0/fs/walk.ts";

@@ -614,20 +614,6 @@ This line will appear without any indentation.
 Empty lines (like the one above) will not affect the common indentation.
 ```
 
-Re-export of deno_std's path (though you might want to just use the path API described above):
-
-```ts
-$.path.basename("./deno/std/path/mod.ts"); // mod.ts
-```
-
-Re-export of deno_std's fs:
-
-```ts
-for await (const file of $.fs.expandGlob("**/*.ts")) {
-  console.log(file);
-}
-```
-
 Remove ansi escape sequences from a string:
 
 ```ts
