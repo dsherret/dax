@@ -131,17 +131,17 @@ export class PathRef {
   }
 
   /** Follows symlinks and gets if this path is a directory. */
-  isDir(): boolean {
+  isDirSync(): boolean {
     return this.statSync()?.isDirectory ?? false;
   }
 
   /** Follows symlinks and gets if this path is a file. */
-  isFile(): boolean {
+  isFileSync(): boolean {
     return this.statSync()?.isFile ?? false;
   }
 
   /** Gets if this path is a symlink. */
-  isSymlink(): boolean {
+  isSymlinkSync(): boolean {
     return this.lstatSync()?.isSymlink ?? false;
   }
 
@@ -971,8 +971,7 @@ export class PathRef {
   }
 
   /**
-   * Moves the file or directory returning a promise that resolves to
-   * the renamed path synchronously.
+   * Moves the file or directory returning the renamed path synchronously.
    */
   renameSync(newPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(newPath);

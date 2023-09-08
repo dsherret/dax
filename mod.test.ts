@@ -53,7 +53,7 @@ Deno.test("should not get stderr when inherited only (default)", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("capture") when building the command.`,
+    `Stderr was not piped (was inherit). Call .stderr("piped") or .stderr("inheritPiped") when building the command.`,
   );
 });
 
@@ -63,7 +63,7 @@ Deno.test("should not get stderr when null", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("capture") when building the command.`,
+    `Stderr was not piped (was null). Call .stderr("piped") or .stderr("inheritPiped") when building the command.`,
   );
 });
 
@@ -1236,7 +1236,7 @@ Deno.test("copy test", async () => {
     newFile.writeTextSync("test");
     await $`cp ${newFile} ${destDir}`;
 
-    assert(destDir.isDir());
+    assert(destDir.isDirSync());
     assert(newFile.existsSync());
     assert(destDir.join("new.txt").existsSync());
 
@@ -1302,7 +1302,7 @@ Deno.test("move test", async () => {
     const newFile = dir.join("new.txt");
     newFile.writeTextSync("test");
     await $`mv ${newFile} ${destDir}`;
-    assert(destDir.isDir());
+    assert(destDir.isDirSync());
     assert(!newFile.existsSync());
     assert(destDir.join("new.txt").existsSync());
 

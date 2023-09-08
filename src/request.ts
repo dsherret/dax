@@ -667,7 +667,7 @@ function resolvePipeToPathParams(
   }
   if (filePath === undefined) {
     filePath = new PathRef(getFileNameFromUrlOrThrow(originalUrl));
-  } else if (filePath.isDir()) {
+  } else if (filePath.isDirSync()) {
     filePath = filePath.join(getFileNameFromUrlOrThrow(originalUrl));
   }
   filePath = filePath.resolve();

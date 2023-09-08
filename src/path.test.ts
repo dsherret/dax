@@ -40,15 +40,15 @@ Deno.test("normalize", () => {
 });
 
 Deno.test("isDir", () => {
-  assert(createPathRef("src").isDir());
-  assert(!createPathRef("mod.ts").isDir());
-  assert(!createPathRef("nonExistent").isDir());
+  assert(createPathRef("src").isDirSync());
+  assert(!createPathRef("mod.ts").isDirSync());
+  assert(!createPathRef("nonExistent").isDirSync());
 });
 
 Deno.test("isFile", () => {
-  assert(!createPathRef("src").isFile());
-  assert(createPathRef("mod.ts").isFile());
-  assert(!createPathRef("nonExistent").isFile());
+  assert(!createPathRef("src").isFileSync());
+  assert(createPathRef("mod.ts").isFileSync());
+  assert(!createPathRef("nonExistent").isFileSync());
 });
 
 Deno.test("isSymlink", async () => {
@@ -56,8 +56,8 @@ Deno.test("isSymlink", async () => {
     const file = createPathRef("file.txt").writeTextSync("");
     const symlinkFile = createPathRef("test.txt");
     symlinkFile.createSymlinkToSync(file, { kind: "absolute" });
-    assert(symlinkFile.isSymlink());
-    assert(!file.isSymlink());
+    assert(symlinkFile.isSymlinkSync());
+    assert(!file.isSymlinkSync());
   });
 });
 
@@ -328,11 +328,11 @@ Deno.test("mkdir", async () => {
   await withTempDir(async () => {
     const path = createPathRef("dir");
     await path.mkdir();
-    assert(path.isDir());
+    assert(path.isDirSync());
     path.removeSync();
-    assert(!path.isDir());
+    assert(!path.isDirSync());
     path.mkdirSync();
-    assert(path.isDir());
+    assert(path.isDirSync());
     const nestedDir = path.join("subdir", "subsubdir", "sub");
     await assertRejects(() => nestedDir.mkdir({ recursive: false }));
     assertThrows(() => nestedDir.mkdirSync({ recursive: false }));
@@ -356,7 +356,7 @@ Deno.test("createSymlinkTo", async () => {
     const stat = await symlinkFile.stat();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
-    assert(symlinkFile.isSymlink());
+    assert(symlinkFile.isSymlinkSync());
 
     // invalid
     await assertRejects(
@@ -380,7 +380,7 @@ Deno.test("createSymlinkToSync", async () => {
     const stat = symlinkFile.statSync();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
-    assert(symlinkFile.isSymlink());
+    assert(symlinkFile.isSymlinkSync());
 
     // path ref absolute
     symlinkFile.removeSync();
