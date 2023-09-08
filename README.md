@@ -506,10 +506,10 @@ The path API offers an immutable [`PathRef`](https://deno.land/x/dax/src/path.ts
 // create a `PathRef`
 let srcDir = $.path("src");
 // get information about the path
-srcDir.isDir(); // false
+srcDir.isDirSync(); // false
 // do actions on it
-srcDir.mkdir();
-srcDir.isDir(); // true
+await srcDir.mkdir();
+srcDir.isDirSync(); // true
 
 srcDir.isRelative(); // true
 srcDir = srcDir.resolve(); // resolve the path to be absolute
