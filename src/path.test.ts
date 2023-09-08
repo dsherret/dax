@@ -102,27 +102,27 @@ Deno.test("components", () => {
       assert(!component.includes("/"));
       assert(!component.includes("\\"));
     }
-    assertEquals(components.length, srcDir.toString().split(stdPath.SEP).length);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+    let expectedLength = srcDir.toString().split(stdPath.SEP).length;
+    if (Deno.build.os !== "windows") {
+      expectedLength--; // for leading slash
+    }
+    assertEquals(components.length, expectedLength);
   }
   {
     const srcDir = createPathRef("../src");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["..", "src"]);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
   }
   {
     const srcDir = createPathRef("./src");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["src"]);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
   }
   // trailing slash
   {
     const srcDir = createPathRef("./src/");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["src"]);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
   }
 
   // current dir
@@ -131,16 +131,21 @@ Deno.test("components", () => {
     const components = Array.from(srcDir.components());
     // todo: is this correct?
     assertEquals(components, ["."]);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
   }
 
   // empty dir
   {
     const srcDir = createPathRef("src/test//asdf");
     const components = Array.from(srcDir.components());
+    assertEquals(components, ["src", "test", "asdf"]); // does the same as rust
+  }
+
+  // windows prefix
+  {
+    const prefixed = createPathRef("\\\\?\\testing\\this\\out");
+    const components = Array.from(prefixed.components());
     // todo: is this correct?
-    assertEquals(components, ["src", "test", "asdf"]);
-    assertEquals(Array.from(srcDir.rcomponents()), components.reverse());
+    assertEquals(components, ["\\\\?\\testing", "this", "out"]);
   }
 });
 
@@ -770,10 +775,10 @@ Deno.test("ensureDirSync", async () => {
     const file = dir.join("file.txt").writeTextSync("text");
     const subDir = dir.join("subDir").mkdirSync();
     subDir.join("test").writeTextSync("");
-    assert(dir.ensureDirSync().isDir());
+    assert(dir.ensureDirSync().isDirSync());
     assert(file.existsSync());
     assert(subDir.existsSync());
-    assert(subDir.join("sub/sub").ensureDirSync().isDir());
+    assert(subDir.join("sub/sub").ensureDirSync().isDirSync());
   });
 });
 
@@ -781,8 +786,8 @@ Deno.test("ensureFile", async () => {
   await withTempDir(async (path) => {
     const dir = path.join("subDir");
     const file = dir.join("file.txt");
-    assert((await file.ensureFile()).isFile());
-    assert(dir.join("sub.txt").ensureFileSync().isFile());
+    assert((await file.ensureFile()).isFileSync());
+    assert(dir.join("sub.txt").ensureFileSync().isFileSync());
   });
 });
 

@@ -235,9 +235,24 @@ export class PathRef {
   *components(): Generator<string> {
     const path = this.normalize();
     let last_index = 0;
+
+    // yield the prefix
+    if (path.#path.startsWith("\\\\?\\")) {
+      last_index = nextSlash(path.#path, 4);
+      if (last_index === -1) {
+        yield path.#path;
+        return;
+      } else {
+        yield path.#path.substring(0, last_index);
+        last_index += 1; // move past next slash
+      }
+    } else if (path.#path.startsWith("/")) {
+      // move past the initial slash
+      last_index += 1;
+    }
+
     while (true) {
-      // todo: separate `/` on windows? See what rust does
-      const index = path.#path.indexOf(stdPath.SEP, last_index);
+      const index = nextSlash(path.#path, last_index);
       if (index < 0) {
         const part = path.#path.substring(last_index);
         if (part.length > 0) {
@@ -248,14 +263,26 @@ export class PathRef {
       yield path.#path.substring(last_index, index);
       last_index = index + 1;
     }
+
+    function nextSlash(path: string, start: number) {
+      for (let i = start; i < path.length; i++) {
+        const c = path.charCodeAt(i);
+        if (c === 47 || c === 92) {
+          return i;
+        }
+      }
+      return -1;
+    }
   }
 
-  *rcomponents(): Generator<string> {
+  // This is private because this doesn't handle stuff like `\\?\` at the start
+  // so it's only used internally with #endsWith for perf. API consumers should
+  // use .components()
+  *#rcomponents(): Generator<string> {
     const path = this.normalize();
     let last_index = undefined;
-    while (true) {
-      // todo: separate `/` on windows? See what rust does
-      const index = path.#path.lastIndexOf(stdPath.SEP, last_index == null ? undefined : last_index - 1);
+    while (last_index == null || last_index > 0) {
+      const index = nextSlash(path.#path, last_index == null ? undefined : last_index - 1);
       if (index < 0) {
         const part = path.#path.substring(0, last_index);
         if (part.length > 0) {
@@ -268,6 +295,16 @@ export class PathRef {
         yield part;
       }
       last_index = index;
+    }
+
+    function nextSlash(path: string, start: number | undefined) {
+      for (let i = start ?? path.length - 1; i >= 0; i--) {
+        const c = path.charCodeAt(i);
+        if (c === 47 || c === 92) {
+          return i;
+        }
+      }
+      return -1;
     }
   }
 
@@ -286,8 +323,8 @@ export class PathRef {
   }
 
   endsWith(path: PathRef | URL | string): boolean {
-    const endsWithComponents = ensurePathRef(path).rcomponents();
-    for (const component of this.rcomponents()) {
+    const endsWithComponents = ensurePathRef(path).#rcomponents();
+    for (const component of this.#rcomponents()) {
       const next = endsWithComponents.next();
       if (next.done) {
         return true;
