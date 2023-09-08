@@ -849,8 +849,7 @@ export class PathRef {
   }
 
   /**
-   * Moves the file or directory returning a promise that resolves to
-   * the renamed path synchronously.
+   * Moves the file or directory returning the renamed path synchronously.
    */
   renameSync(newPath: string | URL | PathRef): PathRef {
     const pathRef = ensurePathRef(newPath);
