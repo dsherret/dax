@@ -18,7 +18,7 @@ export { serve } from "https://deno.land/std@0.201.0/http/server.ts";
  */
 export async function withTempDir(action: (path: PathRef) => Promise<void> | void) {
   const originalDirPath = Deno.cwd();
-  const dirPath = Deno.makeTempDirSync();
+  const dirPath = await Deno.makeTempDir();
   Deno.chdir(dirPath);
   try {
     await action(createPathRef(dirPath).resolve());
