@@ -853,6 +853,10 @@ export class CommandResult {
 }
 
 function buildEnv(env: Record<string, string | undefined>) {
+  const envPermissions = Deno.permissions.querySync({ name: "env" });
+  if (envPermissions.state == "denied") {
+    return env;
+  }
   const result = Deno.env.toObject();
   for (const [key, value] of Object.entries(env)) {
     if (value == null) {
