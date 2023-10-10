@@ -47,6 +47,12 @@ Deno.test("should capture stdout when inherited and piped", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
+Deno.test("should not get stdout when set to writer", async () => {
+  const output = await $`echo 5`.stdout(new Buffer());
+  assertEquals(output.code, 0);
+  assertThrows(() => output.stdout, Error, `Stdout was streamed to another source and is no longer available.`);
+});
+
 Deno.test("should not get stderr when inherited only (default)", async () => {
   const output = await $`deno eval 'console.error("should output");'`;
   assertEquals(output.code, 0);
@@ -77,6 +83,16 @@ Deno.test("should capture stderr when inherited and piped", async () => {
   const output = await $`deno eval -q 'console.error(5);'`.stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
+});
+
+Deno.test("should not get stderr when set to writer", async () => {
+  const output = await $`echo 5`.stderr(new Buffer());
+  assertEquals(output.code, 0);
+  assertThrows(
+    () => output.stderr,
+    Error,
+    `Stderr was not piped (was streamed). Call .stderr(\"piped\") or .stderr(\"inheritPiped\") when building the command.`,
+  );
 });
 
 Deno.test("should get combined stdout and stderr when specified", async () => {
