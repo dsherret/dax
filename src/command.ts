@@ -748,6 +748,7 @@ export class CommandResult {
   /** The exit code. */
   readonly code: number;
 
+  /** @internal */
   constructor(code: number, stdout: BufferStdio, stderr: BufferStdio, combined: Buffer | undefined) {
     this.code = code;
     this.#stdout = stdout;

@@ -14,11 +14,16 @@ import {
   writeAllSync,
 } from "./deps.ts";
 
-export type ExpandGlobOptions = import("./deps.ts").ExpandGlobOptions;
-export type WalkOptions = import("./deps.ts").WalkOptions;
+/** @internal */
+type DenoStdExpandGlobOptions = import("./deps.ts").ExpandGlobOptions;
+export type ExpandGlobOptions = DenoStdExpandGlobOptions;
+/** @internal */
+type DenoStdWalkOptions = import("./deps.ts").WalkOptions;
+export type WalkOptions = DenoStdWalkOptions;
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
 
+/** @internal */
 export function createPathRef(path: string | URL | ImportMeta | PathRef): PathRef {
   if (path instanceof PathRef) {
     return path;

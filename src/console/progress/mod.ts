@@ -136,7 +136,7 @@ export class ProgressBar {
 
   /** Does the provided action and will call `.finish()` when this is the last `.with(...)` action that runs. */
   with<TResult>(action: () => TResult): TResult;
-  async with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
+  with<TResult>(action: () => Promise<TResult>): Promise<TResult>;
   with<TResult>(action: () => Promise<TResult> | TResult): Promise<TResult> | TResult {
     this.#withCount++;
     let wasAsync = false;
