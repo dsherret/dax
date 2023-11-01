@@ -14,10 +14,16 @@ import {
   writeAllSync,
 } from "./deps.ts";
 
-/** @internal */
+/**
+ * `ExpandGlobOptions` from https://deno.land/std/fs/expand_glob.ts
+ * @internal
+ */
 type DenoStdExpandGlobOptions = import("./deps.ts").ExpandGlobOptions;
 export type ExpandGlobOptions = DenoStdExpandGlobOptions;
-/** @internal */
+/**
+ * `WalkOptions` from https://deno.land/std/fs/walk.ts
+ * @internal
+ */
 type DenoStdWalkOptions = import("./deps.ts").WalkOptions;
 export type WalkOptions = DenoStdWalkOptions;
 
