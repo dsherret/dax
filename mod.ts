@@ -30,16 +30,19 @@ import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathRef, PathRef } from "./src/path.ts";
 
+export type { Delay, DelayIterator } from "./src/common.ts";
 export { FsFileWrapper, PathRef } from "./src/path.ts";
-export type { PathSymlinkOptions, SymlinkOptions, WalkEntry } from "./src/path.ts";
-export { CommandBuilder, CommandResult, KillSignal, KillSignalController } from "./src/command.ts";
+export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
+export { CommandBuilder, CommandChild, CommandResult, KillSignal, KillSignalController } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
+export type { ShellPipeReader, ShellPipeWriterKind } from "./src/pipes.ts";
 export type {
   ConfirmOptions,
   MultiSelectOption,
   MultiSelectOptions,
   ProgressBar,
   ProgressOptions,
+  PromptInputMask,
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
@@ -53,6 +56,7 @@ export type {
   ExitExecuteResult,
   SetEnvVarChange,
   SetShellVarChange,
+  UnsetVarChange,
 } from "./src/result.ts";
 
 /**
@@ -103,6 +107,22 @@ export type $Type<TExtras extends ExtrasObject = {}> =
 export interface $Template {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
 }
+
+/**
+ * `outdent` from the https://deno.land/x/outdent module.
+ * @internal
+ */
+type Outdent = typeof import("./src/deps.ts").outdent;
+/**
+ * `which` from the https://deno.land/x/which module.
+ * @internal
+ */
+type Which = typeof import("./src/deps.ts").which;
+/**
+ * `whichSync` from the https://deno.land/x/which module.
+ * @internal
+ */
+type WhichSync = typeof import("./src/deps.ts").whichSync;
 
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /**
@@ -206,7 +226,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * closing line will be removed from the output,
    * so that only the content in between remains.
    */
-  dedent: typeof outdent;
+  dedent: Outdent;
   /**
    * Determines if the provided command exists resolving to `true` if the command
    * will be resolved by the shell of the current `$` or false otherwise.
@@ -462,9 +482,9 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    */
   withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn>;
   /** Re-export of `deno_which` for getting the path to an executable. */
-  which: typeof which;
+  which: Which;
   /** Similar to `which`, but synchronously. */
-  whichSync: typeof whichSync;
+  whichSync: WhichSync;
 }
 
 function sleep(delay: Delay) {
@@ -509,6 +529,7 @@ function cd(path: string | URL | ImportMeta | PathRef) {
   Deno.chdir(path.toString());
 }
 
+/** @internal */
 type ExtrasObject = Record<string, (...args: any[]) => unknown>;
 
 interface $State<TExtras extends ExtrasObject> {

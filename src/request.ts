@@ -342,6 +342,7 @@ export class RequestResult {
   #downloadResponse: Response;
   #originalUrl: string;
 
+  /** @internal */
   constructor(opts: {
     response: Response;
     originalUrl: string;
