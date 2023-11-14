@@ -865,12 +865,12 @@ export class PathRef {
   /** Creates a new file or opens the existing one. */
   create(): Promise<FsFileWrapper> {
     return Deno.create(this.#path)
-      .then((file) => new FsFileWrapper(file));
+      .then((file) => createFsFileWrapper(file));
   }
 
   /** Synchronously creates a new file or opens the existing one. */
   createSync(): FsFileWrapper {
-    return new FsFileWrapper(Deno.createSync(this.#path));
+    return createFsFileWrapper(Deno.createSync(this.#path));
   }
 
   /** Creates a file throwing if a file previously existed. */
@@ -894,12 +894,12 @@ export class PathRef {
   /** Opens a file. */
   open(options?: Deno.OpenOptions): Promise<FsFileWrapper> {
     return Deno.open(this.#path, options)
-      .then((file) => new FsFileWrapper(file));
+      .then((file) => createFsFileWrapper(file));
   }
 
   /** Opens a file synchronously. */
   openSync(options?: Deno.OpenOptions): FsFileWrapper {
-    return new FsFileWrapper(Deno.openSync(this.#path, options));
+    return createFsFileWrapper(Deno.openSync(this.#path, options));
   }
 
   /** Removes the file or directory from the file system. */
@@ -1124,18 +1124,12 @@ function createSymlinkSync(opts: CreateSymlinkOpts) {
   );
 }
 
-export class FsFileWrapper implements Deno.FsFile {
-  #file: Deno.FsFile;
+function createFsFileWrapper(file: Deno.FsFile): FsFileWrapper {
+  Object.setPrototypeOf(file, FsFileWrapper.prototype);
+  return file as FsFileWrapper;
+}
 
-  constructor(file: Deno.FsFile) {
-    this.#file = file;
-  }
-
-  /** Gets the inner `Deno.FsFile` that this wraps. */
-  get inner(): Deno.FsFile {
-    return this.#file;
-  }
-
+export class FsFileWrapper extends Deno.FsFile {
   /** Writes the provided text to this file. */
   writeText(text: string): Promise<this> {
     return this.writeBytes(new TextEncoder().encode(text));
@@ -1148,73 +1142,14 @@ export class FsFileWrapper implements Deno.FsFile {
 
   /** Writes the provided bytes to the file. */
   async writeBytes(bytes: Uint8Array): Promise<this> {
-    await writeAll(this.#file, bytes);
+    await writeAll(this, bytes);
     return this;
   }
 
   /** Synchronously writes the provided bytes to the file. */
   writeBytesSync(bytes: Uint8Array): this {
-    writeAllSync(this.#file, bytes);
+    writeAllSync(this, bytes);
     return this;
-  }
-
-  // below is Deno.FsFile implementation... could probably be something
-  // done in the constructor instead.
-
-  get rid(): number {
-    return this.#file.rid;
-  }
-
-  get readable(): ReadableStream<Uint8Array> {
-    return this.#file.readable;
-  }
-
-  get writable(): WritableStream<Uint8Array> {
-    return this.#file.writable;
-  }
-
-  write(p: Uint8Array): Promise<number> {
-    return this.#file.write(p);
-  }
-
-  writeSync(p: Uint8Array): number {
-    return this.#file.writeSync(p);
-  }
-
-  truncate(len?: number | undefined): Promise<void> {
-    return this.#file.truncate(len);
-  }
-
-  truncateSync(len?: number | undefined): void {
-    return this.#file.truncateSync(len);
-  }
-
-  read(p: Uint8Array): Promise<number | null> {
-    return this.#file.read(p);
-  }
-
-  readSync(p: Uint8Array): number | null {
-    return this.#file.readSync(p);
-  }
-
-  seek(offset: number, whence: Deno.SeekMode): Promise<number> {
-    return this.#file.seek(offset, whence);
-  }
-
-  seekSync(offset: number, whence: Deno.SeekMode): number {
-    return this.#file.seekSync(offset, whence);
-  }
-
-  stat(): Promise<Deno.FileInfo> {
-    return this.#file.stat();
-  }
-
-  statSync(): Deno.FileInfo {
-    return this.#file.statSync();
-  }
-
-  close(): void {
-    return this.#file.close();
   }
 }
 
