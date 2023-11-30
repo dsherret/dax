@@ -867,10 +867,10 @@ function buildEnv(env: Record<string, string | undefined>) {
 
 export function escapeArg(arg: string) {
   // very basic for now
-  if (/^[A-Za-z0-9]*$/.test(arg)) {
+  if (/^[A-Za-z0-9]+$/.test(arg)) {
     return arg;
   } else {
-    return `'${arg.replace("'", `'"'"'`)}'`;
+    return `'${arg.replaceAll("'", `'"'"'`)}'`;
   }
 }
 
