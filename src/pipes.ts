@@ -11,7 +11,7 @@ export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
  * @value "piped" - Captures the pipe without outputting.
  * @value "inheritPiped" - Captures the pipe with outputting.
  */
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped";
+export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped" | Deno.WriterSync;
 
 export class NullPipeWriter implements Deno.WriterSync {
   writeSync(p: Uint8Array): number {
