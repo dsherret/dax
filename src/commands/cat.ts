@@ -39,7 +39,7 @@ async function executeCat(context: CommandContext) {
     } else {
       let file;
       try {
-        file = Deno.openSync(pathUtils.join(context.cwd, path), { read: true });
+        file = await Deno.open(pathUtils.join(context.cwd, path), { read: true });
         while (true) {
           // NOTE: rust supports cancellation here
           const size = file.readSync(buf);
