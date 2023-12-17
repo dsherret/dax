@@ -278,6 +278,12 @@ Deno.test("withExtname", () => {
   path = path.withExtname(".txt");
   assertEquals(path.basename(), "other.txt");
   assertEquals(path.extname(), ".txt");
+  path = path.withExtname("");
+  assertEquals(path.basename(), "other");
+  assertEquals(path.extname(), undefined);
+  path = path.withExtname("txt");
+  assertEquals(path.basename(), "other.txt");
+  assertEquals(path.extname(), ".txt");
 });
 
 Deno.test("withBasename", () => {
