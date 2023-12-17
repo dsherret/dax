@@ -1651,6 +1651,11 @@ Deno.test("ensure KillSignalController readme example works", async () => {
   assert(endTime - startTime < 1000);
 });
 
+Deno.test("should support empty quoted string", async () => {
+  const output = await $`echo '' test ''`.text();
+  assertEquals(output, " test ");
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));
