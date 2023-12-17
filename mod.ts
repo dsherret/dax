@@ -35,7 +35,7 @@ export { FsFileWrapper, PathRef } from "./src/path.ts";
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export { CommandBuilder, CommandChild, CommandResult, KillSignal, KillSignalController } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { ShellPipeReader, ShellPipeWriterKind } from "./src/pipes.ts";
+export type { Closer, Reader, ShellPipeReader, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export type {
   ConfirmOptions,
   MultiSelectOption,

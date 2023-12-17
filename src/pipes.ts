@@ -3,7 +3,19 @@ import { Buffer, writeAllSync } from "./deps.ts";
 
 const encoder = new TextEncoder();
 
-export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
+export interface Reader {
+  read(p: Uint8Array): Promise<number | null>;
+}
+
+export interface WriterSync {
+  writeSync(p: Uint8Array): number;
+}
+
+export interface Closer {
+  close(): void;
+}
+
+export type ShellPipeReader = "inherit" | "null" | Reader;
 /**
  * The behaviour to use for a shell pipe.
  * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).
@@ -11,19 +23,19 @@ export type ShellPipeReader = "inherit" | "null" | Deno.Reader;
  * @value "piped" - Captures the pipe without outputting.
  * @value "inheritPiped" - Captures the pipe with outputting.
  */
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped" | Deno.WriterSync;
+export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped" | WriterSync;
 
-export class NullPipeWriter implements Deno.WriterSync {
+export class NullPipeWriter implements WriterSync {
   writeSync(p: Uint8Array): number {
     return p.length;
   }
 }
 
-export class ShellPipeWriter implements Deno.WriterSync {
+export class ShellPipeWriter implements WriterSync {
   #kind: ShellPipeWriterKind;
-  #inner: Deno.WriterSync;
+  #inner: WriterSync;
 
-  constructor(kind: ShellPipeWriterKind, inner: Deno.WriterSync) {
+  constructor(kind: ShellPipeWriterKind, inner: WriterSync) {
     this.#kind = kind;
     this.#inner = inner;
   }
@@ -45,11 +57,11 @@ export class ShellPipeWriter implements Deno.WriterSync {
   }
 }
 
-export class CapturingBufferWriter implements Deno.WriterSync {
+export class CapturingBufferWriter implements WriterSync {
   #buffer: Buffer;
-  #innerWriter: Deno.WriterSync;
+  #innerWriter: WriterSync;
 
-  constructor(innerWriter: Deno.WriterSync, buffer: Buffer) {
+  constructor(innerWriter: WriterSync, buffer: Buffer) {
     this.#innerWriter = innerWriter;
     this.#buffer = buffer;
   }
@@ -67,11 +79,11 @@ export class CapturingBufferWriter implements Deno.WriterSync {
 
 const lineFeedCharCode = "\n".charCodeAt(0);
 
-export class InheritStaticTextBypassWriter implements Deno.WriterSync {
+export class InheritStaticTextBypassWriter implements WriterSync {
   #buffer: Buffer;
-  #innerWriter: Deno.WriterSync;
+  #innerWriter: WriterSync;
 
-  constructor(innerWriter: Deno.WriterSync) {
+  constructor(innerWriter: WriterSync) {
     this.#innerWriter = innerWriter;
     this.#buffer = new Buffer();
   }
@@ -99,11 +111,11 @@ export class InheritStaticTextBypassWriter implements Deno.WriterSync {
   }
 }
 
-export interface PipedBufferListener extends Deno.WriterSync, Deno.Closer {
+export interface PipedBufferListener extends WriterSync, Closer {
   setError(err: Error): void;
 }
 
-export class PipedBuffer implements Deno.WriterSync {
+export class PipedBuffer implements WriterSync {
   #inner: Buffer | PipedBufferListener;
   #hasSet = false;
 

@@ -1,5 +1,6 @@
 import { logger } from "./console/mod.ts";
 import { BufReader, path } from "./deps.ts";
+import { Reader } from "./pipes.ts";
 
 /**
  * Delay used for certain actions.
@@ -216,7 +217,7 @@ export interface ShebangInfo {
 }
 
 const decoder = new TextDecoder();
-export async function getExecutableShebang(reader: Deno.Reader): Promise<ShebangInfo | undefined> {
+export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo | undefined> {
   const text = "#!/usr/bin/env ";
   const buffer = new Uint8Array(text.length);
   const bytesReadCount = await reader.read(buffer);

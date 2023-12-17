@@ -730,7 +730,7 @@ Deno.test("abort", async () => {
 });
 
 Deno.test("piping to stdin", async () => {
-  // Deno.Reader
+  // Reader
   {
     const bytes = new TextEncoder().encode("test\n");
     const result =
@@ -768,7 +768,7 @@ Deno.test("piping to stdin", async () => {
   }
 });
 
-Deno.test("spawning a command twice that has stdin set to a Deno.Reader should error", async () => {
+Deno.test("spawning a command twice that has stdin set to a Reader should error", async () => {
   const bytes = new TextEncoder().encode("test\n");
   const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
     .stdin(new Buffer(bytes));
