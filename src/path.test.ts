@@ -902,3 +902,14 @@ Deno.test("toFileUrl", () => {
   assertEquals(path.toString(), stdPath.fromFileUrl(import.meta.url));
   assertEquals(path.toFileUrl(), new URL(import.meta.url));
 });
+
+Deno.test("append", async () => {
+  await withTempDir(async (path) => {
+    const file = path.join("file.txt");
+    await file.append(new TextEncoder().encode("1\n"));
+    file.appendSync(new TextEncoder().encode("2\n"));
+    await file.appendText("3\n");
+    file.appendTextSync("4\n");
+    assertEquals(file.readTextSync(), "1\n2\n3\n4\n");
+  });
+});
