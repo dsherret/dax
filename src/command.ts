@@ -728,10 +728,9 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     } else if (buffer instanceof PipedBuffer) {
       buffer.close();
       return buffer.getBuffer() ?? "streamed";
+    } else if (typeof buffer === "object") {
+      return "streamed";
     } else {
-      if (typeof buffer === "object") {
-        return "streamed";
-      }
       return buffer;
     }
   }

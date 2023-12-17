@@ -48,8 +48,10 @@ Deno.test("should capture stdout when inherited and piped", async () => {
 });
 
 Deno.test("should not get stdout when set to writer", async () => {
-  const output = await $`echo 5`.stdout(new Buffer());
+  const buffer = new Buffer();
+  const output = await $`echo 5`.stdout(buffer);
   assertEquals(output.code, 0);
+  assertEquals(new TextDecoder().decode(buffer.bytes()), "5\n");
   assertThrows(() => output.stdout, Error, `Stdout was streamed to another source and is no longer available.`);
 });
 
@@ -86,8 +88,10 @@ Deno.test("should capture stderr when inherited and piped", async () => {
 });
 
 Deno.test("should not get stderr when set to writer", async () => {
-  const output = await $`echo 5`.stderr(new Buffer());
+  const buffer = new Buffer();
+  const output = await $`deno eval 'console.error(5); console.log(1);'`.stderr(buffer);
   assertEquals(output.code, 0);
+  assertEquals(new TextDecoder().decode(buffer.bytes()), "5\n");
   assertThrows(
     () => output.stderr,
     Error,

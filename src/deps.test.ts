@@ -7,7 +7,7 @@ export {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-} from "https://deno.land/std@0.201.0/testing/asserts.ts";
+} from "https://deno.land/std@0.201.0/assert/mod.ts";
 export { readerFromStreamReader } from "https://deno.land/std@0.201.0/streams/reader_from_stream_reader.ts";
 export { writableStreamFromWriter } from "https://deno.land/std@0.201.0/streams/writable_stream_from_writer.ts";
 export { serve } from "https://deno.land/std@0.201.0/http/server.ts";
