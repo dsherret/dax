@@ -39,7 +39,7 @@ interface CommandBuilderState {
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
-  noThrow: boolean;
+  noThrow: boolean | number[];
   env: Record<string, string | undefined>;
   commands: Record<string, CommandHandler>;
   cwd: string | undefined;
@@ -120,7 +120,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       stdin: state.stdin,
       stdoutKind: state.stdoutKind,
       stderrKind: state.stderrKind,
-      noThrow: state.noThrow,
+      noThrow: state.noThrow instanceof Array ? [...state.noThrow] : state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
       commands: { ...state.commands },
@@ -200,10 +200,17 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** The command should not throw for the provided non-zero exit codes. */
+  noThrow(exclusionExitCode: number, ...additional: number[]): CommandBuilder;
   /** The command should not throw when it fails or times out. */
-  noThrow(value = true): CommandBuilder {
+  noThrow(value?: boolean): CommandBuilder;
+  noThrow(value?: boolean | number, ...additional: number[]): CommandBuilder {
     return this.#newWithState((state) => {
-      state.noThrow = value;
+      if (typeof value === "boolean" || value == null) {
+        state.noThrow = value ?? true;
+      } else {
+        state.noThrow = [value, ...additional];
+      }
     });
   }
 
@@ -621,7 +628,8 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
           // override the code in the case of a timeout that resulted in a failure
           code = 124;
         }
-        if (!state.noThrow) {
+        const noThrow = state.noThrow instanceof Array ? state.noThrow.includes(code) : state.noThrow;
+        if (!noThrow) {
           if (stdin instanceof ReadableStream) {
             if (!stdin.locked) {
               stdin.cancel();
