@@ -6,17 +6,11 @@ edition = "2021"
 [lib]
 crate_type = ["cdylib"]
 
-[profile.release]
-codegen-units = 1
-incremental = true
-lto = true
-opt-level = "z"
-
 [dependencies]
 console_error_panic_hook = "0.1.6"
 console_static_text = "0.8.1"
-deno_task_shell = { version = "0.13.2", default-features = false, features = ["serialization"] }
+deno_task_shell = { version = "0.14.2", default-features = false, features = ["serialization"] }
 once_cell = "1.16.0"
 serde = "1"
-serde-wasm-bindgen = "0.4.5"
-wasm-bindgen = "=0.2.86"
+serde-wasm-bindgen = "0.6.3"
+wasm-bindgen = "=0.2.89"
