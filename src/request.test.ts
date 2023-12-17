@@ -108,7 +108,7 @@ Deno.test("$.request", (t) => {
     });
 
     step("pipeToPath", async () => {
-      const testFilePath = Deno.makeTempFileSync();
+      const testFilePath = await Deno.makeTempFile();
       const originDir = Deno.cwd();
       try {
         {
@@ -121,7 +121,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test default path
-          Deno.chdir(Deno.makeTempDirSync()); // change path just to not download to the current dir
+          Deno.chdir(await Deno.makeTempDir()); // change path just to not download to the current dir
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -151,7 +151,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test downloading to a directory
-          const tempDir = Deno.makeTempDirSync();
+          const tempDir = await Deno.makeTempDir();
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -162,7 +162,7 @@ Deno.test("$.request", (t) => {
       } finally {
         try {
           Deno.chdir(originDir);
-          Deno.removeSync(testFilePath);
+          await Deno.remove(testFilePath);
         } catch {
           // do nothing
         }

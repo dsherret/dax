@@ -9,7 +9,10 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["ban-types", "no-explicit-any", "no-this-alias"]
+      "exclude": ["ban-types", "no-explicit-any", "no-this-alias"],
+      "include": [
+        "no-sync-fn-in-async-fn"
+      ]
     }
   },
   "exclude": [
