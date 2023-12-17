@@ -17,7 +17,7 @@ export interface PromptOptions {
    * types (`false` by default).
    * @default `false`
    */
-  mask?: InputMask | boolean;
+  mask?: PromptInputMask | boolean;
   /**
    * Whether to not clear the prompt text on selection.
    * @default `false`
@@ -26,14 +26,14 @@ export interface PromptOptions {
 }
 
 /** Configuration of the prompt input mask */
-export interface InputMask {
+export interface PromptInputMask {
   /** The character used to mask input (`*` by default) */
   char?: string;
   /** Whether or not to keep the last character "unmasked" (`false` by default) */
   lastVisible?: boolean;
 }
 
-const defaultMask: Required<InputMask> = { char: "*", lastVisible: false };
+const defaultMask: Required<PromptInputMask> = { char: "*", lastVisible: false };
 
 export function prompt(optsOrMessage: PromptOptions | string, options?: Omit<PromptOptions, "message">) {
   return maybePrompt(optsOrMessage, options).then(resultOrExit);
@@ -95,7 +95,7 @@ export function innerPrompt(
 interface DrawState {
   title: string;
   inputText: string;
-  mask: InputMask | false;
+  mask: PromptInputMask | false;
   hasCompleted: boolean;
 }
 

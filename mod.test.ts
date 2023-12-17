@@ -1290,7 +1290,7 @@ Deno.test("cp test2", async () => {
   await withTempDir(async (dir) => {
     await $`mkdir -p a/d1`;
     await $`mkdir -p a/d2`;
-    Deno.createSync("a/d1/f").close();
+    await Deno.create("a/d1/f").then((f) => f.close());
     await $`cp a/d1/f a/d2`;
     assert(dir.join("a/d2/f").existsSync());
   });
@@ -1446,12 +1446,12 @@ Deno.test("cd", () => {
 
 Deno.test("cat", async () => {
   await withTempDir(async () => {
-    Deno.writeTextFileSync("hello", "hello world");
+    await Deno.writeTextFile("hello", "hello world");
     assertEquals(
       await $`cat hello`.text(),
       "hello world",
     );
-    Deno.writeTextFileSync("hello2", "hello world2");
+    await Deno.writeTextFile("hello2", "hello world2");
     assertEquals(
       await $`cat hello hello2`.text(),
       "hello worldhello world2",
