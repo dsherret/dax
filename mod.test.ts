@@ -587,6 +587,18 @@ Deno.test("exit command", async () => {
     assertEquals(result.code, 2);
     assertEquals(result.stderr, "exit: too many arguments\n");
   }
+  // test noThrow with exit code
+  {
+    const result = await $`exit 255`.noThrow(255);
+    assertEquals(result.code, 255);
+  }
+  {
+    const result = await $`exit 255`.noThrow(254, 255);
+    assertEquals(result.code, 255);
+  }
+  {
+    await assertRejects(() => $`exit 255`.noThrow(254));
+  }
 });
 
 Deno.test("should provide result from one command to another", async () => {
