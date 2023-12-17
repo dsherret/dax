@@ -397,6 +397,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
 
     function getQuietKind(kind: ShellPipeWriterKind): ShellPipeWriterKind {
+      if (typeof kind === "object") {
+        return kind;
+      }
       switch (kind) {
         case "inheritPiped":
         case "inherit":
@@ -690,6 +693,9 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     return [stdoutBuffer, stderrBuffer, undefined] as const;
 
     function getOutputBuffer(innerWriter: Deno.WriterSync, kind: ShellPipeWriterKind) {
+      if (typeof kind === "object") {
+        return kind;
+      }
       switch (kind) {
         case "inherit":
           if (hasProgressBars) {
@@ -712,7 +718,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | Deno.WriterSync,
   ): BufferStdio {
     if (buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
@@ -722,13 +728,15 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     } else if (buffer instanceof PipedBuffer) {
       buffer.close();
       return buffer.getBuffer() ?? "streamed";
+    } else if (typeof buffer === "object") {
+      return "streamed";
     } else {
       return buffer;
     }
   }
 
   function finalizeCommandResultBufferForError(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter,
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | Deno.WriterSync,
     error: Error,
   ) {
     if (buffer instanceof InheritStaticTextBypassWriter) {
