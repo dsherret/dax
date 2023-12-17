@@ -1,11 +1,12 @@
 import { ExecuteResult } from "./result.ts";
 import type { KillSignal } from "./command.ts";
+import { Reader, WriterSync } from "./pipes.ts";
 
 /** Used to read from stdin. */
-export type CommandPipeReader = "inherit" | "null" | Deno.Reader;
+export type CommandPipeReader = "inherit" | "null" | Reader;
 
 /** Used to write to stdout or stderr. */
-export interface CommandPipeWriter extends Deno.WriterSync {
+export interface CommandPipeWriter extends WriterSync {
   writeSync(p: Uint8Array): number;
   writeText(text: string): void;
   writeLine(text: string): void;

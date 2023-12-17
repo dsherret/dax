@@ -26,7 +26,7 @@ async function executeCat(context: CommandContext) {
 
   for (const path of flags.paths) {
     if (path === "-") { // read from stdin
-      if (typeof context.stdin === "object") { // stdin is a Deno.Reader
+      if (typeof context.stdin === "object") { // stdin is a Reader
         while (true) {
           const size = await context.stdin.read(buf);
           if (!size || size === 0) break;

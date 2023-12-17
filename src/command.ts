@@ -21,9 +21,11 @@ import {
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
+  Reader,
   ShellPipeReader,
   ShellPipeWriter,
   ShellPipeWriterKind,
+  WriterSync,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
@@ -33,7 +35,7 @@ type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
 interface CommandBuilderState {
   command: string | undefined;
-  stdin: "inherit" | "null" | Box<Deno.Reader | ReadableStream<Uint8Array> | "consumed">;
+  stdin: "inherit" | "null" | Box<Reader | ReadableStream<Uint8Array> | "consumed">;
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
@@ -692,7 +694,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     }
     return [stdoutBuffer, stderrBuffer, undefined] as const;
 
-    function getOutputBuffer(innerWriter: Deno.WriterSync, kind: ShellPipeWriterKind) {
+    function getOutputBuffer(innerWriter: WriterSync, kind: ShellPipeWriterKind) {
       if (typeof kind === "object") {
         return kind;
       }
@@ -718,7 +720,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | Deno.WriterSync,
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
   ): BufferStdio {
     if (buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
@@ -736,7 +738,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBufferForError(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | Deno.WriterSync,
+    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
     error: Error,
   ) {
     if (buffer instanceof InheritStaticTextBypassWriter) {

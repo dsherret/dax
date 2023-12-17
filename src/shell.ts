@@ -3,7 +3,7 @@ import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
-import { ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind } from "./pipes.ts";
+import { Reader, ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind, WriterSync } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
 
 export interface SequentialList {
@@ -670,7 +670,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     await pipeReaderToWriterSync(readable, writer, new AbortController().signal);
   }
 
-  async function pipeReaderToWriter(reader: Deno.Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {
+  async function pipeReaderToWriter(reader: Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {
     const abortedPromise = new Promise<void>((resolve) => {
       signal.addEventListener("abort", listener);
       function listener() {
@@ -695,7 +695,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
 
   async function pipeReaderToWriterSync(
     readable: ReadableStream<Uint8Array>,
-    writer: Deno.WriterSync,
+    writer: WriterSync,
     signal: AbortSignal,
   ) {
     const reader = readable.getReader();
