@@ -380,7 +380,7 @@ export class PathRef {
   withExtname(ext: string): PathRef {
     const currentExt = this.extname();
     const hasLeadingPeriod = ext.charCodeAt(0) === PERIOD_CHAR_CODE;
-    if (!hasLeadingPeriod) {
+    if (!hasLeadingPeriod && ext.length !== 0) {
       ext = "." + ext;
     }
     return new PathRef(this.#path.substring(0, this.#path.length - (currentExt?.length ?? 0)) + ext);
