@@ -838,10 +838,11 @@ async function evaluateWord(word: Word, context: Context) {
   return result.join(" ");
 }
 
-async function evaluateWordParts(wordParts: WordPart[], context: Context) {
+async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted = false) {
   // not implemented mostly, and copying from deno_task_shell
   const result: string[] = [];
   let currentText = "";
+  let hasQuoted = false;
   for (const stringPart of wordParts) {
     let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
@@ -852,8 +853,9 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
       case "quoted": {
-        const text = (await evaluateWordParts(stringPart.value, context)).join(" ");
+        const text = (await evaluateWordParts(stringPart.value, context, true)).join("");
         currentText += text;
+        hasQuoted = true;
         continue;
       }
       case "command":
@@ -862,26 +864,30 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context) {
     }
 
     if (evaluationResult != null) {
-      const parts = evaluationResult.split(" ")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
-      if (parts.length > 0) {
-        // append the first part to the current text
-        currentText += parts[0];
+      if (quoted) {
+        currentText += evaluationResult;
+      } else {
+        const parts = evaluationResult.split(" ")
+          .map((t) => t.trim())
+          .filter((t) => t.length > 0);
+        if (parts.length > 0) {
+          // append the first part to the current text
+          currentText += parts[0];
 
-        // store the current text
-        result.push(currentText);
+          // store the current text
+          result.push(currentText);
 
-        // store all the rest of the parts
-        result.push(...parts.slice(1));
+          // store all the rest of the parts
+          result.push(...parts.slice(1));
 
-        // use the last part as the current text so it maybe
-        // gets appended to in the future
-        currentText = result.pop()!;
+          // use the last part as the current text so it maybe
+          // gets appended to in the future
+          currentText = result.pop()!;
+        }
       }
     }
   }
-  if (currentText.length !== 0) {
+  if (hasQuoted || currentText.length !== 0) {
     result.push(currentText);
   }
   return result;

@@ -1265,8 +1265,11 @@ Deno.test("copy test", async () => {
       "cp: target 'non-existent' is not a directory\n",
     );
 
-    assertEquals(await getStdErr($`cp "" ""`), "cp: missing file operand\n");
-    assertStringIncludes(await getStdErr($`cp ${file1} ""`), "cp: missing destination file operand after");
+    assertEquals(await getStdErr($`cp`), "cp: missing file operand\n");
+    assertStringIncludes(await getStdErr($`cp ${file1}`), "cp: missing destination file operand after");
+
+    assertEquals(await getStdErr($`cp`), "cp: missing file operand\n");
+    assertStringIncludes(await getStdErr($`cp ${file1}`), "cp: missing destination file operand after");
 
     // recursive test
     destDir.join("sub_dir").mkdirSync();
@@ -1331,8 +1334,8 @@ Deno.test("move test", async () => {
       "mv: target 'non-existent' is not a directory\n",
     );
 
-    assertEquals(await getStdErr($`mv "" ""`), "mv: missing operand\n");
-    assertStringIncludes(await getStdErr($`mv ${file1} ""`), "mv: missing destination file operand after");
+    assertEquals(await getStdErr($`mv`), "mv: missing operand\n");
+    assertStringIncludes(await getStdErr($`mv ${file1}`), "mv: missing destination file operand after");
   });
 });
 
@@ -1646,6 +1649,11 @@ Deno.test("ensure KillSignalController readme example works", async () => {
   await assertRejects(() => promise, Error, "Aborted with exit code: 124");
   const endTime = new Date().getTime();
   assert(endTime - startTime < 1000);
+});
+
+Deno.test("should support empty quoted string", async () => {
+  const output = await $`echo '' test ''`.text();
+  assertEquals(output, " test ");
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
