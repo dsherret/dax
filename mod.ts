@@ -766,7 +766,14 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
 
   function getLogText(data: any[]) {
     // this should be smarter to better emulate how console.log/error work
-    const combinedText = data.join(" ");
+    const combinedText = data.map((d) => {
+      const typeofD = typeof d;
+      if (typeofD !== "object" && typeofD !== "undefined") {
+        return d;
+      } else {
+        return Deno.inspect(d, { colors: true });
+      }
+    }).join(" ");
     if (state.indentLevel.value === 0) {
       return combinedText;
     } else {
