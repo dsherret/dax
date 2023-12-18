@@ -106,7 +106,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     commands: { ...builtInCommands },
     exportEnv: false,
     printCommand: false,
-    printCommandLogger: new LoggerTreeBox(console.error),
+    printCommandLogger: new LoggerTreeBox((cmd) =>
+      console.error(
+        colors.white(">"),
+        colors.blue(cmd),
+      )
+    ),
+
     timeout: undefined,
     signal: undefined,
   };
@@ -573,7 +579,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
+    state.printCommandLogger.getValue()(state.command);
   }
 
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
