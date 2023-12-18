@@ -106,11 +106,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     commands: { ...builtInCommands },
     exportEnv: false,
     printCommand: false,
-    printCommandLogger: new LoggerTreeBox((cmd) =>
-      console.error(
-        colors.white(">"),
-        colors.blue(cmd),
-      )
+    printCommandLogger: new LoggerTreeBox(
+      (cmd) => console.error(colors.white(">"), colors.blue(cmd)),
     ),
 
     timeout: undefined,
