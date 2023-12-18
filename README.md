@@ -21,6 +21,7 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 ## Executing commands
 
 ```ts
+#!/usr/bin/env -S deno run --allow-all
 import $ from "https://deno.land/x/dax/mod.ts";
 
 // run a command
