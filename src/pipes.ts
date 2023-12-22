@@ -123,7 +123,7 @@ export class PipedBuffer implements WriterSync {
     this.#inner = new Buffer();
   }
 
-  getBuffer() {
+  getBuffer(): Buffer | undefined {
     if (this.#inner instanceof Buffer) {
       return this.#inner;
     } else {
@@ -143,7 +143,7 @@ export class PipedBuffer implements WriterSync {
     }
   }
 
-  writeSync(p: Uint8Array) {
+  writeSync(p: Uint8Array): number {
     return this.#inner.writeSync(p);
   }
 

@@ -84,13 +84,13 @@ export class PathRef {
   }
 
   /** @internal */
-  static [Symbol.hasInstance](instance: any) {
+  static [Symbol.hasInstance](instance: any): boolean {
     // this should never change because it should work accross versions
     return instance?.constructor?.instanceofSymbol === PathRef.instanceofSymbol;
   }
 
   /** @internal */
-  [Symbol.for("Deno.customInspect")]() {
+  [Symbol.for("Deno.customInspect")](): string {
     return `PathRef("${this.#path}")`;
   }
 
