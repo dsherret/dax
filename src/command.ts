@@ -71,7 +71,7 @@ const builtInCommands = {
 };
 
 /** @internal */
-export const getRegisteredCommandNamesSymbol = Symbol();
+export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -483,7 +483,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [getRegisteredCommandNamesSymbol]() {
+  [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);
   }
 }

@@ -21,7 +21,7 @@ interface RequestBuilderState {
 }
 
 /** @internal */
-export const withProgressBarFactorySymbol = Symbol();
+export const withProgressBarFactorySymbol: unique symbol = Symbol();
 
 /**
  * Builder API for downloading files.
@@ -197,7 +197,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** @internal */
-  [withProgressBarFactorySymbol](factory: (message: string) => ProgressBar) {
+  [withProgressBarFactorySymbol](factory: (message: string) => ProgressBar): RequestBuilder {
     return this.#newWithState((state) => {
       state.progressBarFactory = factory;
     });
