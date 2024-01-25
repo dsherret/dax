@@ -18,7 +18,7 @@ export async function* readKeys() {
   const { strip_ansi_codes } = wasmInstance;
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await Deno.stdin.read(buf);;
+    const byteCount = await Deno.stdin.read(buf);
     if (byteCount == null) {
       break;
     }
