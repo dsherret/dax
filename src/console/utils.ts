@@ -18,7 +18,7 @@ export async function* readKeys() {
   const { strip_ansi_codes } = wasmInstance;
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await Deno.read(Deno.stdin.rid, buf);
+    const byteCount = await Deno.stdin.read(buf);;
     if (byteCount == null) {
       break;
     }
@@ -68,7 +68,7 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export const isOutputTty = safeConsoleSize() != null && Deno.isatty(Deno.stderr.rid);
+export const isOutputTty = safeConsoleSize() != null && Deno.stderr.isTerminal();
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
@@ -86,7 +86,7 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  if (!isOutputTty || !Deno.isatty(Deno.stdin.rid)) {
+  if (!isOutputTty || !Deno.stdin.isTerminal()) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
   if (safeConsoleSize() == null) {
