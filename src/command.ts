@@ -22,7 +22,7 @@ import {
   NullPipeWriter,
   PipedBuffer,
   Reader,
-  ShellPipeReader,
+  ShellPipeReaderKind,
   ShellPipeWriter,
   ShellPipeWriterKind,
   WriterSync,
@@ -269,7 +269,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * For this reason, if you are setting stdin to something other than "inherit" or
    * "null", then it's recommended to set this each time you spawn a command.
    */
-  stdin(reader: ShellPipeReader): CommandBuilder {
+  stdin(reader: ShellPipeReaderKind): CommandBuilder {
     return this.#newWithState((state) => {
       if (reader === "inherit" || reader === "null") {
         state.stdin = reader;

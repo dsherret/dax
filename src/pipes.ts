@@ -16,7 +16,7 @@ export interface Closer {
   close(): void;
 }
 
-export type ShellPipeReader =
+export type ShellPipeReaderKind =
   | "inherit"
   | "null"
   | Reader

@@ -4,7 +4,7 @@ import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
-import { Reader, ShellPipeReader, ShellPipeWriter, ShellPipeWriterKind, WriterSync } from "./pipes.ts";
+import { Reader, ShellPipeReaderKind, ShellPipeWriter, ShellPipeWriterKind, WriterSync } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
 
 export interface SequentialList {
@@ -722,7 +722,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     }
   }
 
-  function getStdioStringValue(value: ShellPipeReader | ShellPipeWriterKind) {
+  function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
     if (value === "inheritPiped") {
       return "piped";
     } else if (value === "inherit" || value === "null" || value === "piped") {
