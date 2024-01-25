@@ -1013,7 +1013,7 @@ Deno.test("shebang support", async (t) => {
     step("without -S, but valid", async () => {
       dir.join("echo_stdin.ts").writeTextSync(
         [
-          "#!/usr/bin/env -S deno run --unstable --allow-run",
+          "#!/usr/bin/env -S deno run --allow-run",
           "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
         ].join("\n"),
       );
