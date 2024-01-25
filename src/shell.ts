@@ -1,3 +1,4 @@
+import { CommandPipeReader } from "../mod.ts";
 import { KillSignal } from "./command.ts";
 import { CommandContext, CommandHandler } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
@@ -200,7 +201,7 @@ function cloneEnv(env: Env) {
 }
 
 export class Context {
-  stdin: ShellPipeReader;
+  stdin: CommandPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   #env: Env;
@@ -209,7 +210,7 @@ export class Context {
   #signal: KillSignal;
 
   constructor(opts: {
-    stdin: ShellPipeReader;
+    stdin: CommandPipeReader;
     stdout: ShellPipeWriter;
     stderr: ShellPipeWriter;
     env: Env;
@@ -224,6 +225,12 @@ export class Context {
     this.#commands = opts.commands;
     this.#shellVars = opts.shellVars;
     this.#signal = opts.signal;
+  }
+
+  [Symbol.dispose]() {
+    if (this.stdin instanceof ReadableStream) {
+      this.stdin.cancel();
+    }
   }
 
   get signal() {
@@ -351,7 +358,7 @@ export function parseCommand(command: string) {
 }
 
 export interface SpawnOpts {
-  stdin: ShellPipeReader;
+  stdin: CommandPipeReader;
   stdout: ShellPipeWriter;
   stderr: ShellPipeWriter;
   env: Record<string, string>;
@@ -364,7 +371,7 @@ export interface SpawnOpts {
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const env = opts.exportEnv ? new RealEnv() : new ShellEnv();
   initializeEnv(env, opts);
-  const context = new Context({
+  using context = new Context({
     env,
     commands: opts.commands,
     stdin: opts.stdin,
@@ -649,7 +656,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     await stdinPromise;
   }
 
-  async function writeStdin(stdin: ShellPipeReader, p: Deno.ChildProcess, signal: AbortSignal) {
+  async function writeStdin(stdin: CommandPipeReader, p: Deno.ChildProcess, signal: AbortSignal) {
     if (typeof stdin === "string") {
       return;
     }

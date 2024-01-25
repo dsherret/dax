@@ -1,3 +1,4 @@
+import { PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAllSync } from "./deps.ts";
 
@@ -15,7 +16,13 @@ export interface Closer {
   close(): void;
 }
 
-export type ShellPipeReader = "inherit" | "null" | Reader;
+export type ShellPipeReader =
+  | "inherit"
+  | "null"
+  | Reader
+  | ReadableStream<Uint8Array>
+  | Uint8Array
+  | PathRef;
 /**
  * The behaviour to use for a shell pipe.
  * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).

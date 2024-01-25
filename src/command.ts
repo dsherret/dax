@@ -33,9 +33,24 @@ import { PathRef } from "./path.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
+class Deferred<T> {
+  #create: () => T | Promise<T>;
+  constructor(create: () => T | Promise<T>) {
+    this.#create = create;
+  }
+
+  create() {
+    return this.#create();
+  }
+}
+
 interface CommandBuilderState {
   command: string | undefined;
-  stdin: "inherit" | "null" | Box<Reader | ReadableStream<Uint8Array> | "consumed">;
+  stdin:
+    | "inherit"
+    | "null"
+    | Box<Reader | ReadableStream<Uint8Array> | "consumed">
+    | Deferred<ReadableStream<Uint8Array> | Reader>;
   combinedStdoutStderr: boolean;
   stdoutKind: ShellPipeWriterKind;
   stderrKind: ShellPipeWriterKind;
@@ -254,12 +269,17 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * For this reason, if you are setting stdin to something other than "inherit" or
    * "null", then it's recommended to set this each time you spawn a command.
    */
-  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>): CommandBuilder {
+  stdin(reader: ShellPipeReader): CommandBuilder {
     return this.#newWithState((state) => {
       if (reader === "inherit" || reader === "null") {
         state.stdin = reader;
       } else if (reader instanceof Uint8Array) {
-        state.stdin = new Box(new Buffer(reader));
+        state.stdin = new Deferred(() => new Buffer(reader));
+      } else if (reader instanceof PathRef) {
+        state.stdin = new Deferred(async () => {
+          const file = await reader.open();
+          return file.readable;
+        });
       } else {
         state.stdin = new Box(reader);
       }
@@ -612,7 +632,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   return new CommandChild(async (resolve, reject) => {
     try {
       const list = parseCommand(command);
-      const stdin = takeStdin();
+      const stdin = await takeStdin();
       let code = await spawn(list, {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
         stdout,
@@ -668,7 +688,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     killSignalController,
   });
 
-  function takeStdin() {
+  async function takeStdin() {
     if (state.stdin instanceof Box) {
       const stdin = state.stdin.value;
       if (stdin === "consumed") {
@@ -680,6 +700,8 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       }
       state.stdin.value = "consumed";
       return stdin;
+    } else if (state.stdin instanceof Deferred) {
+      return await state.stdin.create();
     } else {
       return state.stdin;
     }
