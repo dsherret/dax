@@ -10,11 +10,12 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
         const url = new URL(`http://${details.hostname}:${details.port}/`);
         try {
           await action(url);
+          await server.shutdown();
           resolve();
         } catch (err) {
+          await server.shutdown();
           reject(err);
         }
-        await server.shutdown();
       },
     }, (request) => {
       const url = new URL(request.url);

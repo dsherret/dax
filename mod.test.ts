@@ -754,11 +754,11 @@ Deno.test("piping to stdin", async () => {
 
   // string
   {
-    const result =
-      await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
-        .stdinText("test\n")
-        .text();
-    assertEquals(result, "test");
+    const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+      .stdinText("test\n");
+    // should support calling multiple times
+    assertEquals(await command.text(), "test");
+    assertEquals(await command.text(), "test");
   }
 
   // Uint8Array
@@ -778,6 +778,15 @@ Deno.test("piping to stdin", async () => {
       .text();
     assertEquals(result, "1\n2");
   }
+
+  // PathRef
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    const fileText = "1 testing this out\n".repeat(1_000);
+    tempFile.writeTextSync(fileText);
+    const output = await $`cat`.stdin(tempFile).text();
+    assertEquals(output, fileText.trim());
+  });
 });
 
 Deno.test("spawning a command twice that has stdin set to a Reader should error", async () => {
