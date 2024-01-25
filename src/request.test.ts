@@ -1,12 +1,22 @@
 import { Buffer, path } from "./deps.ts";
-import { assertEquals, assertRejects, serve, writableStreamFromWriter } from "./deps.test.ts";
+import { assertEquals, assertRejects, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {
-  const controller = new AbortController();
-  const signal = controller.signal;
   return new Promise<void>((resolve, reject) => {
-    serve((request) => {
+    const server = Deno.serve({
+      hostname: "localhost",
+      async onListen(details) {
+        const url = new URL(`http://${details.hostname}:${details.port}/`);
+        try {
+          await action(url);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+        await server.shutdown();
+      },
+    }, (request) => {
       const url = new URL(request.url);
       if (url.pathname === "/text-file") {
         const data = "text".repeat(1000);
@@ -25,20 +35,6 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else {
         return new Response("Not Found", { status: 404 });
       }
-    }, {
-      hostname: "localhost",
-      signal,
-      async onListen(details) {
-        const url = new URL(`http://${details.hostname}:${details.port}/`);
-        try {
-          await action(url);
-          resolve();
-          controller.abort();
-        } catch (err) {
-          reject(err);
-          controller.abort();
-        }
-      },
     });
   });
 }
@@ -92,7 +88,7 @@ Deno.test("$.request", (t) => {
       await new RequestBuilder()
         .url(new URL("/text-file", serverUrl))
         .showProgress()
-        .pipeTo(writableStreamFromWriter(buffer));
+        .pipeTo(toWritableStream(buffer));
       const text = new TextDecoder().decode(buffer.bytes());
       assertEquals(text, "text".repeat(1000));
     });
