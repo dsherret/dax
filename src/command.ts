@@ -1075,7 +1075,7 @@ function validateCommandName(command: string) {
 const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
 interface KillSignalState {
-  abortedCode: number;
+  abortedCode: number | undefined;
   listeners: ((signal: Deno.Signal) => void)[];
 }
 
@@ -1086,7 +1086,7 @@ export class KillSignalController {
 
   constructor() {
     this.#state = {
-      abortedCode: 0,
+      abortedCode: undefined,
       listeners: [],
     };
     this.#killSignal = new KillSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#state);
@@ -1131,7 +1131,12 @@ export class KillSignal {
    * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP
    */
   get aborted(): boolean {
-    return this.#state.abortedCode !== 0;
+    return this.#state.abortedCode !== undefined;
+  }
+
+  /** Gets the exit code to use if aborted. */
+  get abortedExitCode() {
+    return this.#state.abortedCode;
   }
 
   /**
@@ -1159,11 +1164,6 @@ export class KillSignal {
     if (index >= 0) {
       this.#state.listeners.splice(index, 1);
     }
-  }
-
-  /** @internal - DO NOT USE. Very unstable. Not sure about this. */
-  get _abortedExitCode() {
-    return this.#state.abortedCode;
   }
 }
 
