@@ -1,11 +1,16 @@
 import { PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAllSync } from "./deps.ts";
+import { FsFileWrapper } from "../mod.ts";
 
 const encoder = new TextEncoder();
 
 export interface Reader {
   read(p: Uint8Array): Promise<number | null>;
+}
+
+export interface Writer {
+  write(p: Uint8Array): Promise<number>;
 }
 
 export interface WriterSync {
@@ -22,6 +27,7 @@ export type ShellPipeReaderKind =
   | Reader
   | ReadableStream<Uint8Array>
   | Uint8Array
+  | FsFileWrapper
   | PathRef;
 /**
  * The behaviour to use for a shell pipe.
@@ -30,7 +36,15 @@ export type ShellPipeReaderKind =
  * @value "piped" - Captures the pipe without outputting.
  * @value "inheritPiped" - Captures the pipe with outputting.
  */
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped" | WriterSync;
+export type ShellPipeWriterKind =
+  | "inherit"
+  | "null"
+  | "piped"
+  | "inheritPiped"
+  | WriterSync
+  | WritableStream<Uint8Array>
+  | FsFileWrapper
+  | PathRef;
 
 export class NullPipeWriter implements WriterSync {
   writeSync(p: Uint8Array): number {

@@ -789,6 +789,84 @@ Deno.test("piping to stdin", async () => {
   });
 });
 
+Deno.test("piping to a writable and the command fails", async () => {
+  const chunks = [];
+  let wasClosed = false;
+  const writableStream = new WritableStream({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    close() {
+      wasClosed = true;
+    },
+  });
+  await $`echo 1 ; exit 1`.stdout(writableStream).noThrow();
+  assertEquals(chunks.length, 1);
+  assert(wasClosed);
+});
+
+Deno.test("piping to a writable and the command fails and throws", async () => {
+  const chunks = [];
+  let wasClosed = false;
+  const writableStream = new WritableStream({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    close() {
+      wasClosed = true;
+    },
+  });
+  let didThrow = false;
+  try {
+    await $`echo 1 ; exit 1`.stdout(writableStream);
+  } catch {
+    didThrow = true;
+  }
+  assert(didThrow);
+  assertEquals(chunks.length, 1);
+  assert(wasClosed);
+});
+
+Deno.test("piping to a writable that throws", async () => {
+  const writableStream = new WritableStream({
+    write(_chunk) {
+      throw new Error("failed");
+    },
+  });
+  await assertRejects(
+    async () => {
+      await $`echo 1`.stdout(writableStream);
+    },
+    Error,
+    "failed",
+  );
+});
+
+Deno.test("piping stdout/stderr to a file", async () => {
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`echo 1`.stdout(tempFile);
+    assertEquals(tempFile.readTextSync(), "1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`deno eval 'console.error(1);'`.stderr(tempFile);
+    assertEquals(tempFile.readTextSync(), "1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    {
+      using file = tempFile.openSync({ write: true, create: true, truncate: true });
+      await $`deno eval "console.log('1234\\n'.repeat(1_000));"`.stdout(file.writable);
+    }
+    const text = tempFile.readTextSync();
+    // last \n for the console.log itself
+    assertEquals(text, "1234\n".repeat(1_000) + "\n");
+  });
+});
+
 Deno.test("spawning a command twice that has stdin set to a Reader should error", async () => {
   const bytes = new TextEncoder().encode("test\n");
   const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`

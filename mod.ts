@@ -548,8 +548,11 @@ function buildInitial$State<TExtras extends ExtrasObject>(
   return {
     commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
+    // deno-lint-ignore no-console
     infoLogger: new LoggerTreeBox(console.error),
+    // deno-lint-ignore no-console
     warnLogger: new LoggerTreeBox(console.error),
+    // deno-lint-ignore no-console
     errorLogger: new LoggerTreeBox(console.error),
     indentLevel: new Box(0),
     extras: opts.extras,

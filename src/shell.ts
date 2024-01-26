@@ -227,12 +227,6 @@ export class Context {
     this.#signal = opts.signal;
   }
 
-  [Symbol.dispose]() {
-    if (this.stdin instanceof ReadableStream) {
-      this.stdin.cancel();
-    }
-  }
-
   get signal() {
     return this.#signal;
   }
@@ -371,7 +365,7 @@ export interface SpawnOpts {
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const env = opts.exportEnv ? new RealEnv() : new ShellEnv();
   initializeEnv(env, opts);
-  using context = new Context({
+  const context = new Context({
     env,
     commands: opts.commands,
     stdin: opts.stdin,

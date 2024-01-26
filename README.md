@@ -91,6 +91,27 @@ const result = await $`deno eval 'console.log(1); console.error(2); console.log(
 console.log(result.combined); // 1\n2\n3\n
 ```
 
+### Piping
+
+Piping stdout or stderr to a `Deno.WriterSync`:
+
+```ts
+await $`echo 1`.stdout(Deno.stderr);
+await $`deno eval 'console.error(2);`.stderr(Deno.stdout);
+```
+
+Piping to a `WritableStream`:
+
+```ts
+await $`echo 1`.stdout(Deno.stderr.writable, { preventClose: true });
+```
+
+Or to a file:
+
+```ts
+await $`echo 1`.stdout($.path("data.txt"));
+```
+
 ### Providing arguments to a command
 
 Use an expression in a template literal to provide a single argument to a command:
@@ -145,6 +166,7 @@ await $`command`.stdin("inherit"); // default
 await $`command`.stdin("null");
 await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
 await $`command`.stdin(someReaderOrReadableStream);
+await $`command`.stdin($.path("data.json"));
 await $`command`.stdinText("some value");
 ```
 
