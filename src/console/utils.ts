@@ -73,7 +73,12 @@ export const isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
 function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
   if (typeof pipe.isTerminal === "function") {
     return pipe.isTerminal();
-  } else if (pipe.rid != null && typeof Deno.isatty === "function") {
+  } else if (
+    pipe.rid != null &&
+    // deno-lint-ignore no-deprecated-deno-api
+    typeof Deno.isatty === "function"
+  ) {
+    // deno-lint-ignore no-deprecated-deno-api
     return Deno.isatty(pipe.rid);
   } else {
     throw new Error("Unsupported pipe.");
