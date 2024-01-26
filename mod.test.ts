@@ -787,6 +787,26 @@ Deno.test("piping to stdin", async () => {
     const output = await $`cat`.stdin(tempFile).text();
     assertEquals(output, fileText.trim());
   });
+
+  // command via stdin
+  {
+    const child = $`echo 1 && echo 2`;
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child)
+      .text();
+    assertEquals(result, "1\n2");
+  }
+
+  // command that exists via stdin
+  {
+    const child = $`echo 1 && echo 2 && exit 1`;
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child)
+      .stderr("piped")
+      .noThrow();
+    assertEquals(result.code, 1);
+    assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+  }
 });
 
 Deno.test("piping to a writable and the command fails", async () => {
