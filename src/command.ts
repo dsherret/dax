@@ -1169,7 +1169,7 @@ export class KillSignal {
 
 function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
   const code = getSignalAbortCode(signal);
-  if (code !== 0) {
+  if (code !== undefined) {
     state.abortedCode = code;
   }
   for (const listener of state.listeners) {
@@ -1194,7 +1194,7 @@ function getSignalAbortCode(signal: Deno.Signal) {
       // should SIGSTOP be considered an abort?
       return 128 + 19;
     default:
-      return 0;
+      return undefined;
   }
 }
 
