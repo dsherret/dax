@@ -5,22 +5,25 @@ import { FsFileWrapper } from "../mod.ts";
 
 const encoder = new TextEncoder();
 
+/** `Deno.Reader` stream. */
 export interface Reader {
   read(p: Uint8Array): Promise<number | null>;
 }
 
-export interface Writer {
-  write(p: Uint8Array): Promise<number>;
-}
-
+/** `Deno.WriterSync` stream. */
 export interface WriterSync {
   writeSync(p: Uint8Array): number;
 }
 
+/** `Deno.Closer` */
 export interface Closer {
   close(): void;
 }
 
+/** Behaviour to use for stdin.
+ * @value "inherit" - Sends the stdin of the process to the shell (default).
+ * @value "null" - Does not pipe or redirect the pipe.
+ */
 export type ShellPipeReaderKind =
   | "inherit"
   | "null"

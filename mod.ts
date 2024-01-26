@@ -104,6 +104,7 @@ export type $Type<TExtras extends ExtrasObject = {}> =
     : Omit<$BuiltInProperties<TExtras>, keyof TExtras>)
   & TExtras;
 
+/** String literal template. */
 export interface $Template {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
 }
@@ -124,6 +125,7 @@ type Which = typeof import("./src/deps.ts").which;
  */
 type WhichSync = typeof import("./src/deps.ts").whichSync;
 
+/** Collection of built-in properties that come with a `$`. */
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /**
    * Makes a request to the provided URL throwing by default if the
@@ -590,6 +592,7 @@ export interface Create$Options<TExtras extends ExtrasObject> {
   commandBuilder?: CommandBuilder;
   /** Uses the state of this request builder as a starting point. */
   requestBuilder?: RequestBuilder;
+  /** Extra properties to put on the `$`. */
   extras?: TExtras;
 }
 
