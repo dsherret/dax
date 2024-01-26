@@ -3,7 +3,14 @@ import { CommandContext, CommandHandler, type CommandPipeReader } from "./comman
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
-import { Reader, ShellPipeReaderKind, ShellPipeWriter, ShellPipeWriterKind, WriterSync } from "./pipes.ts";
+import {
+  NullPipeWriter,
+  Reader,
+  ShellPipeReaderKind,
+  ShellPipeWriter,
+  ShellPipeWriterKind,
+  WriterSync,
+} from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
 
 export interface SequentialList {
@@ -76,14 +83,28 @@ export interface TaggedSequentialList extends SequentialList {
   kind: "sequentialList";
 }
 
-// deno-lint-ignore no-empty-interface
-export interface Redirect {
-  // todo...
+export type RedirectFd = RedirectFdFd | RedirectFdStdoutStderr;
+
+export interface RedirectFdFd {
+  kind: "fd";
+  fd: number;
+}
+
+export interface RedirectFdStdoutStderr {
+  kind: "stdoutStderr";
 }
 
 export interface PipeSequence {
   kind: "pipeSequence";
   // todo...
+}
+
+export type RedirectOp = "redirect" | "append";
+
+export interface Redirect {
+  maybeFd: RedirectFd | undefined;
+  op: RedirectOp;
+  ioFile: Word;
 }
 
 export type BooleanListOperator = "and" | "or";
@@ -198,6 +219,34 @@ function cloneEnv(env: Env) {
   });
   return result;
 }
+
+// todo: delete
+// export class DisposableCollection {
+//   #disposables: Disposable[] = [];
+
+//   add(disposable: Disposable) {
+//     this.#disposables.push(disposable);
+//   }
+
+//   disposeHandlingErrors(stderr: ShellPipeWriter): ExecuteResult {
+//     if (this.#disposables.length > 0) {
+//       const errors = [];
+//       for (const disposable of this.#disposables) {
+//         try {
+//           disposable[Symbol.dispose]();
+//         } catch (err) {
+//           errors.push(err);
+//         }
+//       }
+//       if (errors.length > 0) {
+//         const error = new AggregateError(errors);
+//         stderr.writeLine("failed disposing context. " + error);
+//         return resultFromCode(1);
+//       }
+//     }
+//     return resultFromCode(0);
+//   }
+// }
 
 export class Context {
   stdin: CommandPipeReader;
@@ -535,11 +584,101 @@ function executePipelineInner(inner: PipelineInner, context: Context): Promise<E
   }
 }
 
-function executeCommand(command: Command, context: Context): Promise<ExecuteResult> {
+async function executeCommand(command: Command, context: Context): Promise<ExecuteResult> {
   if (command.redirect != null) {
-    throw new Error("Redirects are not supported. Pipe in the JS code instead using the methods on commands.");
+    const redirectResult = await resolveRedirectPipe(command.redirect, context);
+    if (redirectResult.kind !== "pipe") {
+      return redirectResult;
+    }
+    const { pipe, fd } = redirectResult;
+    const newContext = context.clone();
+    const writer = new ShellPipeWriter("piped", pipe);
+    if (fd === 1) {
+      newContext.stdout = writer;
+    } else if (fd === 2) {
+      newContext.stderr = writer;
+    } else {
+      const _assertNever: never = fd;
+      throw new Error(`Not handled fd: ${fd}`);
+    }
+    const result = await executeCommandInner(command.inner, newContext);
+    if (isDisposable(pipe)) {
+      try {
+        pipe[Symbol.dispose]();
+      } catch (err) {
+        if (result.code === 0) {
+          context.stderr.writeLine(`Failed disposing redirected pipe. ${err}`);
+          return resultFromCode(1);
+        }
+      }
+    }
+    return result;
+  } else {
+    return executeCommandInner(command.inner, context);
   }
-  return executeCommandInner(command.inner, context);
+}
+
+async function resolveRedirectPipe(
+  redirect: Redirect,
+  context: Context,
+): Promise<{ kind: "pipe"; pipe: WriterSync; fd: 1 | 2 } | ExecuteResult> {
+  const fd = resolveRedirectFd(redirect, context);
+  if (typeof fd !== "number") {
+    return fd;
+  }
+  const words = await evaluateWordParts(redirect.ioFile, context);
+  // edge case that's not supported
+  if (words.length === 0) {
+    context.stderr.writeLine("redirect path must be 1 argument, but found 0");
+    return resultFromCode(1);
+  } else if (words.length > 1) {
+    context.stderr.writeLine(
+      `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). ` +
+        `Did you mean to quote it (ex. "${words.join(" ")}")?`,
+    );
+    return resultFromCode(1);
+  }
+  if (words[0] === "/dev/null") {
+    return {
+      kind: "pipe",
+      pipe: new NullPipeWriter(),
+      fd,
+    };
+  }
+  const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
+  try {
+    const file = await Deno.open(outputPath, {
+      write: true,
+      create: true,
+      append: redirect.op === "append",
+      truncate: redirect.op !== "append",
+    });
+    return {
+      kind: "pipe",
+      pipe: file,
+      fd,
+    };
+  } catch (err) {
+    context.stderr.writeLine(`failed opening file for redirect (${outputPath}). ${err}`);
+    return resultFromCode(1);
+  }
+}
+
+function resolveRedirectFd(redirect: Redirect, context: Context): ExecuteResult | 1 | 2 {
+  const maybeFd = redirect.maybeFd;
+  if (maybeFd == null) {
+    return 1; // stdout
+  }
+  if (maybeFd.kind === "stdoutStderr") {
+    context.stderr.writeLine("redirecting to both stdout and stderr is not implemented");
+    return resultFromCode(1);
+  }
+  if (maybeFd.fd !== 1 && maybeFd.fd !== 2) {
+    context.stderr.writeLine(`only redirecting to stdout (1) and stderr (2) is supported`);
+    return resultFromCode(1);
+  } else {
+    return maybeFd.fd;
+  }
 }
 
 function executeCommandInner(command: CommandInner, context: Context): Promise<ExecuteResult> {
@@ -891,4 +1030,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
     result.push(currentText);
   }
   return result;
+}
+
+function isDisposable(value: unknown): value is Disposable {
+  return value != null && typeof value === "object" && Symbol.dispose in value;
 }
