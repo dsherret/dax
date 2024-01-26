@@ -68,7 +68,17 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export const isOutputTty = safeConsoleSize() != null && Deno.stderr.isTerminal();
+export const isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
+
+function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
+  if (typeof pipe.isTerminal === "function") {
+    return pipe.isTerminal();
+  } else if (pipe.rid != null && typeof Deno.isatty === "function") {
+    return Deno.isatty(pipe.rid);
+  } else {
+    throw new Error("Unsupported pipe.");
+  }
+}
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
@@ -86,7 +96,7 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  if (!isOutputTty || !Deno.stdin.isTerminal()) {
+  if (!isOutputTty || !isTerminal(Deno.stdin)) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
   if (safeConsoleSize() == null) {
