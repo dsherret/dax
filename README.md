@@ -813,7 +813,7 @@ You can also register your own custom commands using the `registerCommand` or `r
 const commandBuilder = new CommandBuilder()
   .registerCommand(
     "true",
-    () => Promise.resolve({ kind: "continue", code: 0 }),
+    () => Promise.resolve({ code: 0 }),
   );
 
 const result = await commandBuilder

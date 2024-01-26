@@ -12,7 +12,7 @@ import {
   ShellPipeWriterKind,
   WriterSync,
 } from "./pipes.ts";
-import { EnvChange, ExecuteResult, getAbortedResult, resultFromCode } from "./result.ts";
+import { EnvChange, ExecuteResult, getAbortedResult } from "./result.ts";
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -246,10 +246,10 @@ function cloneEnv(env: Env) {
 //       if (errors.length > 0) {
 //         const error = new AggregateError(errors);
 //         stderr.writeLine("failed disposing context. " + error);
-//         return resultFromCode(1);
+//         return { code: 1 };
 //       }
 //     }
-//     return resultFromCode(0);
+//     return { code: 0 };
 //   }
 // }
 
@@ -454,7 +454,7 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
     }
     const result = await executeSequence(item.sequence, context);
     switch (result.kind) {
-      case "continue":
+      case undefined:
         if (result.changes) {
           context.applyChanges(result.changes);
           finalChanges.push(...result.changes);
@@ -469,7 +469,6 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
     }
   }
   return {
-    kind: "continue",
     code: finalExitCode,
     changes: finalChanges,
   };
@@ -511,7 +510,7 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
   switch (firstResult.kind) {
     case "exit":
       return firstResult;
-    case "continue":
+    case undefined:
       if (firstResult.changes) {
         context.applyChanges(firstResult.changes);
         changes.push(...firstResult.changes);
@@ -527,7 +526,6 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
   const next = findNextSequence(list, exitCode);
   if (next == null) {
     return {
-      kind: "continue",
       code: exitCode,
       changes,
     };
@@ -539,12 +537,11 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
     switch (nextResult.kind) {
       case "exit":
         return nextResult;
-      case "continue":
+      case undefined:
         if (nextResult.changes) {
           changes.push(...nextResult.changes);
         }
         return {
-          kind: "continue",
           code: nextResult.code,
           changes,
         };
@@ -584,7 +581,6 @@ async function executeBooleanList(list: BooleanList, context: Context): Promise<
 async function executeShellVar(sequence: ShellVar, context: Context): Promise<ExecuteResult> {
   const value = await evaluateWord(sequence.value, context);
   return {
-    kind: "continue",
     code: 0,
     changes: [{
       kind: "shellvar",
@@ -635,7 +631,7 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
       } catch (err) {
         if (result.code === 0) {
           context.stderr.writeLine(`Failed disposing redirected pipe. ${err}`);
-          return resultFromCode(1);
+          return { code: 1 };
         }
       }
     }
@@ -657,13 +653,13 @@ async function resolveRedirectPipe(
   // edge case that's not supported
   if (words.length === 0) {
     context.stderr.writeLine("redirect path must be 1 argument, but found 0");
-    return resultFromCode(1);
+    return { code: 1 };
   } else if (words.length > 1) {
     context.stderr.writeLine(
       `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). ` +
         `Did you mean to quote it (ex. "${words.join(" ")}")?`,
     );
-    return resultFromCode(1);
+    return { code: 1 };
   }
   if (words[0] === "/dev/null") {
     return {
@@ -687,7 +683,7 @@ async function resolveRedirectPipe(
     };
   } catch (err) {
     context.stderr.writeLine(`failed opening file for redirect (${outputPath}). ${err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 
@@ -698,11 +694,11 @@ function resolveRedirectFd(redirect: Redirect, context: Context): ExecuteResult 
   }
   if (maybeFd.kind === "stdoutStderr") {
     context.stderr.writeLine("redirecting to both stdout and stderr is not implemented");
-    return resultFromCode(1);
+    return { code: 1 };
   }
   if (maybeFd.fd !== 1 && maybeFd.fd !== 2) {
     context.stderr.writeLine(`only redirecting to stdout (1) and stderr (2) is supported`);
-    return resultFromCode(1);
+    return { code: 1 };
   } else {
     return maybeFd.fd;
   }
@@ -805,7 +801,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         kind: "exit",
       };
     } else {
-      return resultFromCode(status.code);
+      return { code: status.code };
     }
   } finally {
     completeController.abort();
@@ -1018,12 +1014,12 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
           }
           case "stdoutstderr": {
             context.stderr.writeLine(`piping to both stdout and stderr is not implemented (ex. |&)`);
-            return resultFromCode(1);
+            return { code: 1 };
           }
           default: {
             const _assertNever: never = nextInner.op;
             context.stderr.writeLine(`not implemented pipe sequence op: ${nextInner.op}`);
-            return resultFromCode(1);
+            return { code: 1 };
           }
         }
         nextInner = nextInner.next;
@@ -1034,7 +1030,8 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
     }
   }
   waitTasks.push(
-    pipeCommandPipeReaderToWriterSync(lastOutput, context.stdout, context.signal).then(() => resultFromCode(0)),
+    pipeCommandPipeReaderToWriterSync(lastOutput, context.stdout, context.signal)
+      .then(() => ({ code: 0 })),
   );
   const results = await Promise.all(waitTasks);
   // the second last result is the last command

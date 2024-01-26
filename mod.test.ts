@@ -377,19 +377,17 @@ Deno.test("should support custom command handlers", async () => {
       if (context.args.length != 1) {
         context.stderr.writeLine("zardoz-speaks: expected 1 argument");
         return {
-          kind: "continue",
           code: 1,
         };
       }
       context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
       return {
-        kind: "continue",
         code: 0,
       };
     })
     .registerCommands({
-      "true": () => Promise.resolve({ kind: "continue", code: 0 }),
-      "false": () => Promise.resolve({ kind: "continue", code: 1 }),
+      "true": () => Promise.resolve({ code: 0 }),
+      "false": () => Promise.resolve({ code: 1 }),
     }).stderr("piped").stdout("piped");
 
   {
@@ -424,7 +422,6 @@ Deno.test("should not allow invalid command names", () => {
   const hax: CommandHandler = (context: CommandContext) => {
     context.stdout.writeLine("h4x!1!");
     return {
-      kind: "continue",
       code: 0,
     };
   };
@@ -1617,7 +1614,7 @@ Deno.test("$.commandExists", async () => {
 
   const $new = build$({
     commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
-      return Promise.resolve({ code: 0, kind: "continue" });
+      return Promise.resolve({ code: 0 });
     }),
   });
   assertEquals(await $new.commandExists("some-fake-command"), true);
@@ -1629,7 +1626,7 @@ Deno.test("$.commandExistsSync", () => {
 
   const $new = build$({
     commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
-      return Promise.resolve({ code: 0, kind: "continue" });
+      return Promise.resolve({ code: 0 });
     }),
   });
   assertEquals($new.commandExistsSync("some-fake-command"), true);
@@ -1800,7 +1797,6 @@ Deno.test("signal listening in registered commands", async () => {
       function listener(signal: Deno.Signal) {
         if (signal === "SIGKILL") {
           resolve({
-            kind: "continue",
             code: 135,
           });
           handler.signal.removeListener(listener);

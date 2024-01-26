@@ -1,14 +1,13 @@
 import { CommandContext } from "../command_handler.ts";
-import { resultFromCode } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function touchCommand(context: CommandContext) {
   try {
     await executetouch(context.args);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
     context.stderr.writeLine(`touch: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 

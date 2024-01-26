@@ -15,7 +15,6 @@ export function exportCommand(context: CommandContext): ExecuteResult {
     }
   }
   return {
-    kind: "continue",
     code: 0,
     changes,
   };
