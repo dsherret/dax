@@ -500,7 +500,7 @@ export class RequestResult {
 
   /** Pipes the response body to the provided writable stream. */
   pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
-    return this.#getDownloadBody().pipeTo(dest, options);
+    return this.readable.pipeTo(dest, options);
   }
 
   /**
@@ -538,7 +538,7 @@ export class RequestResult {
     // to allow the server to select which file path to save the file to if using the
     // response url
     const { filePath, options } = resolvePipeToPathParams(filePathOrOptions, maybeOptions, this.#originalUrl);
-    const body = this.#getDownloadBody();
+    const body = this.readable;
     try {
       const file = await filePath.open({
         write: true,
@@ -569,10 +569,10 @@ export class RequestResult {
     writable: WritableStream<Uint8Array>;
     readable: ReadableStream<T>;
   }): ReadableStream<T> {
-    return this.#getDownloadBody().pipeThrough(transform);
+    return this.readable.pipeThrough(transform);
   }
 
-  #getDownloadBody() {
+  get readable(): ReadableStream<Uint8Array> {
     const body = this.#downloadResponse.body;
     if (body == null) {
       throw new Error("Response had no body.");

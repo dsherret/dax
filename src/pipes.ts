@@ -1,7 +1,7 @@
-import { PathRef } from "./path.ts";
+import { type FsFileWrapper, PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAllSync } from "./deps.ts";
-import { FsFileWrapper } from "../mod.ts";
+import type { RequestBuilder } from "./request.ts";
 
 const encoder = new TextEncoder();
 
@@ -28,7 +28,8 @@ export type ShellPipeReaderKind =
   | ReadableStream<Uint8Array>
   | Uint8Array
   | FsFileWrapper
-  | PathRef;
+  | PathRef
+  | RequestBuilder;
 /**
  * The behaviour to use for a shell pipe.
  * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).

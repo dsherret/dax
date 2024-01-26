@@ -167,6 +167,7 @@ await $`command`.stdin("null");
 await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
 await $`command`.stdin(someReaderOrReadableStream);
 await $`command`.stdin($.path("data.json"));
+await $`command`.stdin($.request("https://plugins.dprint.dev/info.json"));
 await $`command`.stdinText("some value");
 ```
 

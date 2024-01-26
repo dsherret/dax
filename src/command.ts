@@ -30,6 +30,7 @@ import {
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
+import { RequestBuilder } from "./request.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -295,6 +296,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         state.stdin = new Deferred(async () => {
           const file = await reader.open();
           return file.readable;
+        });
+      } else if (reader instanceof RequestBuilder) {
+        state.stdin = new Deferred(async () => {
+          const body = await reader;
+          return body.readable;
         });
       } else {
         state.stdin = new Box(reader);

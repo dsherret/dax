@@ -1,6 +1,7 @@
 import { Buffer, path } from "./deps.ts";
 import { assertEquals, assertRejects, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
+import $ from "../mod.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {
   return new Promise<void>((resolve, reject) => {
@@ -211,6 +212,14 @@ Deno.test("$.request", (t) => {
       );
 
       assertEquals(await request500.noThrow(500).text(), "500");
+    });
+
+    step("piping to a command", async () => {
+      const requestBuilder = new RequestBuilder().url(new URL("/json", serverUrl));
+      const data = await $`deno eval 'Deno.stdin.readable.pipeTo(Deno.stdout.writable)'`
+        .stdin(requestBuilder)
+        .json();
+      assertEquals(data, { value: 5 });
     });
 
     await Promise.all(steps);
