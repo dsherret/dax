@@ -1135,7 +1135,7 @@ export class KillSignal {
   }
 
   /** Gets the exit code to use if aborted. */
-  get abortedExitCode() {
+  get abortedExitCode(): number | undefined {
     return this.#state.abortedCode;
   }
 
