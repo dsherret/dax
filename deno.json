@@ -1,7 +1,7 @@
 {
   "tasks": {
     "test": "deno test -A",
-    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.4/main.ts --sync --out ./src/lib"
+    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.6/main.ts --sync --out ./src/lib"
   },
   "fmt": {
     "proseWrap": "preserve",

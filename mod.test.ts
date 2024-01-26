@@ -1053,6 +1053,62 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
+Deno.test("redirects", async () => {
+  await withTempDir(async (tempDir) => {
+    // absolute
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`echo 1 > ${tempFile}`;
+    assertEquals(tempFile.readTextSync(), "1\n");
+    tempFile.removeSync();
+
+    // relative
+    await $`echo 2 > ./temp_file.txt`;
+    assertEquals(tempFile.readTextSync(), "2\n");
+
+    // changing directories then relative
+    await $`mkdir sub_dir && cd sub_dir && echo 3 > ./temp_file.txt`;
+    assertEquals(tempDir.join("sub_dir/temp_file.txt").readTextSync(), "3\n");
+
+    // stderr
+    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`;
+    assertEquals(tempFile.readTextSync(), "5\n");
+
+    // append
+    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`;
+    assertEquals(tempFile.readTextSync(), "1\n2\n3\n");
+
+    // /dev/null
+    assertEquals(await $`echo 1 > /dev/null`.text(), "");
+    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.text(), "2");
+
+    // not supported fd
+    {
+      const result = await $`echo 1 3> file.txt`.noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "only redirecting to stdout (1) and stderr (2) is supported\n");
+    }
+
+    // multiple words
+    {
+      const result = await $`echo 1 > $var`.env("var", "testing this").noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assertEquals(
+        result.stderr,
+        'redirect path must be 1 argument, but found 2 (testing this). Did you mean to quote it (ex. "testing this")?\n',
+      );
+    }
+
+    // piping to a directory
+    {
+      const dir = tempDir.join("dir");
+      dir.mkdirSync();
+      const result = await $`echo 1 > ${dir}`.noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assert(result.stderr.startsWith("failed opening file for redirect"));
+    }
+  });
+});
+
 Deno.test("shebang support", async (t) => {
   await withTempDir(async (dir) => {
     const steps: Promise<boolean>[] = [];
