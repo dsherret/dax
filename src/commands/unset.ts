@@ -1,6 +1,5 @@
-import { ExecuteResult } from "../../mod.ts";
 import { CommandContext } from "../command_handler.ts";
-import { resultFromCode } from "../result.ts";
+import { ExecuteResult, resultFromCode } from "../result.ts";
 
 export function unsetCommand(context: CommandContext): ExecuteResult {
   try {

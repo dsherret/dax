@@ -1,6 +1,5 @@
-import { CommandPipeReader } from "../mod.ts";
 import { KillSignal } from "./command.ts";
-import { CommandContext, CommandHandler } from "./command_handler.ts";
+import { CommandContext, CommandHandler, type CommandPipeReader } from "./command_handler.ts";
 import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
