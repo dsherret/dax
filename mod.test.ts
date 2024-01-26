@@ -1083,6 +1083,11 @@ Deno.test("command .lines()", async () => {
 });
 
 Deno.test("piping in command", async () => {
+  await withTempDir(async (tempDir) => {
+    const result = await $`echo 1 | cat - > output.txt`.cwd(tempDir).text();
+    assertEquals(result, "");
+    assertEquals(tempDir.join("output.txt").readTextSync(), "1\n");
+  });
   {
     const result = await $`echo 1 | cat -`.text();
     assertEquals(result, "1");
