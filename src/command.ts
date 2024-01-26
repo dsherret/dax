@@ -363,6 +363,22 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
+  /** Pipes the current command to the provided command returning the
+   * provided command builder. When chaining, it's important to call this
+   * after you are done configuring the current command or else you will
+   * start modifying the provided command instead.
+   *
+   * @example
+   * ```ts
+   * const lineCount = await $`echo 1 && echo 2`
+   *  .pipe($`wc -l`)
+   *  .text();
+   * ```
+   */
+  pipe(builder: CommandBuilder): CommandBuilder {
+    return builder.stdin(this.stdout("piped"));
+  }
+
   /** Sets multiple environment variables to use at the same time via an object literal. */
   env(items: Record<string, string | undefined>): CommandBuilder;
   /** Sets a single environment variable to use. */
@@ -1165,4 +1181,43 @@ function signalCausesAbort(signal: Deno.Signal) {
     default:
       return false;
   }
+}
+
+export function template(strings: TemplateStringsArray, exprs: any[]) {
+  let result = "";
+  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+    if (strings.length > i) {
+      result += strings[i];
+    }
+    if (exprs.length > i) {
+      result += templateLiteralExprToString(exprs[i], escapeArg);
+    }
+  }
+  return result;
+}
+
+export function templateRaw(strings: TemplateStringsArray, exprs: any[]) {
+  let result = "";
+  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+    if (strings.length > i) {
+      result += strings[i];
+    }
+    if (exprs.length > i) {
+      result += templateLiteralExprToString(exprs[i]);
+    }
+  }
+  return result;
+}
+
+function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
+  let result: string;
+  if (expr instanceof Array) {
+    return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");
+  } else if (expr instanceof CommandResult) {
+    // remove last newline
+    result = expr.stdout.replace(/\r?\n$/, "");
+  } else {
+    result = `${expr}`;
+  }
+  return escape ? escape(result) : result;
 }
