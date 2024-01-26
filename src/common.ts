@@ -2,6 +2,17 @@ import { logger } from "./console/mod.ts";
 import { BufReader, path } from "./deps.ts";
 import { Reader } from "./pipes.ts";
 
+export const symbols = {
+  /** Use this symbol to allow the provided object to execute a command when passed
+   * to a command template literal expression.
+   *
+   * @example
+   * ```ts
+   * ```
+   */
+  commandEvaluation: Symbol.for("dax.CommandEvaluation"),
+};
+
 /**
  * Delay used for certain actions.
  *

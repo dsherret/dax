@@ -8,7 +8,6 @@ export {
   assertStringIncludes,
   assertThrows,
 } from "https://deno.land/std@0.213.0/assert/mod.ts";
-export { readerFromStreamReader } from "https://deno.land/std@0.213.0/streams/reader_from_stream_reader.ts";
 export { toWritableStream } from "https://deno.land/std@0.213.0/io/to_writable_stream.ts";
 
 /**

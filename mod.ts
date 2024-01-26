@@ -29,6 +29,7 @@ import { colors, outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathRef, PathRef } from "./src/path.ts";
+import { symbols } from "./src/common.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { FsFileWrapper, PathRef } from "./src/path.ts";
@@ -461,6 +462,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * ```
    */
   sleep(delay: Delay): Promise<void>;
+  symbols: typeof symbols;
   /**
    * Executes the command as raw text without escaping expressions.
    *
@@ -610,7 +612,12 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      return state.commandBuilder.getValue().command(template(strings, exprs));
+      const { text, commands } = template(strings, exprs);
+      let command = state.commandBuilder.getValue();
+      for (const cmd of commands) {
+        command = command.registerCommand(cmd.name, cmd.handler);
+      }
+      return command.command(text);
     },
     helperObject,
     logDepthObj,
@@ -734,11 +741,17 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         const commandBuilder = state.commandBuilder.getValue().printCommand(value);
         state.commandBuilder.setValue(commandBuilder);
       },
+      symbols,
       request(url: string | URL) {
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        return state.commandBuilder.getValue().command(templateRaw(strings, exprs));
+        const { text, commands } = templateRaw(strings, exprs);
+        let command = state.commandBuilder.getValue();
+        for (const cmd of commands) {
+          command = command.registerCommand(cmd.name, cmd.handler);
+        }
+        return command.command(text);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);

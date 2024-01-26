@@ -1,4 +1,4 @@
-import { readAll } from "./src/deps.ts";
+import { readAll, readerFromStreamReader } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
@@ -7,7 +7,6 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  readerFromStreamReader,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
@@ -814,10 +813,51 @@ Deno.test("pipe", async () => {
     const result = await $`echo 1 && echo 2`
       .pipe($`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`)
       .stderr("piped")
-      .stdout("piped")
-      .spawn();
+      .stdout("piped");
     assertEquals(result.stdout, "");
     assertEquals(result.stderr, "1\n2\n");
+  }
+});
+
+Deno.test("command substitution", async () => {
+  function fillBuffer(buffer: Buffer) {
+    return {
+      [$.symbols.commandEvaluation](): CommandHandler {
+        return async (context) => {
+          switch (context.stdin) {
+            case "inherit":
+            case "null":
+              throw new Error("Not implemented.");
+            default: {
+              const local = new Uint8Array(1024);
+              while (true) {
+                const bytesRead = await context.stdin.read(local);
+                if (bytesRead == null || bytesRead === 0) {
+                  return {
+                    kind: "continue",
+                    code: 0,
+                  };
+                }
+                buffer.writeSync(local.slice(0, bytesRead));
+              }
+            }
+          }
+        };
+      },
+    };
+  }
+
+  {
+    const echos23 = $`echo 2 && echo 3`;
+    const echos4 = $`echo 4`;
+    const text = await $`echo 1 && ${echos23} || ${echos4}`.text();
+    assertEquals(text, "1\n2\n3");
+  }
+  {
+    const buffer = new Buffer();
+    const pipedText = "testing\nthis\nout".repeat(1_024);
+    await $`${fillBuffer(buffer)}`.stdinText(pipedText);
+    assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
   }
 });
 

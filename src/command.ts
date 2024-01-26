@@ -13,9 +13,9 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, LoggerTreeBox, symbols } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader, writeAllSync } from "./deps.ts";
 import {
   CapturingBufferWriter,
   InheritStaticTextBypassWriter,
@@ -177,6 +177,32 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): PromiseLike<TResult1 | TResult2> {
     return this.spawn().then(onfulfilled).catch(onrejected);
+  }
+
+  [symbols.commandEvaluation](): CommandHandler {
+    return async (context) => {
+      const child = this.stdout("piped").spawn();
+      const reader = child.stdout().getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done || value == null) break;
+          writeAllSync(context.stdout, value);
+        }
+        return {
+          kind: "continue",
+          code: 0,
+        };
+      } catch (err) {
+        context.stderr.writeLine(`failed piping command. ${err}`);
+        return {
+          kind: "continue",
+          code: 1,
+        };
+      } finally {
+        reader.releaseLock();
+      }
+    };
   }
 
   /**
@@ -1183,33 +1209,52 @@ function signalCausesAbort(signal: Deno.Signal) {
   }
 }
 
+let commandIndex = 0;
+
 export function template(strings: TemplateStringsArray, exprs: any[]) {
-  let result = "";
-  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-    if (strings.length > i) {
-      result += strings[i];
-    }
-    if (exprs.length > i) {
-      result += templateLiteralExprToString(exprs[i], escapeArg);
-    }
-  }
-  return result;
+  return templateInner(strings, exprs, escapeArg);
 }
 
 export function templateRaw(strings: TemplateStringsArray, exprs: any[]) {
-  let result = "";
-  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-    if (strings.length > i) {
-      result += strings[i];
-    }
-    if (exprs.length > i) {
-      result += templateLiteralExprToString(exprs[i]);
-    }
-  }
-  return result;
+  return templateInner(strings, exprs, undefined);
 }
 
-function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
+function templateInner(
+  strings: TemplateStringsArray,
+  exprs: any[],
+  escape: ((arg: string) => string) | undefined,
+) {
+  let text = "";
+  const commands: { name: string; handler: CommandHandler }[] = [];
+  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+    if (strings.length > i) {
+      text += strings[i];
+    }
+    if (exprs.length > i) {
+      const expr = exprs[i];
+      if (expr != null && typeof expr[symbols.commandEvaluation] === "function") {
+        const handler = expr[symbols.commandEvaluation]();
+        if (typeof handler !== "function") {
+          throw new Error("Return type of `obj[$.symbols.commandEvaluation]()` must be a `CommandHandler`.");
+        }
+        const commandName = `daxSubstitutionCommand${commandIndex++}`;
+        commands.push({
+          name: commandName,
+          handler,
+        });
+        text += `${commandName}`;
+      } else {
+        text += templateLiteralExprToString(expr, escape);
+      }
+    }
+  }
+  return {
+    text,
+    commands,
+  };
+}
+
+function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {
   let result: string;
   if (expr instanceof Array) {
     return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");

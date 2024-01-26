@@ -234,6 +234,14 @@ Deno.test("$.request", (t) => {
       );
     });
 
+    step("command substitution", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress();
+      const text = await $`echo 1 && ${request}`.text();
+      assertEquals(text, "1\n" + "text".repeat(1000));
+    });
+
     await Promise.all(steps);
   });
 });

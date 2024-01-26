@@ -1,5 +1,7 @@
-import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
+import type { CommandHandler } from "./command_handler.ts";
+import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl, symbols } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
+import { writeAllSync } from "./deps.ts";
 import { PathRef } from "./path.ts";
 
 interface RequestBuilderState {
@@ -90,6 +92,32 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): PromiseLike<TResult1 | TResult2> {
     return this.fetch().then(onfulfilled).catch(onrejected);
+  }
+
+  [symbols.commandEvaluation](): CommandHandler {
+    return async (context) => {
+      const response = await this.fetch();
+      const reader = response.readable.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done || value == null) break;
+          writeAllSync(context.stdout, value);
+        }
+        return {
+          kind: "continue",
+          code: 0,
+        };
+      } catch (err) {
+        context.stderr.writeLine(`failed piping command. ${err}`);
+        return {
+          kind: "continue",
+          code: 1,
+        };
+      } finally {
+        reader.releaseLock();
+      }
+    };
   }
 
   /** Fetches and gets the response. */
