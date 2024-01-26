@@ -1125,6 +1125,21 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
+Deno.test("piping in command", async () => {
+  {
+    const result = await $`echo 1 | cat -`.text();
+    assertEquals(result, "1");
+  }
+  {
+    const result = await $`echo 1 && echo 2 | cat -`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 || echo 2 | cat -`.text();
+    assertEquals(result, "1");
+  }
+});
+
 Deno.test("redirects", async () => {
   await withTempDir(async (tempDir) => {
     // absolute

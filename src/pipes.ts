@@ -187,3 +187,45 @@ export class PipedBuffer implements WriterSync {
     this.#hasSet = true;
   }
 }
+
+export class PipeSequencePipe implements Reader, WriterSync {
+  #inner = new Buffer();
+  #readListener: (() => void) | undefined;
+  #closed = false;
+
+  close() {
+    this.#readListener?.();
+    this.#closed = true;
+  }
+
+  writeSync(p: Uint8Array): number {
+    const value = this.#inner.writeSync(p);
+    if (this.#readListener !== undefined) {
+      const listener = this.#readListener;
+      this.#readListener = undefined;
+      listener();
+    }
+    return value;
+  }
+
+  read(p: Uint8Array): Promise<number | null> {
+    if (this.#readListener !== undefined) {
+      // doesn't support multiple read listeners at the moment
+      throw new Error("Misuse of PipeSequencePipe");
+    }
+
+    if (this.#inner.length === 0) {
+      if (this.#closed) {
+        return Promise.resolve(null);
+      } else {
+        return new Promise((resolve) => {
+          this.#readListener = () => {
+            resolve(this.#inner.readSync(p));
+          };
+        });
+      }
+    } else {
+      return Promise.resolve(this.#inner.readSync(p));
+    }
+  }
+}
