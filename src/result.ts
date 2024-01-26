@@ -17,14 +17,19 @@ export function getAbortedResult(): ExecuteResult {
 
 /** Tells the shell it should exit immediately with the provided exit code. */
 export interface ExitExecuteResult {
+  /** Discriminator. */
   kind: "exit";
+  /** Exit code to use and completely exit the shell with. */
   code: number;
 }
 
 /** Tells the shell to continue executing. */
 export interface ContinueExecuteResult {
+  /** Discriminator. */
   kind: "continue";
+  /** Exit code to use. */
   code: number;
+  /** Changes to the shell that should occur (ex. unsetting env vars). */
   changes?: EnvChange[];
 }
 
@@ -39,8 +44,11 @@ export type EnvChange = SetEnvVarChange | SetShellVarChange | UnsetVarChange | C
  * Used for registering custom commands.
  */
 export interface SetEnvVarChange {
+  /** Discriminator. */
   kind: "envvar";
+  /** Name of the env var to set. */
   name: string;
+  /** Value to set the env var to. */
   value: string;
 }
 
@@ -49,8 +57,11 @@ export interface SetEnvVarChange {
  * Used for registering custom commands.
  */
 export interface SetShellVarChange {
+  /** Discriminator. */
   kind: "shellvar";
+  /** Name of the shell var to set. */
   name: string;
+  /** Value to set the shell var to. */
   value: string;
 }
 
@@ -59,7 +70,9 @@ export interface SetShellVarChange {
  * Used for registering custom commands.
  */
 export interface UnsetVarChange {
+  /** Discriminator. */
   kind: "unsetvar";
+  /** Nave of the env var to unset. */
   name: string;
 }
 
@@ -68,6 +81,8 @@ export interface UnsetVarChange {
  * Used for registering custom commands.
  */
 export interface CdChange {
+  /** Discriminator. */
   kind: "cd";
+  /** Relative or absolute directory to change to. */
   dir: string;
 }
