@@ -222,6 +222,18 @@ Deno.test("$.request", (t) => {
       assertEquals(data, { value: 5 });
     });
 
+    step("piping to a command that errors", async () => {
+      const requestBuilder = new RequestBuilder().url(new URL("/code/500", serverUrl));
+      await assertRejects(
+        () =>
+          $`deno eval 'Deno.stdin.readable.pipeTo(Deno.stdout.writable)'`
+            .stdin(requestBuilder)
+            .json(),
+        Error,
+        "500",
+      );
+    });
+
     await Promise.all(steps);
   });
 });
