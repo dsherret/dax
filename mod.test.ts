@@ -830,16 +830,17 @@ Deno.test("command substitution", async () => {
               throw new Error("Not implemented.");
             default: {
               const local = new Uint8Array(1024);
-              while (true) {
+              while (!context.signal.aborted) {
                 const bytesRead = await context.stdin.read(local);
                 if (bytesRead == null || bytesRead === 0) {
-                  return {
-                    kind: "continue",
-                    code: 0,
-                  };
+                  break;
                 }
                 buffer.writeSync(local.slice(0, bytesRead));
               }
+              return {
+                kind: "continue",
+                code: context.signal.abortedExitCode ?? 0,
+              };
             }
           }
         };

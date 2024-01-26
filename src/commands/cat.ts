@@ -32,7 +32,7 @@ async function executeCat(context: CommandContext) {
           if (!size || size === 0) break;
           else context.stdout.writeSync(buf.slice(0, size));
         }
-        exitCode = context.signal._abortedExitCode;
+        exitCode = context.signal.abortedExitCode ?? 0;
       } else {
         const _assertValue: "null" | "inherit" = context.stdin;
         throw new Error(`not supported. stdin was '${context.stdin}'`);
@@ -47,7 +47,7 @@ async function executeCat(context: CommandContext) {
           if (!size || size === 0) break;
           else context.stdout.writeSync(buf.slice(0, size));
         }
-        exitCode = context.signal._abortedExitCode;
+        exitCode = context.signal.abortedExitCode ?? 0;
       } catch (err) {
         context.stderr.writeLine(`cat ${path}: ${err}`);
         exitCode = 1;
