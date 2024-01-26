@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 import { path as pathUtils } from "../deps.ts";
 
@@ -11,11 +11,11 @@ export async function catCommand(
   context: CommandContext,
 ): Promise<ExecuteResult> {
   try {
-    const exit_code = await executeCat(context);
-    return resultFromCode(exit_code);
+    const code = await executeCat(context);
+    return { code };
   } catch (err) {
     context.stderr.writeLine(`cat: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 

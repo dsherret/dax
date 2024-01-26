@@ -1,6 +1,6 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 import { ArgKind, parseArgKinds } from "./args.ts";
 
 export async function rmCommand(
@@ -8,10 +8,10 @@ export async function rmCommand(
 ): Promise<ExecuteResult> {
   try {
     await executeRemove(context.cwd, context.args);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
     context.stderr.writeLine(`rm: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 
