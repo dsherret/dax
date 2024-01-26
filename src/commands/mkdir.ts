@@ -1,6 +1,6 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath } from "../common.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 import { safeLstat } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
@@ -9,10 +9,10 @@ export async function mkdirCommand(
 ): Promise<ExecuteResult> {
   try {
     await executeMkdir(context.cwd, context.args);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
     context.stderr.writeLine(`mkdir: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 

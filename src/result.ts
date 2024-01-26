@@ -1,13 +1,6 @@
 /** Result of executing a custom command. */
 export type ExecuteResult = ExitExecuteResult | ContinueExecuteResult;
 
-export function resultFromCode(code: number): ContinueExecuteResult {
-  return {
-    kind: "continue",
-    code,
-  };
-}
-
 export function getAbortedResult(): ExecuteResult {
   return {
     kind: "exit",
@@ -26,7 +19,7 @@ export interface ExitExecuteResult {
 /** Tells the shell to continue executing. */
 export interface ContinueExecuteResult {
   /** Discriminator. */
-  kind: "continue";
+  kind?: undefined;
   /** Exit code to use. */
   code: number;
   /** Changes to the shell that should occur (ex. unsetting env vars). */

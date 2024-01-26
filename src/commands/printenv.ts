@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult {
   // windows expects env vars to be upcased
@@ -14,12 +14,12 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
     const result = executePrintEnv(context.env, args);
     context.stdout.writeLine(result);
     if (args.some((arg) => context.env[arg] === undefined)) {
-      return resultFromCode(1);
+      return { code: 1 };
     }
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
     context.stderr.writeLine(`printenv: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 

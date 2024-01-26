@@ -1,16 +1,16 @@
 import { CommandContext } from "../command_handler.ts";
 import { path } from "../deps.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export function pwdCommand(context: CommandContext): ExecuteResult {
   try {
     const output = executePwd(context.cwd, context.args);
     context.stdout.writeLine(output);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
     context.stderr.writeLine(`pwd: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return { code: 1 };
   }
 }
 

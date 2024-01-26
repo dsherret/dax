@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { resolvePath, safeLstat } from "../common.ts";
 import { fs } from "../deps.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 
 export async function testCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
@@ -31,11 +31,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
       default:
         throw new Error("unsupported test type");
     }
-    return resultFromCode(result ? 0 : 1);
+    return { code: result ? 0 : 1 };
   } catch (err) {
     context.stderr.writeLine(`test: ${err?.message ?? err}`);
     // bash test returns 2 on error, e.g. -bash: test: -8: unary operator expected
-    return resultFromCode(2);
+    return { code: 2 };
   }
 }
 
