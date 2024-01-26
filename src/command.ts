@@ -302,6 +302,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
           const body = await reader;
           return body.readable;
         });
+      } else if (reader instanceof CommandBuilder) {
+        state.stdin = new Deferred(() => {
+          return reader.stdout("piped").spawn().stdout();
+        });
       } else {
         state.stdin = new Box(reader);
       }

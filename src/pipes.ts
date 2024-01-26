@@ -2,6 +2,7 @@ import { type FsFileWrapper, PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";
+import type { CommandBuilder } from "./command.ts";
 
 const encoder = new TextEncoder();
 
@@ -30,6 +31,7 @@ export type ShellPipeReaderKind =
   | Reader
   | ReadableStream<Uint8Array>
   | Uint8Array
+  | CommandBuilder
   | FsFileWrapper
   | PathRef
   | RequestBuilder;
