@@ -1,4 +1,4 @@
-import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "./src/command.ts";
+import { CommandBuilder, escapeArg, getRegisteredCommandNamesSymbol, template, templateRaw } from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -610,16 +610,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      let result = "";
-      for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-        if (strings.length > i) {
-          result += strings[i];
-        }
-        if (exprs.length > i) {
-          result += templateLiteralExprToString(exprs[i], escapeArg);
-        }
-      }
-      return state.commandBuilder.getValue().command(result);
+      return state.commandBuilder.getValue().command(template(strings, exprs));
     },
     helperObject,
     logDepthObj,
@@ -747,16 +738,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        let result = "";
-        for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-          if (strings.length > i) {
-            result += strings[i];
-          }
-          if (exprs.length > i) {
-            result += templateLiteralExprToString(exprs[i]);
-          }
-        }
-        return state.commandBuilder.getValue().command(result);
+        return state.commandBuilder.getValue().command(templateRaw(strings, exprs));
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);
@@ -862,19 +844,6 @@ export function build$<TExtras extends ExtrasObject = {}>(
     isGlobal: false,
     ...options,
   }));
-}
-
-function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
-  let result: string;
-  if (expr instanceof Array) {
-    return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");
-  } else if (expr instanceof CommandResult) {
-    // remove last newline
-    result = expr.stdout.replace(/\r?\n$/, "");
-  } else {
-    result = `${expr}`;
-  }
-  return escape ? escape(result) : result;
 }
 
 /**

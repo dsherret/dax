@@ -797,7 +797,7 @@ Deno.test("piping to stdin", async () => {
     assertEquals(result, "1\n2");
   }
 
-  // command that exists via stdin
+  // command that exits via stdin
   {
     const child = $`echo 1 && echo 2 && exit 1`;
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
@@ -806,6 +806,18 @@ Deno.test("piping to stdin", async () => {
       .noThrow();
     assertEquals(result.code, 1);
     assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+  }
+});
+
+Deno.test("pipe", async () => {
+  {
+    const result = await $`echo 1 && echo 2`
+      .pipe($`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`)
+      .stderr("piped")
+      .stdout("piped")
+      .spawn();
+    assertEquals(result.stdout, "");
+    assertEquals(result.stderr, "1\n2\n");
   }
 });
 
