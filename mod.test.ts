@@ -817,6 +817,15 @@ Deno.test("pipe", async () => {
 });
 
 Deno.test("command substitution", async () => {
+  {
+    const echos23 = $`echo 2 && echo 3`;
+    const echos4 = $`echo 4`;
+    const text = await $`echo 1 && ${echos23} || ${echos4} | cat -`.text();
+    assertEquals(text, "1\n2\n3");
+  }
+});
+
+Deno.test("command substitution filling buffer", async () => {
   function fillBuffer(buffer: Buffer) {
     return {
       [$.symbols.commandEvaluation](): CommandHandler {
@@ -835,7 +844,6 @@ Deno.test("command substitution", async () => {
                 buffer.writeSync(local.slice(0, bytesRead));
               }
               return {
-                kind: "continue",
                 code: context.signal.abortedExitCode ?? 0,
               };
             }
@@ -844,19 +852,13 @@ Deno.test("command substitution", async () => {
       },
     };
   }
-
-  {
-    const echos23 = $`echo 2 && echo 3`;
-    const echos4 = $`echo 4`;
-    const text = await $`echo 1 && ${echos23} || ${echos4}`.text();
-    assertEquals(text, "1\n2\n3");
-  }
-  {
+  await withTempDir(async (tempDir) => {
     const buffer = new Buffer();
-    const pipedText = "testing\nthis\nout".repeat(1_024);
-    await $`${fillBuffer(buffer)}`.stdinText(pipedText);
+    const pipedText = "testing\nthis\nout".repeat(1);
+    tempDir.join("data.txt").writeTextSync(pipedText);
+    await $`cat data.txt | ${fillBuffer(buffer)}`.cwd(tempDir);
     assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
-  }
+  });
 });
 
 Deno.test("piping to a writable and the command fails", async () => {

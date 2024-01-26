@@ -99,21 +99,15 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
       const response = await this.fetch();
       const reader = response.readable.getReader();
       try {
-        while (true) {
+        while (!context.signal.aborted) {
           const { done, value } = await reader.read();
           if (done || value == null) break;
           writeAllSync(context.stdout, value);
         }
-        return {
-          kind: "continue",
-          code: 0,
-        };
+        return { code: context.signal.abortedExitCode ?? 0 };
       } catch (err) {
         context.stderr.writeLine(`failed piping command. ${err}`);
-        return {
-          kind: "continue",
-          code: 1,
-        };
+        return { code: 1 };
       } finally {
         reader.releaseLock();
       }
