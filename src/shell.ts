@@ -5,6 +5,7 @@ import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
   NullPipeWriter,
+  PipeSequencePipe,
   Reader,
   ShellPipeReaderKind,
   ShellPipeWriter,
@@ -83,6 +84,15 @@ export interface TaggedSequentialList extends SequentialList {
   kind: "sequentialList";
 }
 
+export interface PipeSequence {
+  kind: "pipeSequence";
+  current: Command;
+  op: PipeSequenceOp;
+  next: PipelineInner;
+}
+
+export type PipeSequenceOp = "stdout" | "stdoutstderr";
+
 export type RedirectFd = RedirectFdFd | RedirectFdStdoutStderr;
 
 export interface RedirectFdFd {
@@ -92,11 +102,6 @@ export interface RedirectFdFd {
 
 export interface RedirectFdStdoutStderr {
   kind: "stdoutStderr";
-}
-
-export interface PipeSequence {
-  kind: "pipeSequence";
-  // todo...
 }
 
 export type RedirectOp = "redirect" | "append";
@@ -248,6 +253,16 @@ function cloneEnv(env: Env) {
 //   }
 // }
 
+interface ContextOptions {
+  stdin: CommandPipeReader;
+  stdout: ShellPipeWriter;
+  stderr: ShellPipeWriter;
+  env: Env;
+  commands: Record<string, CommandHandler>;
+  shellVars: Record<string, string>;
+  signal: KillSignal;
+}
+
 export class Context {
   stdin: CommandPipeReader;
   stdout: ShellPipeWriter;
@@ -257,15 +272,7 @@ export class Context {
   #commands: Record<string, CommandHandler>;
   #signal: KillSignal;
 
-  constructor(opts: {
-    stdin: CommandPipeReader;
-    stdout: ShellPipeWriter;
-    stderr: ShellPipeWriter;
-    env: Env;
-    commands: Record<string, CommandHandler>;
-    shellVars: Record<string, string>;
-    signal: KillSignal;
-  }) {
+  constructor(opts: ContextOptions) {
     this.stdin = opts.stdin;
     this.stdout = opts.stdout;
     this.stderr = opts.stderr;
@@ -380,6 +387,18 @@ export class Context {
         return context.signal;
       },
     };
+  }
+
+  withInner(opts: Partial<Pick<ContextOptions, "stdout" | "stderr" | "stdin">>) {
+    return new Context({
+      stdin: opts.stdin ?? this.stdin,
+      stdout: opts.stdout ?? this.stdout,
+      stderr: opts.stderr ?? this.stderr,
+      env: this.#env.clone(),
+      commands: { ...this.#commands },
+      shellVars: { ...this.#shellVars },
+      signal: this.#signal,
+    });
   }
 
   clone() {
@@ -580,7 +599,11 @@ function executePipelineInner(inner: PipelineInner, context: Context): Promise<E
     case "command":
       return executeCommand(inner, context);
     case "pipeSequence":
-      throw new Error(`Not implemented: ${inner.kind}`);
+      return executePipeSequence(inner, context);
+    default: {
+      const _assertNever: never = inner;
+      throw new Error(`Not implemented: ${(inner as PipelineInner).kind}`);
+    }
   }
 }
 
@@ -591,12 +614,16 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
       return redirectResult;
     }
     const { pipe, fd } = redirectResult;
-    const newContext = context.clone();
     const writer = new ShellPipeWriter("piped", pipe);
+    let newContext: Context;
     if (fd === 1) {
-      newContext.stdout = writer;
+      newContext = context.withInner({
+        stdout: writer,
+      });
     } else if (fd === 2) {
-      newContext.stderr = writer;
+      newContext = context.withInner({
+        stderr: writer,
+      });
     } else {
       const _assertNever: never = fd;
       throw new Error(`Not handled fd: ${fd}`);
@@ -792,7 +819,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     if (typeof stdin === "string") {
       return;
     }
-    await pipeReaderToWriter(stdin, p.stdin, signal);
+    await pipeReaderToWritable(stdin, p.stdin, signal);
     try {
       await p.stdin.close();
     } catch {
@@ -806,52 +833,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     }
     // don't abort... ensure all of stdout/stderr is read in case the process
     // exits before this finishes
-    await pipeReaderToWriterSync(readable, writer, new AbortController().signal);
-  }
-
-  async function pipeReaderToWriter(reader: Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {
-    const abortedPromise = new Promise<void>((resolve) => {
-      signal.addEventListener("abort", listener);
-      function listener() {
-        signal.removeEventListener("abort", listener);
-        resolve();
-      }
-    });
-    const writer = writable.getWriter();
-    try {
-      while (!signal.aborted) {
-        const buffer = new Uint8Array(1024);
-        const length = await Promise.race([abortedPromise, reader.read(buffer)]);
-        if (length === 0 || length == null) {
-          break;
-        }
-        await writer.write(buffer.subarray(0, length));
-      }
-    } finally {
-      await writer.close();
-    }
-  }
-
-  async function pipeReaderToWriterSync(
-    readable: ReadableStream<Uint8Array>,
-    writer: WriterSync,
-    signal: AbortSignal,
-  ) {
-    const reader = readable.getReader();
-    while (!signal.aborted) {
-      const result = await reader.read();
-      if (result.done) {
-        break;
-      }
-      writeAllSync(result.value);
-    }
-
-    function writeAllSync(arr: Uint8Array) {
-      let nwritten = 0;
-      while (nwritten < arr.length && !signal.aborted) {
-        nwritten += writer.writeSync(arr.subarray(nwritten));
-      }
-    }
+    await pipeReadableToWriterSync(readable, writer, new AbortController().signal);
   }
 
   function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
@@ -861,6 +843,89 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       return value;
     } else {
       return "piped";
+    }
+  }
+}
+
+async function pipeReaderToWritable(reader: Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {
+  const abortedPromise = new Promise<void>((resolve) => {
+    signal.addEventListener("abort", listener);
+    function listener() {
+      signal.removeEventListener("abort", listener);
+      resolve();
+    }
+  });
+  const writer = writable.getWriter();
+  try {
+    while (!signal.aborted) {
+      const buffer = new Uint8Array(1024);
+      const length = await Promise.race([abortedPromise, reader.read(buffer)]);
+      if (length === 0 || length == null) {
+        break;
+      }
+      await writer.write(buffer.subarray(0, length));
+    }
+  } finally {
+    await writer.close();
+  }
+}
+
+async function pipeReadableToWriterSync(
+  readable: ReadableStream<Uint8Array>,
+  writer: WriterSync,
+  signal: AbortSignal | KillSignal,
+) {
+  const reader = readable.getReader();
+  while (!signal.aborted) {
+    const result = await reader.read();
+    if (result.done) {
+      break;
+    }
+    writeAllSync(result.value);
+  }
+
+  function writeAllSync(arr: Uint8Array) {
+    let nwritten = 0;
+    while (nwritten < arr.length && !signal.aborted) {
+      nwritten += writer.writeSync(arr.subarray(nwritten));
+    }
+  }
+}
+
+async function pipeReaderToWriterSync(
+  reader: Reader,
+  writer: WriterSync,
+  signal: AbortSignal | KillSignal,
+) {
+  const buffer = new Uint8Array(1024);
+  while (!signal.aborted) {
+    const bytesRead = await reader.read(buffer);
+    if (bytesRead == null || bytesRead === 0) {
+      break;
+    }
+    writeAllSync(buffer.slice(0, bytesRead));
+  }
+
+  function writeAllSync(arr: Uint8Array) {
+    let nwritten = 0;
+    while (nwritten < arr.length && !signal.aborted) {
+      nwritten += writer.writeSync(arr.subarray(nwritten));
+    }
+  }
+}
+
+function pipeCommandPipeReaderToWriterSync(
+  reader: CommandPipeReader,
+  writer: ShellPipeWriter,
+  signal: KillSignal,
+) {
+  switch (reader) {
+    case "inherit":
+      return pipeReadableToWriterSync(Deno.stdin.readable, writer, signal);
+    case "null":
+      return Promise.resolve();
+    default: {
+      return pipeReaderToWriterSync(reader, writer, signal);
     }
   }
 }
@@ -927,6 +992,54 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
     kind: "path",
     path: commandPath,
   };
+}
+
+async function executePipeSequence(sequence: PipeSequence, context: Context): Promise<ExecuteResult> {
+  const waitTasks: Promise<ExecuteResult>[] = [];
+  let lastOutput = context.stdin;
+  let nextInner: PipelineInner | undefined = sequence;
+  while (nextInner != null) {
+    switch (nextInner.kind) {
+      case "pipeSequence":
+        switch (nextInner.op) {
+          case "stdout": {
+            const buffer = new PipeSequencePipe();
+            const newContext = context.withInner({
+              stdout: new ShellPipeWriter("piped", buffer),
+              stdin: lastOutput,
+            });
+            const commandPromise = executeCommand(nextInner.current, newContext);
+            waitTasks.push(commandPromise);
+            commandPromise.finally(() => {
+              buffer.close();
+            });
+            lastOutput = buffer;
+            break;
+          }
+          case "stdoutstderr": {
+            context.stderr.writeLine(`piping to both stdout and stderr is not implemented (ex. |&)`);
+            return resultFromCode(1);
+          }
+          default: {
+            const _assertNever: never = nextInner.op;
+            context.stderr.writeLine(`not implemented pipe sequence op: ${nextInner.op}`);
+            return resultFromCode(1);
+          }
+        }
+        nextInner = nextInner.next;
+        break;
+      case "command":
+        nextInner = undefined;
+        break;
+    }
+  }
+  waitTasks.push(
+    pipeCommandPipeReaderToWriterSync(lastOutput, context.stdout, context.signal).then(() => resultFromCode(0)),
+  );
+  const results = await Promise.all(waitTasks);
+  // the second last result is the last command
+  const secondLastResult = results[results.length - 2];
+  return secondLastResult;
 }
 
 async function parseShebangArgs(info: ShebangInfo, context: Context): Promise<string[]> {

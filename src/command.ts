@@ -1075,7 +1075,7 @@ function validateCommandName(command: string) {
 const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
 interface KillSignalState {
-  aborted: boolean;
+  abortedCode: number;
   listeners: ((signal: Deno.Signal) => void)[];
 }
 
@@ -1086,7 +1086,7 @@ export class KillSignalController {
 
   constructor() {
     this.#state = {
-      aborted: false,
+      abortedCode: 0,
       listeners: [],
     };
     this.#killSignal = new KillSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#state);
@@ -1105,6 +1105,9 @@ export class KillSignalController {
     sendSignalToState(this.#state, signal);
   }
 }
+
+/** Listener for when a KillSignal is killed. */
+export type KillSignalListener = (signal: Deno.Signal) => void;
 
 /** Similar to `AbortSignal`, but for `Deno.Signal`.
  *
@@ -1128,7 +1131,7 @@ export class KillSignal {
    * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP
    */
   get aborted(): boolean {
-    return this.#state.aborted;
+    return this.#state.abortedCode !== 0;
   }
 
   /**
@@ -1147,39 +1150,51 @@ export class KillSignal {
     };
   }
 
-  addListener(listener: (signal: Deno.Signal) => void) {
+  addListener(listener: KillSignalListener) {
     this.#state.listeners.push(listener);
   }
 
-  removeListener(listener: (signal: Deno.Signal) => void) {
+  removeListener(listener: KillSignalListener) {
     const index = this.#state.listeners.indexOf(listener);
     if (index >= 0) {
       this.#state.listeners.splice(index, 1);
     }
   }
+
+  /** @internal - DO NOT USE. Very unstable. Not sure about this. */
+  get _abortedExitCode() {
+    return this.#state.abortedCode;
+  }
 }
 
 function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
-  if (signalCausesAbort(signal)) {
-    state.aborted = true;
+  const code = getSignalAbortCode(signal);
+  if (code !== undefined) {
+    state.abortedCode = code;
   }
   for (const listener of state.listeners) {
     listener(signal);
   }
 }
 
-function signalCausesAbort(signal: Deno.Signal) {
+function getSignalAbortCode(signal: Deno.Signal) {
   // consider the command aborted if the signal is any one of these
   switch (signal) {
     case "SIGTERM":
+      return 128 + 15;
     case "SIGKILL":
+      return 128 + 9;
     case "SIGABRT":
+      return 128 + 6;
     case "SIGQUIT":
+      return 128 + 3;
     case "SIGINT":
+      return 128 + 2;
     case "SIGSTOP":
-      return true;
+      // should SIGSTOP be considered an abort?
+      return 128 + 19;
     default:
-      return false;
+      return undefined;
   }
 }
 
