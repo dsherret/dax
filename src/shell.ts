@@ -995,21 +995,12 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
   let lastOutput = context.stdin;
   let nextInner: PipelineInner | undefined = sequence;
   while (nextInner != null) {
+    let innerCommand: Command;
     switch (nextInner.kind) {
       case "pipeSequence":
         switch (nextInner.op) {
           case "stdout": {
-            const buffer = new PipeSequencePipe();
-            const newContext = context.withInner({
-              stdout: new ShellPipeWriter("piped", buffer),
-              stdin: lastOutput,
-            });
-            const commandPromise = executeCommand(nextInner.current, newContext);
-            waitTasks.push(commandPromise);
-            commandPromise.finally(() => {
-              buffer.close();
-            });
-            lastOutput = buffer;
+            innerCommand = nextInner.current;
             break;
           }
           case "stdoutstderr": {
@@ -1025,9 +1016,22 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
         nextInner = nextInner.next;
         break;
       case "command":
+        innerCommand = nextInner;
         nextInner = undefined;
         break;
     }
+
+    const buffer = new PipeSequencePipe();
+    const newContext = context.withInner({
+      stdout: new ShellPipeWriter("piped", buffer),
+      stdin: lastOutput,
+    });
+    const commandPromise = executeCommand(innerCommand, newContext);
+    waitTasks.push(commandPromise);
+    commandPromise.finally(() => {
+      buffer.close();
+    });
+    lastOutput = buffer;
   }
   waitTasks.push(
     pipeCommandPipeReaderToWriterSync(lastOutput, context.stdout, context.signal)
