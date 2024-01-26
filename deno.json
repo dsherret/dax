@@ -11,6 +11,7 @@
     "rules": {
       "exclude": ["ban-types", "no-explicit-any", "no-this-alias"],
       "include": [
+        "no-console",
         "no-sync-fn-in-async-fn"
       ]
     }

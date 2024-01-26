@@ -44,6 +44,11 @@ class Deferred<T> {
   }
 }
 
+interface ShellPipeWriterKindWithOptions {
+  kind: ShellPipeWriterKind;
+  options?: PipeOptions;
+}
+
 interface CommandBuilderState {
   command: string | undefined;
   stdin:
@@ -52,8 +57,8 @@ interface CommandBuilderState {
     | Box<Reader | ReadableStream<Uint8Array> | "consumed">
     | Deferred<ReadableStream<Uint8Array> | Reader>;
   combinedStdoutStderr: boolean;
-  stdoutKind: ShellPipeWriterKind;
-  stderrKind: ShellPipeWriterKind;
+  stdout: ShellPipeWriterKindWithOptions;
+  stderr: ShellPipeWriterKindWithOptions;
   noThrow: boolean | number[];
   env: Record<string, string | undefined>;
   commands: Record<string, CommandHandler>;
@@ -113,14 +118,19 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     command: undefined,
     combinedStdoutStderr: false,
     stdin: "inherit",
-    stdoutKind: "inherit",
-    stderrKind: "inherit",
+    stdout: {
+      kind: "inherit",
+    },
+    stderr: {
+      kind: "inherit",
+    },
     noThrow: false,
     env: {},
     cwd: undefined,
     commands: { ...builtInCommands },
     exportEnv: false,
     printCommand: false,
+    // deno-lint-ignore no-console
     printCommandLogger: new LoggerTreeBox(console.error),
     timeout: undefined,
     signal: undefined,
@@ -133,8 +143,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       command: state.command,
       combinedStdoutStderr: state.combinedStdoutStderr,
       stdin: state.stdin,
-      stdoutKind: state.stdoutKind,
-      stderrKind: state.stderrKind,
+      stdout: {
+        kind: state.stdout.kind,
+        options: state.stdout.options,
+      },
+      stderr: {
+        kind: state.stderr.kind,
+        options: state.stderr.options,
+      },
       noThrow: state.noThrow instanceof Array ? [...state.noThrow] : state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
@@ -251,11 +267,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return this.#newWithState((state) => {
       state.combinedStdoutStderr = value;
       if (value) {
-        if (state.stdoutKind !== "piped" && state.stdoutKind !== "inheritPiped") {
-          state.stdoutKind = "piped";
+        if (state.stdout.kind !== "piped" && state.stdout.kind !== "inheritPiped") {
+          state.stdout.kind = "piped";
         }
-        if (state.stderrKind !== "piped" && state.stderrKind !== "inheritPiped") {
-          state.stderrKind = "piped";
+        if (state.stderr.kind !== "piped" && state.stderr.kind !== "inheritPiped") {
+          state.stderr.kind = "piped";
         }
       }
     });
@@ -296,26 +312,44 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Set the stdout kind. */
-  stdout(kind: ShellPipeWriterKind): CommandBuilder {
+  stdout(kind: ShellPipeWriterKind): CommandBuilder;
+  stdout(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
+  stdout(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
           "Cannot set stdout's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
-      state.stdoutKind = kind;
+      if (options?.signal != null) {
+        // not sure what this would mean
+        throw new Error("Setting a signal for a stdout WritableStream is not yet supported.");
+      }
+      state.stdout = {
+        kind,
+        options,
+      };
     });
   }
 
   /** Set the stderr kind. */
-  stderr(kind: ShellPipeWriterKind): CommandBuilder {
+  stderr(kind: ShellPipeWriterKind): CommandBuilder;
+  stderr(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
+  stderr(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
           "Cannot set stderr's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
-      state.stderrKind = kind;
+      if (options?.signal != null) {
+        // not sure what this would mean
+        throw new Error("Setting a signal for a stderr WritableStream is not yet supported.");
+      }
+      state.stderr = {
+        kind,
+        options,
+      };
     });
   }
 
@@ -418,10 +452,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   quiet(kind: "stdout" | "stderr" | "both" = "both"): CommandBuilder {
     return this.#newWithState((state) => {
       if (kind === "both" || kind === "stdout") {
-        state.stdoutKind = getQuietKind(state.stdoutKind);
+        state.stdout.kind = getQuietKind(state.stdout.kind);
       }
       if (kind === "both" || kind === "stderr") {
-        state.stderrKind = getQuietKind(state.stderrKind);
+        state.stderr.kind = getQuietKind(state.stderr.kind);
       }
     });
 
@@ -596,36 +630,43 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
   }
 
-  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
-  const stdout = new ShellPipeWriter(
-    state.stdoutKind,
-    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
-  );
-  const stderr = new ShellPipeWriter(
-    state.stderrKind,
-    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
-  );
+  const disposables: Disposable[] = [];
+  const asyncDisposables: AsyncDisposable[] = [];
 
   const parentSignal = state.signal;
-  let cleanupSignalListener: (() => void) | undefined;
   const killSignalController = new KillSignalController();
   if (parentSignal != null) {
     const parentSignalListener = (signal: Deno.Signal) => {
       killSignalController.kill(signal);
     };
     parentSignal.addListener(parentSignalListener);
-    cleanupSignalListener = () => {
-      parentSignal.removeListener(parentSignalListener);
-    };
+    disposables.push({
+      [Symbol.dispose]() {
+        parentSignal.removeListener(parentSignalListener);
+      },
+    });
   }
-  let timeoutId: number | undefined;
   let timedOut = false;
   if (state.timeout != null) {
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       timedOut = true;
       killSignalController.kill();
     }, state.timeout);
+    disposables.push({
+      [Symbol.dispose]() {
+        clearTimeout(timeoutId);
+      },
+    });
   }
+  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
+  const stdout = new ShellPipeWriter(
+    state.stdout.kind,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
+  );
+  const stderr = new ShellPipeWriter(
+    state.stderr.kind,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
+  );
   const command = state.command;
   const signal = killSignalController.signal;
 
@@ -664,29 +705,58 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
           }
         }
       }
-      resolve(
-        new CommandResult(
-          code,
-          finalizeCommandResultBuffer(stdoutBuffer),
-          finalizeCommandResultBuffer(stderrBuffer),
-          combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
-        ),
+      const result = new CommandResult(
+        code,
+        finalizeCommandResultBuffer(stdoutBuffer),
+        finalizeCommandResultBuffer(stderrBuffer),
+        combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
       );
+      const maybeError = await cleanupDisposablesAndMaybeGetError(undefined);
+      if (maybeError) {
+        reject(maybeError);
+      } else {
+        resolve(result);
+      }
     } catch (err) {
       finalizeCommandResultBufferForError(stdoutBuffer, err as Error);
       finalizeCommandResultBufferForError(stderrBuffer, err as Error);
-      reject(err);
-    } finally {
-      if (timeoutId != null) {
-        clearTimeout(timeoutId);
-      }
-      cleanupSignalListener?.();
+      reject(await cleanupDisposablesAndMaybeGetError(err));
     }
   }, {
     pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
     pipedStderrBuffer: stderrBuffer instanceof PipedBuffer ? stderrBuffer : undefined,
     killSignalController,
   });
+
+  async function cleanupDisposablesAndMaybeGetError(maybeError?: unknown) {
+    const errors = [];
+    if (maybeError) {
+      errors.push(maybeError);
+    }
+    for (const disposable of disposables) {
+      try {
+        disposable[Symbol.dispose]();
+      } catch (err) {
+        errors.push(err);
+      }
+    }
+    if (asyncDisposables.length > 0) {
+      await Promise.all(asyncDisposables.map(async (d) => {
+        try {
+          await d[Symbol.asyncDispose]();
+        } catch (err) {
+          errors.push(err);
+        }
+      }));
+    }
+    if (errors.length === 1) {
+      return errors[0];
+    } else if (errors.length > 1) {
+      return new AggregateError(errors);
+    } else {
+      return undefined;
+    }
+  }
 
   async function takeStdin() {
     if (state.stdin instanceof Box) {
@@ -701,7 +771,17 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       state.stdin.value = "consumed";
       return stdin;
     } else if (state.stdin instanceof Deferred) {
-      return await state.stdin.create();
+      const stdin = await state.stdin.create();
+      if (stdin instanceof ReadableStream) {
+        disposables.push({
+          [Symbol.dispose]() {
+            if (!stdin.locked) {
+              stdin.cancel();
+            }
+          },
+        });
+      }
+      return stdin;
     } else {
       return state.stdin;
     }
@@ -709,8 +789,8 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();
-    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdoutKind);
-    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderrKind);
+    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdout);
+    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderr);
     if (state.combinedStdoutStderr) {
       if (typeof stdoutBuffer === "string" || typeof stderrBuffer === "string") {
         throw new Error("Internal programming error. Expected writers for stdout and stderr.");
@@ -724,9 +804,55 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     }
     return [stdoutBuffer, stderrBuffer, undefined] as const;
 
-    function getOutputBuffer(innerWriter: WriterSync, kind: ShellPipeWriterKind) {
+    function getOutputBuffer(innerWriter: WriterSync, { kind, options }: ShellPipeWriterKindWithOptions) {
       if (typeof kind === "object") {
-        return kind;
+        if (kind instanceof PathRef) {
+          const file = kind.openSync({ write: true, truncate: true, create: true });
+          disposables.push(file);
+          return file;
+        } else if (kind instanceof WritableStream) {
+          // this is sketch
+          const writer = kind.getWriter();
+          const promiseMap = new Map<number, Promise<void>>();
+          let hadError = false;
+          let foundErr: unknown = undefined;
+          let index = 0;
+          asyncDisposables.push({
+            async [Symbol.asyncDispose]() {
+              await Promise.all(promiseMap.values());
+              if (foundErr) {
+                throw foundErr;
+              }
+              if (!options?.preventClose && !hadError) {
+                await writer.close();
+              }
+            },
+          });
+          return {
+            writeSync(buffer: Uint8Array) {
+              if (foundErr) {
+                const errorToThrow = foundErr;
+                foundErr = undefined;
+                throw errorToThrow;
+              }
+              const newIndex = index++;
+              promiseMap.set(
+                newIndex,
+                writer.write(buffer).catch((err) => {
+                  if (err != null) {
+                    foundErr = err;
+                    hadError = true;
+                  }
+                }).finally(() => {
+                  promiseMap.delete(newIndex);
+                }),
+              );
+              return buffer.length;
+            },
+          };
+        } else {
+          return kind;
+        }
       }
       switch (kind) {
         case "inherit":
