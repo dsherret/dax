@@ -238,7 +238,7 @@ Deno.test("$.request", (t) => {
       const request = new RequestBuilder()
         .url(new URL("/text-file", serverUrl))
         .showProgress();
-      const text = await $`echo 1 && ${request}`.text();
+      const text = await $`echo 1 && ${request} | cat -`.text();
       assertEquals(text, "1\n" + "text".repeat(1000));
     });
 
