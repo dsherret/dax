@@ -10,8 +10,7 @@ export async function rmCommand(
     await executeRemove(context.cwd, context.args);
     return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`rm: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`rm: ${err?.message ?? err}`);
   }
 }
 

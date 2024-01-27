@@ -6,8 +6,7 @@ export async function touchCommand(context: CommandContext) {
     await executetouch(context.args);
     return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`touch: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`touch: ${err?.message ?? err}`);
   }
 }
 

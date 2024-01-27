@@ -3,15 +3,23 @@ import { path } from "../deps.ts";
 import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
-export function pwdCommand(context: CommandContext): ExecuteResult {
+export function pwdCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   try {
     const output = executePwd(context.cwd, context.args);
-    context.stdout.writeLine(output);
-    return { code: 0 };
+    const maybePromise = context.stdout.writeLine(output);
+    const result = { code: 0 };
+    if (maybePromise instanceof Promise) {
+      return maybePromise.then(() => result).catch((err) => handleError(context, err));
+    } else {
+      return result;
+    }
   } catch (err) {
-    context.stderr.writeLine(`pwd: ${err?.message ?? err}`);
-    return { code: 1 };
+    return handleError(context, err);
   }
+}
+
+function handleError(context: CommandContext, err: any) {
+  return context.error(`pwd: ${err?.message ?? err}`);
 }
 
 function executePwd(cwd: string, args: string[]) {
