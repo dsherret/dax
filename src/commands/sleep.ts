@@ -26,8 +26,7 @@ export async function sleepCommand(context: CommandContext): Promise<ExecuteResu
     }
     return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`sleep: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`sleep: ${err?.message ?? err}`);
   }
 }
 

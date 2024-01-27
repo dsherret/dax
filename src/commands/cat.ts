@@ -14,8 +14,7 @@ export async function catCommand(
     const code = await executeCat(context);
     return { code };
   } catch (err) {
-    context.stderr.writeLine(`cat: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`cat: ${err?.message ?? err}`);
   }
 }
 
@@ -29,8 +28,14 @@ async function executeCat(context: CommandContext) {
       if (typeof context.stdin === "object") { // stdin is a Reader
         while (!context.signal.aborted) {
           const size = await context.stdin.read(buf);
-          if (!size || size === 0) break;
-          else context.stdout.writeSync(buf.slice(0, size));
+          if (!size || size === 0) {
+            break;
+          } else {
+            const maybePromise = context.stdout.write(buf.slice(0, size));
+            if (maybePromise instanceof Promise) {
+              await maybePromise;
+            }
+          }
         }
         exitCode = context.signal.abortedExitCode ?? 0;
       } else {
@@ -44,15 +49,24 @@ async function executeCat(context: CommandContext) {
         while (!context.signal.aborted) {
           // NOTE: rust supports cancellation here
           const size = file.readSync(buf);
-          if (!size || size === 0) break;
-          else context.stdout.writeSync(buf.slice(0, size));
+          if (!size || size === 0) {
+            break;
+          } else {
+            const maybePromise = context.stdout.write(buf.slice(0, size));
+            if (maybePromise instanceof Promise) {
+              await maybePromise;
+            }
+          }
         }
         exitCode = context.signal.abortedExitCode ?? 0;
       } catch (err) {
-        context.stderr.writeLine(`cat ${path}: ${err}`);
+        const maybePromise = context.stderr.writeLine(`cat ${path}: ${err?.message ?? err}`);
+        if (maybePromise instanceof Promise) {
+          await maybePromise;
+        }
         exitCode = 1;
       } finally {
-        if (file) file.close();
+        file?.close();
       }
     }
   }
@@ -62,10 +76,15 @@ async function executeCat(context: CommandContext) {
 export function parseCatArgs(args: string[]): CatFlags {
   const paths = [];
   for (const arg of parseArgKinds(args)) {
-    if (arg.kind === "Arg") paths.push(arg.arg);
-    else bailUnsupported(arg); // for now, we don't support any arguments
+    if (arg.kind === "Arg") {
+      paths.push(arg.arg);
+    } else {
+      bailUnsupported(arg); // for now, we don't support any arguments
+    }
   }
 
-  if (paths.length === 0) paths.push("-");
+  if (paths.length === 0) {
+    paths.push("-");
+  }
   return { paths };
 }

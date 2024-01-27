@@ -13,8 +13,7 @@ export async function cdCommand(context: CommandContext): Promise<ExecuteResult>
       }],
     };
   } catch (err) {
-    context.stderr.writeLine(`cd: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`cd: ${err?.message ?? err}`);
   }
 }
 
