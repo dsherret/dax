@@ -15,6 +15,7 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
           const endTime = Date.now();
           await server.shutdown();
           const endShutdownTime = Date.now();
+          // deno-lint-ignore no-console
           console.log("Start", startTime, "End", endTime, "Shutdown", endShutdownTime);
           resolve();
         } catch (err) {
