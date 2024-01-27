@@ -10,8 +10,12 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       async onListen(details) {
         const url = new URL(`http://${details.hostname}:${details.port}/`);
         try {
+          const startTime = Date.now();
           await action(url);
+          const endTime = Date.now();
           await server.shutdown();
+          const endShutdownTime = Date.now();
+          console.log("Start", startTime, "End", endTime, "Shutdown", endShutdownTime);
           resolve();
         } catch (err) {
           await server.shutdown();
