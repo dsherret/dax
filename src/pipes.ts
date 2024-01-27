@@ -52,6 +52,12 @@ export type ShellPipeWriterKind =
   | FsFileWrapper
   | PathRef;
 
+export class NullPipeReader implements Reader {
+  read(_p: Uint8Array): Promise<number | null> {
+    return Promise.resolve(null);
+  }
+}
+
 export class NullPipeWriter implements WriterSync {
   writeSync(p: Uint8Array): number {
     return p.length;

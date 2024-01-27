@@ -1,4 +1,4 @@
-import { readAll } from "./src/deps.ts";
+import { readAll, readerFromStreamReader } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
@@ -7,7 +7,8 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  readerFromStreamReader,
+  toReadableStream,
+  toWritableStream,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
@@ -1163,6 +1164,24 @@ Deno.test("input redirects", async () => {
     tempDir.join("test.txt").writeTextSync("Hi!");
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
+  });
+});
+
+Deno.test("output redirect with readable", async () => {
+  const buffer = new Buffer();
+  const bufferText = "testing\nthis\nout".repeat(1000);
+  buffer.writeSync(new TextEncoder().encode(bufferText));
+  const outputtedText = await $`cat - < ${toReadableStream(buffer)}`.text();
+  assertEquals(outputtedText, bufferText);
+});
+
+Deno.test("output redirect with writable", async () => {
+  await withTempDir(async (tempDir) => {
+    const buffer = new Buffer();
+    const pipedText = "testing\nthis\nout".repeat(1_000);
+    tempDir.join("data.txt").writeTextSync(pipedText);
+    await $`cat data.txt > ${toWritableStream(buffer)}`.cwd(tempDir);
+    assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
   });
 });
 

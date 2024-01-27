@@ -1,4 +1,11 @@
-import { CommandBuilder, escapeArg, getRegisteredCommandNamesSymbol, template, templateRaw } from "./src/command.ts";
+import {
+  CommandBuilder,
+  escapeArg,
+  getRegisteredCommandNamesSymbol,
+  setCommandTextAndFdsSymbol,
+  template,
+  templateRaw,
+} from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -617,7 +624,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      return state.commandBuilder.getValue().command(template(strings, exprs));
+      const { text, streams } = template(strings, exprs);
+      return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
     },
     helperObject,
     logDepthObj,
@@ -745,7 +753,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        return state.commandBuilder.getValue().command(templateRaw(strings, exprs));
+        const { text, streams } = templateRaw(strings, exprs);
+        return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);

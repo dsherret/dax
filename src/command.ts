@@ -31,6 +31,7 @@ import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
+import { StreamFds } from "./shell.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -50,8 +51,13 @@ interface ShellPipeWriterKindWithOptions {
   options?: PipeOptions;
 }
 
+interface CommandBuilderStateCommand {
+  text: string;
+  fds: StreamFds | undefined;
+}
+
 interface CommandBuilderState {
-  command: string | undefined;
+  command: Readonly<CommandBuilderStateCommand> | undefined;
   stdin:
     | "inherit"
     | "null"
@@ -93,6 +99,8 @@ const builtInCommands = {
 
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
+/** @internal */
+export const setCommandTextAndFdsSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -224,11 +232,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Sets the raw command to execute. */
   command(command: string | string[]): CommandBuilder {
     return this.#newWithState((state) => {
-      if (typeof command === "string") {
-        state.command = command;
-      } else {
-        state.command = command.map(escapeArg).join(" ");
+      if (command instanceof Array) {
+        command = command.map(escapeArg).join(" ");
       }
+      state.command = {
+        text: command,
+        fds: undefined,
+      };
     });
   }
 
@@ -566,6 +576,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);
   }
+
+  /** @internal */
+  [setCommandTextAndFdsSymbol](text: string, fds: StreamFds | undefined) {
+    return this.#newWithState((state) => {
+      state.command = {
+        text,
+        fds,
+      };
+    });
+  }
 }
 
 export class CommandChild extends Promise<CommandResult> {
@@ -653,7 +673,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
+    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command.text));
   }
 
   const disposables: Disposable[] = [];
@@ -693,12 +713,12 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     state.stderr.kind,
     stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
-  const command = state.command;
+  const { text: commandText, fds } = state.command;
   const signal = killSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
-      const list = parseCommand(command);
+      const list = parseCommand(commandText);
       const stdin = await takeStdin();
       let code = await spawn(list, {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
@@ -709,6 +729,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
         signal,
+        fds,
       });
       if (code !== 0) {
         if (timedOut) {
@@ -1211,17 +1232,49 @@ function templateInner(
   exprs: any[],
   escape: ((arg: string) => string) | undefined,
 ) {
+  let nextStreamFd = 3;
   let text = "";
+  let streams: StreamFds | undefined;
   for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
     if (strings.length > i) {
       text += strings[i];
     }
     if (exprs.length > i) {
       const expr = exprs[i];
-      text += templateLiteralExprToString(expr, escape);
+      if (expr instanceof ReadableStream) {
+        ensureInputRedirect(text);
+        streams ??= new StreamFds();
+        const fd = nextStreamFd++;
+        streams.insertReader(fd, () => readerFromStreamReader(expr.getReader()));
+        text = text.trimEnd() + "&" + fd;
+      } else if (expr instanceof WritableStream) {
+        ensureOutputRedirect(text);
+        streams ??= new StreamFds();
+        const fd = nextStreamFd++;
+        //streams.insertWriter(fd, () => writerFromStreamWriter(expr.getWriter()));
+        text = text.trimEnd() + "&" + fd;
+        throw new Error("NOT IMPLEMENTED YET");
+      } else {
+        text += templateLiteralExprToString(expr, escape);
+      }
     }
   }
-  return text;
+  return {
+    text,
+    streams,
+  };
+}
+
+function ensureInputRedirect(text: string) {
+  if (!text.trimEnd().endsWith("<")) {
+    throw new Error(`Readable streams can only be provided after an input redirect (\`<\`).`);
+  }
+}
+
+function ensureOutputRedirect(text: string) {
+  if (!text.trimEnd().endsWith(">")) {
+    throw new Error(`Writable streams can only be provided after an output redirect (\`>\`).`);
+  }
 }
 
 function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {
