@@ -95,7 +95,7 @@ Deno.test("should not get stderr when set to writer", async () => {
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was streamed). Call .stderr(\"piped\") or .stderr(\"inheritPiped\") when building the command.`,
+    `Stderr was streamed to another source and is no longer available.`,
   );
 });
 
@@ -374,14 +374,11 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .registerCommand("zardoz-speaks", (context) => {
+    .registerCommand("zardoz-speaks", async (context) => {
       if (context.args.length != 1) {
-        context.stderr.writeLine("zardoz-speaks: expected 1 argument");
-        return {
-          code: 1,
-        };
+        return context.error("zardoz-speaks: expected 1 argument");
       }
-      context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
+      await context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
       return {
         code: 0,
       };
@@ -802,7 +799,7 @@ Deno.test("piping to stdin", async () => {
       .stderr("piped")
       .noThrow();
     assertEquals(result.code, 1);
-    assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+    assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
   }
 });
 
@@ -862,13 +859,9 @@ Deno.test("piping to a writable that throws", async () => {
       throw new Error("failed");
     },
   });
-  await assertRejects(
-    async () => {
-      await $`echo 1`.stdout(writableStream);
-    },
-    Error,
-    "failed",
-  );
+  const result = await $`echo 1`.stdout(writableStream).stderr("piped").noThrow();
+  assertEquals(result.code, 1);
+  assertEquals(result.stderr, "echo: failed\n");
 });
 
 Deno.test("piping stdout/stderr to a file", async () => {
@@ -1030,7 +1023,7 @@ Deno.test("streaming api errors while streaming", async () => {
       .stdout("piped")
       .stderr("piped")
       .spawn();
-    assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+    assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
     assertEquals(result.stdout, "1\n2\n");
   }
 });

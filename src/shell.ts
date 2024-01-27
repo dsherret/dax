@@ -233,34 +233,6 @@ function cloneEnv(env: Env) {
   return result;
 }
 
-// todo: delete
-// export class DisposableCollection {
-//   #disposables: Disposable[] = [];
-
-//   add(disposable: Disposable) {
-//     this.#disposables.push(disposable);
-//   }
-
-//   disposeHandlingErrors(stderr: ShellPipeWriter): ExecuteResult {
-//     if (this.#disposables.length > 0) {
-//       const errors = [];
-//       for (const disposable of this.#disposables) {
-//         try {
-//           disposable[Symbol.dispose]();
-//         } catch (err) {
-//           errors.push(err);
-//         }
-//       }
-//       if (errors.length > 0) {
-//         const error = new AggregateError(errors);
-//         stderr.writeLine("failed disposing context. " + error);
-//         return { code: 1 };
-//       }
-//     }
-//     return { code: 0 };
-//   }
-// }
-
 interface ContextOptions {
   stdin: CommandPipeReader;
   stdout: ShellPipeWriter;
@@ -394,7 +366,31 @@ export class Context {
       get signal() {
         return context.signal;
       },
+      error(codeOrText: number | string, maybeText?: string): Promise<ExecuteResult> | ExecuteResult {
+        return context.error(codeOrText, maybeText);
+      },
     };
+  }
+
+  error(text: string): Promise<ExecuteResult> | ExecuteResult;
+  error(code: number, text: string): Promise<ExecuteResult> | ExecuteResult;
+  error(codeOrText: number | string, maybeText: string | undefined): Promise<ExecuteResult> | ExecuteResult;
+  error(codeOrText: number | string, maybeText?: string): Promise<ExecuteResult> | ExecuteResult {
+    let code: number;
+    let text: string;
+    if (typeof codeOrText === "number") {
+      code = codeOrText;
+      text = maybeText!;
+    } else {
+      code = 1;
+      text = codeOrText;
+    }
+    const maybePromise = this.stderr.writeLine(text);
+    if (maybePromise instanceof Promise) {
+      return maybePromise.then(() => ({ code }));
+    } else {
+      return { code };
+    }
   }
 
   withInner(opts: Partial<Pick<ContextOptions, "stdout" | "stderr" | "stdin">>) {
@@ -646,8 +642,7 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
         redirectPipe[Symbol.dispose]();
       } catch (err) {
         if (result.code === 0) {
-          context.stderr.writeLine(`failed disposing redirected pipe. ${err}`);
-          return { code: 1 };
+          return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
         }
       }
     }
@@ -672,9 +667,8 @@ async function resolveRedirectPipe(
   redirect: Redirect,
   context: Context,
 ): Promise<ResolvedRedirectPipe | ExecuteResult> {
-  function handleFileOpenError(outputPath: string, err: unknown): ExecuteResult {
-    context.stderr.writeLine(`failed opening file for redirect (${outputPath}). ${err}`);
-    return { code: 1 };
+  function handleFileOpenError(outputPath: string, err: any) {
+    return context.error(`failed opening file for redirect (${outputPath}). ${err?.message ?? err}`);
   }
 
   const fd = resolveRedirectFd(redirect, context);
@@ -684,14 +678,12 @@ async function resolveRedirectPipe(
   const words = await evaluateWordParts(redirect.ioFile, context);
   // edge case that's not supported
   if (words.length === 0) {
-    context.stderr.writeLine("redirect path must be 1 argument, but found 0");
-    return { code: 1 };
+    return context.error("redirect path must be 1 argument, but found 0");
   } else if (words.length > 1) {
-    context.stderr.writeLine(
+    return context.error(
       `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). ` +
         `Did you mean to quote it (ex. "${words.join(" ")}")?`,
     );
-    return { code: 1 };
   }
 
   switch (redirect.op.kind) {
@@ -741,18 +733,16 @@ async function resolveRedirectPipe(
   }
 }
 
-function resolveRedirectFd(redirect: Redirect, context: Context): ExecuteResult | 1 | 2 {
+function resolveRedirectFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 {
   const maybeFd = redirect.maybeFd;
   if (maybeFd == null) {
     return 1; // stdout
   }
   if (maybeFd.kind === "stdoutStderr") {
-    context.stderr.writeLine("redirecting to both stdout and stderr is not implemented");
-    return { code: 1 };
+    return context.error("redirecting to both stdout and stderr is not implemented");
   }
   if (maybeFd.fd !== 1 && maybeFd.fd !== 2) {
-    context.stderr.writeLine(`only redirecting to stdout (1) and stderr (2) is supported`);
-    return { code: 1 };
+    return context.error(`only redirecting to stdout (1) and stderr (2) is supported`);
   } else {
     return maybeFd.fd;
   }
@@ -820,13 +810,16 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
   const completeSignal = completeController.signal;
   let stdinError: unknown | undefined;
   const stdinPromise = writeStdin(context.stdin, p, completeSignal)
-    .catch((err) => {
+    .catch(async (err) => {
       // don't surface anything because it's already been aborted
       if (completeSignal.aborted) {
         return;
       }
 
-      context.stderr.writeLine(`stdin pipe broken. ${err}`);
+      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${err?.message ?? err}`);
+      if (maybePromise != null) {
+        await maybePromise;
+      }
       stdinError = err;
       // kill the sub process
       try {
@@ -922,7 +915,7 @@ async function pipeReaderToWritable(reader: Reader, writable: WritableStream<Uin
 
 async function pipeReadableToWriterSync(
   readable: ReadableStream<Uint8Array>,
-  writer: WriterSync,
+  writer: ShellPipeWriter,
   signal: AbortSignal | KillSignal,
 ) {
   const reader = readable.getReader();
@@ -931,20 +924,16 @@ async function pipeReadableToWriterSync(
     if (result.done) {
       break;
     }
-    writeAllSync(result.value);
-  }
-
-  function writeAllSync(arr: Uint8Array) {
-    let nwritten = 0;
-    while (nwritten < arr.length && !signal.aborted) {
-      nwritten += writer.writeSync(arr.subarray(nwritten));
+    const maybePromise = writer.writeAll(result.value);
+    if (maybePromise) {
+      await maybePromise;
     }
   }
 }
 
 async function pipeReaderToWriterSync(
   reader: Reader,
-  writer: WriterSync,
+  writer: ShellPipeWriter,
   signal: AbortSignal | KillSignal,
 ) {
   const buffer = new Uint8Array(1024);
@@ -953,13 +942,9 @@ async function pipeReaderToWriterSync(
     if (bytesRead == null || bytesRead === 0) {
       break;
     }
-    writeAllSync(buffer.slice(0, bytesRead));
-  }
-
-  function writeAllSync(arr: Uint8Array) {
-    let nwritten = 0;
-    while (nwritten < arr.length && !signal.aborted) {
-      nwritten += writer.writeSync(arr.subarray(nwritten));
+    const maybePromise = writer.writeAll(buffer.slice(0, bytesRead));
+    if (maybePromise) {
+      await maybePromise;
     }
   }
 }
@@ -1058,13 +1043,11 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
             break;
           }
           case "stdoutstderr": {
-            context.stderr.writeLine(`piping to both stdout and stderr is not implemented (ex. |&)`);
-            return { code: 1 };
+            return context.error(`piping to both stdout and stderr is not implemented (ex. |&)`);
           }
           default: {
             const _assertNever: never = nextInner.op;
-            context.stderr.writeLine(`not implemented pipe sequence op: ${nextInner.op}`);
-            return { code: 1 };
+            return context.error(`not implemented pipe sequence op: ${nextInner.op}`);
           }
         }
         nextInner = nextInner.next;

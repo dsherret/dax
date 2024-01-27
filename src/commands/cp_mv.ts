@@ -11,8 +11,7 @@ export async function cpCommand(
     await executeCp(context.cwd, context.args);
     return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`cp: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`cp: ${err?.message ?? err}`);
   }
 }
 
@@ -101,8 +100,7 @@ export async function mvCommand(
     await executeMove(context.cwd, context.args);
     return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`mv: ${err?.message ?? err}`);
-    return { code: 1 };
+    return context.error(`mv: ${err?.message ?? err}`);
   }
 }
 

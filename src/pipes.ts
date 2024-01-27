@@ -1,6 +1,6 @@
 import { type FsFileWrapper, PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
-import { Buffer, writeAllSync } from "./deps.ts";
+import { Buffer, writeAll, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";
 import type { CommandBuilder } from "./command.ts";
 
@@ -11,10 +11,24 @@ export interface Reader {
   read(p: Uint8Array): Promise<number | null>;
 }
 
+/** `Deno.ReaderSync` stream. */
+export interface ReaderSync {
+  readSync(p: Uint8Array): number | null;
+}
+
 /** `Deno.WriterSync` stream. */
 export interface WriterSync {
   writeSync(p: Uint8Array): number;
 }
+
+/** `Deno.Writer` stream. */
+export interface Writer {
+  write(p: Uint8Array): Promise<number>;
+}
+
+export type PipeReader = Reader | ReaderSync;
+
+export type PipeWriter = Writer | WriterSync;
 
 /** `Deno.Closer` */
 export interface Closer {
@@ -58,11 +72,11 @@ export class NullPipeWriter implements WriterSync {
   }
 }
 
-export class ShellPipeWriter implements WriterSync {
+export class ShellPipeWriter {
   #kind: ShellPipeWriterKind;
-  #inner: WriterSync;
+  #inner: PipeWriter;
 
-  constructor(kind: ShellPipeWriterKind, inner: WriterSync) {
+  constructor(kind: ShellPipeWriterKind, inner: PipeWriter) {
     this.#kind = kind;
     this.#inner = inner;
   }
@@ -71,12 +85,24 @@ export class ShellPipeWriter implements WriterSync {
     return this.#kind;
   }
 
-  writeSync(p: Uint8Array) {
-    return this.#inner.writeSync(p);
+  write(p: Uint8Array) {
+    if ("write" in this.#inner) {
+      return this.#inner.write(p);
+    } else {
+      return this.#inner.writeSync(p);
+    }
+  }
+
+  writeAll(data: Uint8Array) {
+    if ("write" in this.#inner) {
+      return writeAll(this.#inner, data);
+    } else {
+      return writeAllSync(this.#inner, data);
+    }
   }
 
   writeText(text: string) {
-    return writeAllSync(this, encoder.encode(text));
+    return this.writeAll(encoder.encode(text));
   }
 
   writeLine(text: string) {
@@ -84,7 +110,27 @@ export class ShellPipeWriter implements WriterSync {
   }
 }
 
-export class CapturingBufferWriter implements WriterSync {
+export class CapturingBufferWriter implements Writer {
+  #buffer: Buffer;
+  #innerWriter: Writer;
+
+  constructor(innerWriter: Writer, buffer: Buffer) {
+    this.#innerWriter = innerWriter;
+    this.#buffer = buffer;
+  }
+
+  getBuffer() {
+    return this.#buffer;
+  }
+
+  async write(p: Uint8Array) {
+    const nWritten = await this.#innerWriter.write(p);
+    this.#buffer.writeSync(p.slice(0, nWritten));
+    return nWritten;
+  }
+}
+
+export class CapturingBufferWriterSync implements WriterSync {
   #buffer: Buffer;
   #innerWriter: WriterSync;
 

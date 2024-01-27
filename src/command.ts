@@ -18,6 +18,7 @@ import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
 import {
   CapturingBufferWriter,
+  CapturingBufferWriterSync,
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
@@ -25,12 +26,14 @@ import {
   ShellPipeReaderKind,
   ShellPipeWriter,
   ShellPipeWriterKind,
+  Writer,
   WriterSync,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
+import { writerFromStreamWriter } from "https://deno.land/std@0.213.0/streams/writer_from_stream_writer.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -823,59 +826,42 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       }
       const combinedBuffer = new Buffer();
       return [
-        new CapturingBufferWriter(stdoutBuffer, combinedBuffer),
-        new CapturingBufferWriter(stderrBuffer, combinedBuffer),
+        getCapturingBuffer(stdoutBuffer, combinedBuffer),
+        getCapturingBuffer(stderrBuffer, combinedBuffer),
         combinedBuffer,
       ] as const;
     }
     return [stdoutBuffer, stderrBuffer, undefined] as const;
 
-    function getOutputBuffer(innerWriter: WriterSync, { kind, options }: ShellPipeWriterKindWithOptions) {
+    function getCapturingBuffer(buffer: Writer | WriterSync, combinedBuffer: Buffer) {
+      if ("write" in buffer) {
+        return new CapturingBufferWriter(buffer, combinedBuffer);
+      } else {
+        return new CapturingBufferWriterSync(buffer, combinedBuffer);
+      }
+    }
+
+    function getOutputBuffer(inheritWriter: WriterSync, { kind, options }: ShellPipeWriterKindWithOptions) {
       if (typeof kind === "object") {
         if (kind instanceof PathRef) {
           const file = kind.openSync({ write: true, truncate: true, create: true });
           disposables.push(file);
           return file;
         } else if (kind instanceof WritableStream) {
-          // this is sketch
-          const writer = kind.getWriter();
-          const promiseMap = new Map<number, Promise<void>>();
-          let hadError = false;
-          let foundErr: unknown = undefined;
-          let index = 0;
+          const streamWriter = kind.getWriter();
           asyncDisposables.push({
             async [Symbol.asyncDispose]() {
-              await Promise.all(promiseMap.values());
-              if (foundErr) {
-                throw foundErr;
-              }
-              if (!options?.preventClose && !hadError) {
-                await writer.close();
+              streamWriter.releaseLock();
+              if (!options?.preventClose) {
+                try {
+                  await kind.close();
+                } catch {
+                  // ignore, the stream have errored
+                }
               }
             },
           });
-          return {
-            writeSync(buffer: Uint8Array) {
-              if (foundErr) {
-                const errorToThrow = foundErr;
-                foundErr = undefined;
-                throw errorToThrow;
-              }
-              const newIndex = index++;
-              promiseMap.set(
-                newIndex,
-                writer.write(buffer).catch((err) => {
-                  if (err != null) {
-                    foundErr = err;
-                    hadError = true;
-                  }
-                }).finally(() => {
-                  promiseMap.delete(newIndex);
-                }),
-              );
-              return buffer.length;
-            },
-          };
+          return writerFromStreamWriter(streamWriter);
         } else {
           return kind;
         }
@@ -883,14 +869,14 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       switch (kind) {
         case "inherit":
           if (hasProgressBars) {
-            return new InheritStaticTextBypassWriter(innerWriter);
+            return new InheritStaticTextBypassWriter(inheritWriter);
           } else {
             return "inherit";
           }
         case "piped":
           return new PipedBuffer();
         case "inheritPiped":
-          return new CapturingBufferWriter(innerWriter, new Buffer());
+          return new CapturingBufferWriterSync(inheritWriter, new Buffer());
         case "null":
           return "null";
         default: {
@@ -902,9 +888,17 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
+    buffer:
+      | PipedBuffer
+      | "inherit"
+      | "null"
+      | CapturingBufferWriter
+      | CapturingBufferWriterSync
+      | InheritStaticTextBypassWriter
+      | Writer
+      | WriterSync,
   ): BufferStdio {
-    if (buffer instanceof CapturingBufferWriter) {
+    if (buffer instanceof CapturingBufferWriterSync || buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
     } else if (buffer instanceof InheritStaticTextBypassWriter) {
       buffer.flush(); // this is line buffered, so flush anything left
@@ -920,7 +914,15 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBufferForError(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
+    buffer:
+      | PipedBuffer
+      | "inherit"
+      | "null"
+      | CapturingBufferWriter
+      | CapturingBufferWriterSync
+      | InheritStaticTextBypassWriter
+      | Writer
+      | WriterSync,
     error: Error,
   ) {
     if (buffer instanceof InheritStaticTextBypassWriter) {
@@ -1013,7 +1015,7 @@ export class CommandResult {
 
   /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
-    if (this.#stdout === "streamed") {
+    if (this.#stderr === "streamed") {
       throw new Error(
         `Stderr was streamed to another source and is no longer available.`,
       );

@@ -33,9 +33,8 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     }
     return { code: result ? 0 : 1 };
   } catch (err) {
-    context.stderr.writeLine(`test: ${err?.message ?? err}`);
     // bash test returns 2 on error, e.g. -bash: test: -8: unary operator expected
-    return { code: 2 };
+    return context.error(2, `test: ${err?.message ?? err}`);
   }
 }
 
