@@ -11,11 +11,11 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       async onListen(details) {
         const url = new URL(`http://${details.hostname}:${details.port}/`);
         try {
-          const startTime = Date.now();
+          const startTime = new Date();
           await action(url);
-          const endTime = Date.now();
+          const endTime = new Date();
           await server.shutdown();
-          const endShutdownTime = Date.now();
+          const endShutdownTime = new Date();
           // deno-lint-ignore no-console
           console.log("Start", startTime, "End", endTime, "Shutdown", endShutdownTime);
           resolve();
@@ -27,7 +27,7 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
     }, (request) => {
       count++;
       // deno-lint-ignore no-console
-      console.log("IN", count);
+      console.log("IN", count, new Date());
       try {
         const url = new URL(request.url);
         if (url.pathname === "/text-file") {
@@ -50,7 +50,7 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } finally {
         count--;
         // deno-lint-ignore no-console
-        console.log("OUT", count);
+        console.log("OUT", count, new Date());
       }
     });
   });
