@@ -49,8 +49,7 @@ dependencies = [
 [[package]]
 name = "deno_task_shell"
 version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db60ddb0f58f5c32c2ea67784c233eeaf187285cc7b49733bc549088702a4552"
+source = "git+https://github.com/dsherret/deno_task_shell?branch=feat_support_input_redirects#35db0e748c7e6bdf409bc906c6b2cf27ffd01e24"
 dependencies = [
  "anyhow",
  "monch",

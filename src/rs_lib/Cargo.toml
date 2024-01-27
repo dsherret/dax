@@ -9,7 +9,7 @@ crate_type = ["cdylib"]
 [dependencies]
 console_error_panic_hook = "0.1.6"
 console_static_text = "0.8.2"
-deno_task_shell = { version = "0.14.4", default-features = false, features = ["serialization"] }
+deno_task_shell = { git = "https://github.com/dsherret/deno_task_shell", branch = "feat_support_input_redirects", default-features = false, features = ["serialization"] }
 once_cell = "1.16.0"
 serde = "1"
 serde-wasm-bindgen = "0.6.3"
