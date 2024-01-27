@@ -104,7 +104,15 @@ export interface RedirectFdStdoutStderr {
   kind: "stdoutStderr";
 }
 
-export type RedirectOp = "redirect" | "append";
+export type RedirectOp = RedirectOpInput | RedirectOpOutput;
+export interface RedirectOpInput {
+  kind: "input";
+  value: "redirect";
+}
+export interface RedirectOpOutput {
+  kind: "output";
+  value: "overwrite" | "append";
+}
 
 export interface Redirect {
   maybeFd: RedirectFd | undefined;
@@ -606,31 +614,39 @@ function executePipelineInner(inner: PipelineInner, context: Context): Promise<E
 async function executeCommand(command: Command, context: Context): Promise<ExecuteResult> {
   if (command.redirect != null) {
     const redirectResult = await resolveRedirectPipe(command.redirect, context);
-    if (redirectResult.kind !== "pipe") {
+    let redirectPipe: Reader | WriterSync;
+    if (redirectResult.kind === "input") {
+      const { pipe } = redirectResult;
+      context = context.withInner({
+        stdin: pipe,
+      });
+      redirectPipe = pipe;
+    } else if (redirectResult.kind === "output") {
+      const { pipe, fd } = redirectResult;
+      const writer = new ShellPipeWriter("piped", pipe);
+      redirectPipe = pipe;
+      if (fd === 1) {
+        context = context.withInner({
+          stdout: writer,
+        });
+      } else if (fd === 2) {
+        context = context.withInner({
+          stderr: writer,
+        });
+      } else {
+        const _assertNever: never = fd;
+        throw new Error(`Not handled fd: ${fd}`);
+      }
+    } else {
       return redirectResult;
     }
-    const { pipe, fd } = redirectResult;
-    const writer = new ShellPipeWriter("piped", pipe);
-    let newContext: Context;
-    if (fd === 1) {
-      newContext = context.withInner({
-        stdout: writer,
-      });
-    } else if (fd === 2) {
-      newContext = context.withInner({
-        stderr: writer,
-      });
-    } else {
-      const _assertNever: never = fd;
-      throw new Error(`Not handled fd: ${fd}`);
-    }
-    const result = await executeCommandInner(command.inner, newContext);
-    if (isDisposable(pipe)) {
+    const result = await executeCommandInner(command.inner, context);
+    if (isDisposable(redirectPipe)) {
       try {
-        pipe[Symbol.dispose]();
+        redirectPipe[Symbol.dispose]();
       } catch (err) {
         if (result.code === 0) {
-          context.stderr.writeLine(`Failed disposing redirected pipe. ${err}`);
+          context.stderr.writeLine(`failed disposing redirected pipe. ${err}`);
           return { code: 1 };
         }
       }
@@ -641,10 +657,26 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
   }
 }
 
+type ResolvedRedirectPipe = ResolvedRedirectPipeInput | ResolvedRedirectPipeOutput;
+interface ResolvedRedirectPipeInput {
+  kind: "input";
+  pipe: Reader;
+}
+interface ResolvedRedirectPipeOutput {
+  kind: "output";
+  pipe: WriterSync;
+  fd: 1 | 2;
+}
+
 async function resolveRedirectPipe(
   redirect: Redirect,
   context: Context,
-): Promise<{ kind: "pipe"; pipe: WriterSync; fd: 1 | 2 } | ExecuteResult> {
+): Promise<ResolvedRedirectPipe | ExecuteResult> {
+  function handleFileOpenError(outputPath: string, err: unknown): ExecuteResult {
+    context.stderr.writeLine(`failed opening file for redirect (${outputPath}). ${err}`);
+    return { code: 1 };
+  }
+
   const fd = resolveRedirectFd(redirect, context);
   if (typeof fd !== "number") {
     return fd;
@@ -661,29 +693,51 @@ async function resolveRedirectPipe(
     );
     return { code: 1 };
   }
-  if (words[0] === "/dev/null") {
-    return {
-      kind: "pipe",
-      pipe: new NullPipeWriter(),
-      fd,
-    };
-  }
-  const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
-  try {
-    const file = await Deno.open(outputPath, {
-      write: true,
-      create: true,
-      append: redirect.op === "append",
-      truncate: redirect.op !== "append",
-    });
-    return {
-      kind: "pipe",
-      pipe: file,
-      fd,
-    };
-  } catch (err) {
-    context.stderr.writeLine(`failed opening file for redirect (${outputPath}). ${err}`);
-    return { code: 1 };
+
+  switch (redirect.op.kind) {
+    case "input": {
+      const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
+      try {
+        const file = await Deno.open(outputPath, {
+          read: true,
+        });
+        return {
+          kind: "input",
+          pipe: file,
+        };
+      } catch (err) {
+        return handleFileOpenError(outputPath, err);
+      }
+    }
+    case "output": {
+      if (words[0] === "/dev/null") {
+        return {
+          kind: "output",
+          pipe: new NullPipeWriter(),
+          fd,
+        };
+      }
+      const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
+      try {
+        const file = await Deno.open(outputPath, {
+          write: true,
+          create: true,
+          append: redirect.op.value === "append",
+          truncate: redirect.op.value !== "append",
+        });
+        return {
+          kind: "output",
+          pipe: file,
+          fd,
+        };
+      } catch (err) {
+        return handleFileOpenError(outputPath, err);
+      }
+    }
+    default: {
+      const _assertNever: never = redirect.op;
+      throw new Error("not implemented redirect op.");
+    }
   }
 }
 
@@ -1147,5 +1201,5 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
 }
 
 function isDisposable(value: unknown): value is Disposable {
-  return value != null && typeof value === "object" && Symbol.dispose in value;
+  return value != null && typeof (value as any)[Symbol.dispose] === "function";
 }

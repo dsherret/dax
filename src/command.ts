@@ -799,10 +799,10 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     } else if (state.stdin instanceof Deferred) {
       const stdin = await state.stdin.create();
       if (stdin instanceof ReadableStream) {
-        disposables.push({
-          [Symbol.dispose]() {
+        asyncDisposables.push({
+          async [Symbol.asyncDispose]() {
             if (!stdin.locked) {
-              stdin.cancel();
+              await stdin.cancel();
             }
           },
         });
@@ -1199,32 +1199,32 @@ function getSignalAbortCode(signal: Deno.Signal) {
 }
 
 export function template(strings: TemplateStringsArray, exprs: any[]) {
-  let result = "";
-  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-    if (strings.length > i) {
-      result += strings[i];
-    }
-    if (exprs.length > i) {
-      result += templateLiteralExprToString(exprs[i], escapeArg);
-    }
-  }
-  return result;
+  return templateInner(strings, exprs, escapeArg);
 }
 
 export function templateRaw(strings: TemplateStringsArray, exprs: any[]) {
-  let result = "";
-  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-    if (strings.length > i) {
-      result += strings[i];
-    }
-    if (exprs.length > i) {
-      result += templateLiteralExprToString(exprs[i]);
-    }
-  }
-  return result;
+  return templateInner(strings, exprs, undefined);
 }
 
-function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
+function templateInner(
+  strings: TemplateStringsArray,
+  exprs: any[],
+  escape: ((arg: string) => string) | undefined,
+) {
+  let text = "";
+  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+    if (strings.length > i) {
+      text += strings[i];
+    }
+    if (exprs.length > i) {
+      const expr = exprs[i];
+      text += templateLiteralExprToString(expr, escape);
+    }
+  }
+  return text;
+}
+
+function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {
   let result: string;
   if (expr instanceof Array) {
     return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");

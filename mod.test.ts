@@ -1102,7 +1102,7 @@ Deno.test("piping in command", async () => {
   }
 });
 
-Deno.test("redirects", async () => {
+Deno.test("output redirects", async () => {
   await withTempDir(async (tempDir) => {
     // absolute
     const tempFile = tempDir.join("temp_file.txt");
@@ -1155,6 +1155,14 @@ Deno.test("redirects", async () => {
       assertEquals(result.code, 1);
       assert(result.stderr.startsWith("failed opening file for redirect"));
     }
+  });
+});
+
+Deno.test("input redirects", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("Hi!");
+    const text = await $`cat - < test.txt`.text();
+    assertEquals(text, "Hi!");
   });
 });
 
