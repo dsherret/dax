@@ -7,11 +7,11 @@ import {
   NullPipeReader,
   NullPipeWriter,
   PipeSequencePipe,
+  PipeWriter,
   Reader,
   ShellPipeReaderKind,
   ShellPipeWriter,
   ShellPipeWriterKind,
-  WriterSync,
 } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult } from "./result.ts";
 
@@ -248,13 +248,13 @@ function cloneEnv(env: Env) {
 
 export class StreamFds {
   #readers = new Map<number, () => Reader>();
-  #writers = new Map<number, () => WriterSync>();
+  #writers = new Map<number, () => PipeWriter>();
 
   insertReader(fd: number, stream: () => Reader) {
     this.#readers.set(fd, stream);
   }
 
-  insertWriter(fd: number, stream: () => WriterSync) {
+  insertWriter(fd: number, stream: () => PipeWriter) {
     this.#writers.set(fd, stream);
   }
 
@@ -262,7 +262,7 @@ export class StreamFds {
     return this.#readers.get(fd)?.();
   }
 
-  getWriter(fd: number): WriterSync | undefined {
+  getWriter(fd: number): PipeWriter | undefined {
     return this.#writers.get(fd)?.();
   }
 }
@@ -658,7 +658,7 @@ function executePipelineInner(inner: PipelineInner, context: Context): Promise<E
 async function executeCommand(command: Command, context: Context): Promise<ExecuteResult> {
   if (command.redirect != null) {
     const redirectResult = await resolveRedirectPipe(command.redirect, context);
-    let redirectPipe: Reader | WriterSync;
+    let redirectPipe: Reader | PipeWriter;
     if (redirectResult.kind === "input") {
       const { pipe } = redirectResult;
       context = context.withInner({
@@ -685,13 +685,15 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
       return redirectResult;
     }
     const result = await executeCommandInner(command.inner, context);
-    if (isDisposable(redirectPipe)) {
-      try {
+    try {
+      if (isAsyncDisposable(redirectPipe)) {
+        await redirectPipe[Symbol.asyncDispose]();
+      } else if (isDisposable(redirectPipe)) {
         redirectPipe[Symbol.dispose]();
-      } catch (err) {
-        if (result.code === 0) {
-          return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
-        }
+      }
+    } catch (err) {
+      if (result.code === 0) {
+        return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
       }
     }
     return result;
@@ -707,7 +709,7 @@ interface ResolvedRedirectPipeInput {
 }
 interface ResolvedRedirectPipeOutput {
   kind: "output";
-  pipe: WriterSync;
+  pipe: PipeWriter;
   toFd: 1 | 2;
 }
 
@@ -733,13 +735,11 @@ async function resolveRedirectPipe(
             pipe: getStdinReader(context.stdin),
           };
         } else if (ioFile.value === 1 || ioFile.value === 2) {
-          context.stderr.writeLine(`redirecting stdout or stderr to a command input is not supported`);
-          return { code: 1 };
+          return context.error(`redirecting stdout or stderr to a command input is not supported`);
         } else {
           const pipe = context.getFdReader(ioFile.value);
           if (pipe == null) {
-            context.stderr.writeLine(`could not find fd reader: ${ioFile.value}`);
-            return { code: 1 };
+            return context.error(`could not find fd reader: ${ioFile.value}`);
           } else {
             return {
               kind: "input",
@@ -750,25 +750,23 @@ async function resolveRedirectPipe(
       }
       case "output": {
         if (ioFile.value === 0) {
-          context.stderr.writeLine(`redirecting output to stdin is not supported`);
-          return { code: 1 };
+          return context.error(`redirecting output to stdin is not supported`);
         } else if (ioFile.value === 1) {
           return {
             kind: "output",
-            pipe: context.stdout,
+            pipe: context.stdout.inner,
             toFd,
           };
         } else if (ioFile.value === 2) {
           return {
             kind: "output",
-            pipe: context.stderr,
+            pipe: context.stderr.inner,
             toFd,
           };
         } else {
           const pipe = context.getFdWriter(ioFile.value);
           if (pipe == null) {
-            context.stderr.writeLine(`could not find fd: ${ioFile.value}`);
-            return { code: 1 };
+            return context.error(`could not find fd: ${ioFile.value}`);
           } else {
             return {
               kind: "output",
@@ -787,14 +785,12 @@ async function resolveRedirectPipe(
     const words = await evaluateWordParts(ioFile.value, context);
     // edge case that's not supported
     if (words.length === 0) {
-      context.stderr.writeLine("redirect path must be 1 argument, but found 0");
-      return { code: 1 };
+      return context.error("redirect path must be 1 argument, but found 0");
     } else if (words.length > 1) {
-      context.stderr.writeLine(
+      return context.error(
         `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). ` +
           `Did you mean to quote it (ex. "${words.join(" ")}")?`,
       );
-      return { code: 1 };
     }
 
     switch (redirect.op.kind) {
@@ -858,7 +854,7 @@ function getStdinReader(stdin: CommandPipeReader): Reader {
   }
 }
 
-function resolveRedirectFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 {
+function resolveRedirectToFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 {
   const maybeFd = redirect.maybeFd;
   if (maybeFd == null) {
     return 1; // stdout
@@ -1310,4 +1306,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
 
 function isDisposable(value: unknown): value is Disposable {
   return value != null && typeof (value as any)[Symbol.dispose] === "function";
+}
+
+function isAsyncDisposable(value: unknown): value is AsyncDisposable {
+  return value != null && typeof (value as any)[Symbol.asyncDispose] === "function";
 }

@@ -91,6 +91,10 @@ export class ShellPipeWriter {
     return this.#kind;
   }
 
+  get inner() {
+    return this.#inner;
+  }
+
   write(p: Uint8Array) {
     if ("write" in this.#inner) {
       return this.#inner.write(p);

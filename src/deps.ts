@@ -8,6 +8,7 @@ export { readerFromStreamReader } from "https://deno.land/std@0.213.0/streams/re
 export { writeAll, writeAllSync } from "https://deno.land/std@0.213.0/io/write_all.ts";
 export { outdent } from "https://deno.land/x/outdent@v0.8.0/src/index.ts";
 export { RealEnvironment as DenoWhichRealEnvironment, which, whichSync } from "https://deno.land/x/which@0.3.0/mod.ts";
+export { writerFromStreamWriter } from "https://deno.land/std@0.213.0/streams/writer_from_stream_writer.ts";
 
 export { emptyDir, emptyDirSync } from "https://deno.land/std@0.213.0/fs/empty_dir.ts";
 export { ensureDir, ensureDirSync } from "https://deno.land/std@0.213.0/fs/ensure_dir.ts";

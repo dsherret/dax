@@ -1160,14 +1160,6 @@ Deno.test("input redirects", async () => {
   });
 });
 
-Deno.test("output redirect with readable", async () => {
-  const buffer = new Buffer();
-  const bufferText = "testing\nthis\nout".repeat(1000);
-  buffer.writeSync(new TextEncoder().encode(bufferText));
-  const outputtedText = await $`cat - < ${toReadableStream(buffer)}`.text();
-  assertEquals(outputtedText, bufferText);
-});
-
 Deno.test("output redirect with writable", async () => {
   await withTempDir(async (tempDir) => {
     const buffer = new Buffer();
@@ -1176,6 +1168,27 @@ Deno.test("output redirect with writable", async () => {
     await $`cat data.txt > ${toWritableStream(buffer)}`.cwd(tempDir);
     assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
   });
+  {
+    const chunks = [];
+    let wasClosed = false;
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+      close() {
+        wasClosed = true;
+      },
+    });
+    let didThrow = false;
+    try {
+      await $`echo 1 > ${writableStream} ; exit 1`;
+    } catch {
+      didThrow = true;
+    }
+    assert(didThrow);
+    assertEquals(chunks.length, 1);
+    assert(wasClosed);
+  }
 });
 
 Deno.test("shebang support", async (t) => {

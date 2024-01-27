@@ -15,7 +15,7 @@ import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,
@@ -1252,9 +1252,21 @@ function templateInner(
         ensureOutputRedirect(text);
         streams ??= new StreamFds();
         const fd = nextStreamFd++;
-        //streams.insertWriter(fd, () => writerFromStreamWriter(expr.getWriter()));
+        streams.insertWriter(fd, () => {
+          const writer = expr.getWriter();
+          return {
+            ...writerFromStreamWriter(writer),
+            async [Symbol.asyncDispose]() {
+              writer.releaseLock();
+              try {
+                await expr.close();
+              } catch {
+                // ignore, the stream may have errored
+              }
+            },
+          };
+        });
         text = text.trimEnd() + "&" + fd;
-        throw new Error("NOT IMPLEMENTED YET");
       } else {
         text += templateLiteralExprToString(expr, escape);
       }
