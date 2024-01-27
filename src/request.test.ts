@@ -4,6 +4,7 @@ import { RequestBuilder } from "./request.ts";
 import $ from "../mod.ts";
 
 function withServer(action: (serverUrl: URL) => Promise<void>) {
+  let count = 0;
   return new Promise<void>((resolve, reject) => {
     const server = Deno.serve({
       hostname: "localhost",
@@ -24,23 +25,32 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
         }
       },
     }, (request) => {
-      const url = new URL(request.url);
-      if (url.pathname === "/text-file") {
-        const data = "text".repeat(1000);
-        return new Response(data, { status: 200 });
-      } else if (url.pathname === "/json") {
-        const data = JSON.stringify({
-          value: 5,
-        });
-        return new Response(data, { status: 200 });
-      } else if (url.pathname === "/headers") {
-        const data = JSON.stringify(Object.fromEntries(request.headers.entries()));
-        return new Response(data, { status: 200 });
-      } else if (url.pathname.startsWith("/code/")) {
-        const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
-        return new Response(code.toString(), { status: code });
-      } else {
-        return new Response("Not Found", { status: 404 });
+      count++;
+      // deno-lint-ignore no-console
+      console.log("IN", count);
+      try {
+        const url = new URL(request.url);
+        if (url.pathname === "/text-file") {
+          const data = "text".repeat(1000);
+          return new Response(data, { status: 200 });
+        } else if (url.pathname === "/json") {
+          const data = JSON.stringify({
+            value: 5,
+          });
+          return new Response(data, { status: 200 });
+        } else if (url.pathname === "/headers") {
+          const data = JSON.stringify(Object.fromEntries(request.headers.entries()));
+          return new Response(data, { status: 200 });
+        } else if (url.pathname.startsWith("/code/")) {
+          const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
+          return new Response(code.toString(), { status: code });
+        } else {
+          return new Response("Not Found", { status: 404 });
+        }
+      } finally {
+        count--;
+        // deno-lint-ignore no-console
+        console.log("OUT", count);
       }
     });
   });

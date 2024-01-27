@@ -799,10 +799,10 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     } else if (state.stdin instanceof Deferred) {
       const stdin = await state.stdin.create();
       if (stdin instanceof ReadableStream) {
-        disposables.push({
-          [Symbol.dispose]() {
+        asyncDisposables.push({
+          async [Symbol.asyncDispose]() {
             if (!stdin.locked) {
-              stdin.cancel();
+              await stdin.cancel();
             }
           },
         });
