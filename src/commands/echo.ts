@@ -14,6 +14,6 @@ export function echoCommand(context: CommandContext): ExecuteResult | Promise<Ex
   }
 }
 
-function handleFailure(context: CommandContext, err: unknown) {
-  return context.error(`echo: failed. ${err}`);
+function handleFailure(context: CommandContext, err: any) {
+  return context.error(`echo: ${err?.message ?? err}`);
 }

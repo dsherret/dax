@@ -642,7 +642,7 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
         redirectPipe[Symbol.dispose]();
       } catch (err) {
         if (result.code === 0) {
-          return context.error(`failed disposing redirected pipe. ${err}`);
+          return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
         }
       }
     }
@@ -667,8 +667,8 @@ async function resolveRedirectPipe(
   redirect: Redirect,
   context: Context,
 ): Promise<ResolvedRedirectPipe | ExecuteResult> {
-  function handleFileOpenError(outputPath: string, err: unknown) {
-    return context.error(`failed opening file for redirect (${outputPath}). ${err}`);
+  function handleFileOpenError(outputPath: string, err: any) {
+    return context.error(`failed opening file for redirect (${outputPath}). ${err?.message ?? err}`);
   }
 
   const fd = resolveRedirectFd(redirect, context);
@@ -816,7 +816,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         return;
       }
 
-      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${err}`);
+      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${err?.message ?? err}`);
       if (maybePromise != null) {
         await maybePromise;
       }

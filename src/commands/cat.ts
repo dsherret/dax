@@ -60,7 +60,7 @@ async function executeCat(context: CommandContext) {
         }
         exitCode = context.signal.abortedExitCode ?? 0;
       } catch (err) {
-        const maybePromise = context.stderr.writeLine(`cat ${path}: ${err}`);
+        const maybePromise = context.stderr.writeLine(`cat ${path}: ${err?.message ?? err}`);
         if (maybePromise instanceof Promise) {
           await maybePromise;
         }

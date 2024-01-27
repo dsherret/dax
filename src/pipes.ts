@@ -110,7 +110,27 @@ export class ShellPipeWriter {
   }
 }
 
-export class CapturingBufferWriter implements WriterSync {
+export class CapturingBufferWriter implements Writer {
+  #buffer: Buffer;
+  #innerWriter: Writer;
+
+  constructor(innerWriter: Writer, buffer: Buffer) {
+    this.#innerWriter = innerWriter;
+    this.#buffer = buffer;
+  }
+
+  getBuffer() {
+    return this.#buffer;
+  }
+
+  async write(p: Uint8Array) {
+    const nWritten = await this.#innerWriter.write(p);
+    this.#buffer.writeSync(p.slice(0, nWritten));
+    return nWritten;
+  }
+}
+
+export class CapturingBufferWriterSync implements WriterSync {
   #buffer: Buffer;
   #innerWriter: WriterSync;
 
