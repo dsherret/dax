@@ -1,4 +1,4 @@
-import { formatMillis } from "./common.ts";
+import { formatMillis, symbols } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { PathRef } from "./path.ts";
@@ -89,7 +89,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
   [symbols.readable](): ReadableStream<Uint8Array> {
     const self = this;
     let streamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-    let response: RequestResult | undefined;
+    let response: RequestResponse | undefined;
     let wasCancelled = false;
     let cancelledReason: unknown;
     return new ReadableStream({
