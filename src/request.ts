@@ -27,7 +27,7 @@ export const withProgressBarFactorySymbol: unique symbol = Symbol();
 /**
  * Builder API for downloading files.
  */
-export class RequestBuilder implements PromiseLike<RequestResult> {
+export class RequestBuilder implements PromiseLike<RequestResponse> {
   #state: Readonly<RequestBuilderState> | undefined = undefined;
 
   #getClonedState(): RequestBuilderState {
@@ -86,15 +86,15 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return builder;
   }
 
-  then<TResult1 = RequestResult, TResult2 = never>(
-    onfulfilled?: ((value: RequestResult) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+  then<TResult1 = RequestResponse, TResult2 = never>(
+    onfulfilled?: ((value: RequestResponse) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): PromiseLike<TResult1 | TResult2> {
     return this.fetch().then(onfulfilled).catch(onrejected);
   }
 
   /** Fetches and gets the response. */
-  fetch(): Promise<RequestResult> {
+  fetch(): Promise<RequestResponse> {
     return makeRequest(this.#getClonedState());
   }
 
@@ -342,8 +342,8 @@ interface Timeout {
   clear(): void;
 }
 
-/** Result of making a request. */
-export class RequestResult {
+/** Response of making a request where the body can be read. */
+export class RequestResponse {
   #response: Response;
   #downloadResponse: Response;
   #originalUrl: string;
@@ -647,7 +647,7 @@ export async function makeRequest(state: RequestBuilderState) {
     referrerPolicy: state.referrerPolicy,
     signal: timeout?.signal,
   });
-  const result = new RequestResult({
+  const result = new RequestResponse({
     response,
     originalUrl: state.url.toString(),
     progressBar: getProgressBar(),
