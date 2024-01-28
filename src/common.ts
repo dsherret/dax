@@ -17,7 +17,7 @@ export const symbols = {
    * await $`echo 1 > ${myObj}`;
    * ```
    */
-  writable: Symbol.for("dax.writable"),
+  writable: Symbol.for("dax.writableStream"),
   /** Use this symbol to enable the provided object to be read from in
    * an input redirect within a template literal expression.
    *
@@ -32,7 +32,7 @@ export const symbols = {
    * await $`gzip < ${myObj}`;
    * ```
    */
-  readable: Symbol.for("dax.readable"),
+  readable: Symbol.for("dax.readableStream"),
 };
 
 /**

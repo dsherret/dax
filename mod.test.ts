@@ -1206,7 +1206,7 @@ Deno.test("input redirects with bytes", async () => {
   }
 });
 
-Deno.test("output redirect with writable", async () => {
+Deno.test("output redirect with provided object", async () => {
   await withTempDir(async (tempDir) => {
     const buffer = new Buffer();
     const pipedText = "testing\nthis\nout".repeat(1_000);
@@ -1234,6 +1234,19 @@ Deno.test("output redirect with writable", async () => {
     assert(didThrow);
     assertEquals(chunks.length, 1);
     assert(wasClosed);
+  }
+  {
+    const bytes = new Uint8Array(2);
+    await $`echo 1 > ${bytes}`;
+    assertEquals(new TextDecoder().decode(bytes), "1\n");
+  }
+  // overflow
+  {
+    const bytes = new Uint8Array(1);
+    const result = await $`echo 1 > ${bytes}`.noThrow().stderr("piped");
+    assertEquals(result.stderr, "echo: Overflow writing 2 bytes to Uint8Array (length: 1).\n");
+    assertEquals(result.code, 1);
+    assertEquals(bytes[0], 49);
   }
 });
 

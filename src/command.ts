@@ -1291,6 +1291,22 @@ function templateInner(
             text += templateLiteralExprToString(expr, escape);
           } else if (expr instanceof WritableStream) {
             handleWritableStream(() => expr);
+          } else if (expr instanceof Uint8Array) {
+            let pos = 0;
+            handleWritableStream(() => {
+              return new WritableStream<Uint8Array>({
+                write(chunk) {
+                  const nextPos = chunk.length + pos;
+                  if (nextPos > expr.length) {
+                    const chunkLength = expr.length - pos;
+                    expr.set(chunk.slice(0, chunkLength), pos); // fill as much as we can
+                    throw new Error(`Overflow writing ${nextPos} bytes to Uint8Array (length: ${expr.length}).`);
+                  }
+                  expr.set(chunk, pos);
+                  pos = nextPos;
+                },
+              });
+            });
           } else if (expr?.[symbols.writable]) {
             handleWritableStream(() => {
               const stream = expr[symbols.writable]?.();
