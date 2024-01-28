@@ -244,6 +244,9 @@ export class PipedBuffer implements WriterSync {
   }
 }
 
+// todo: this should provide some back pressure instead of
+// filling the buffer too much and the buffer size should probably
+// be configurable
 export class PipeSequencePipe implements Reader, WriterSync {
   #inner = new Buffer();
   #readListener: (() => void) | undefined;

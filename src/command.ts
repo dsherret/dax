@@ -22,6 +22,7 @@ import {
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
+  PipeSequencePipe,
   Reader,
   ShellPipeReaderKind,
   ShellPipeWriter,
@@ -35,6 +36,7 @@ import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
 import { StreamFds } from "./shell.ts";
 import { symbols } from "./common.ts";
+import { writeAll } from "./deps.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -181,6 +183,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     action(state);
     builder.#state = state;
     return builder;
+  }
+
+  [symbols.readable](): ReadableStream<Uint8Array> {
+    return this.stdout("piped").spawn().stdout();
   }
 
   then<TResult1 = CommandResult, TResult2 = never>(
@@ -651,6 +657,8 @@ export class CommandChild extends Promise<CommandResult> {
   }
 
   #bufferToStream(buffer: PipedBuffer) {
+    const self = this;
+    // todo(dsherret): stdout and stderr should use a pull model
     return new ReadableStream<Uint8Array>({
       start(controller) {
         buffer.setListener({
@@ -665,6 +673,9 @@ export class CommandChild extends Promise<CommandResult> {
             controller.close();
           },
         });
+      },
+      cancel(_reason) {
+        self.kill();
       },
     });
   }
