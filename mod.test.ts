@@ -1160,9 +1160,20 @@ Deno.test("subshells", async () => {
   }
   // shouldn't change the environment either
   {
+    assertEquals(await $`export VAR=5 && echo $VAR`.text(), "5"); // for reference
+    const result = await $`(export VAR=5) && echo $VAR`.text();
+    assertEquals(result, "");
+  }
+  {
     const result = await $`echo 1 && (echo 2 && export VAR=5 && echo $VAR) && echo $VAR`.text();
     assertEquals(result, "1\n2\n5\n");
   }
+  await withTempDir(async (tempDir) => {
+    const subDir = tempDir.join("subDir");
+    subDir.mkdirSync();
+    const result = await $`(cd subDir && pwd) && pwd`.text();
+    assertEquals(result, `${subDir}\n${tempDir}`);
+  });
 });
 
 Deno.test("output redirects", async () => {

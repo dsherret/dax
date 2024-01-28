@@ -1017,7 +1017,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
 async function executeSubshell(subshell: Subshell, context: Context): Promise<ExecuteResult> {
   const result = await executeSequentialList(subshell, context);
   // sub shells do not change the environment or cause an exit
-  return { code: result.code, changes: [] };
+  return { code: result.code };
 }
 
 async function pipeReaderToWritable(reader: Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {
