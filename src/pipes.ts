@@ -2,7 +2,7 @@ import { type FsFileWrapper, PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAll, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";
-import type { CommandBuilder } from "./command.ts";
+import type { CommandBuilder, KillSignal } from "./command.ts";
 
 const encoder = new TextEncoder();
 
@@ -285,6 +285,51 @@ export class PipeSequencePipe implements Reader, WriterSync {
       }
     } else {
       return Promise.resolve(this.#inner.readSync(p));
+    }
+  }
+}
+
+export async function pipeReaderToWritable(
+  reader: Reader,
+  writable: WritableStream<Uint8Array>,
+  signal: AbortSignal,
+) {
+  const abortedPromise = new Promise<void>((resolve) => {
+    signal.addEventListener("abort", listener);
+    function listener() {
+      signal.removeEventListener("abort", listener);
+      resolve();
+    }
+  });
+  const writer = writable.getWriter();
+  try {
+    while (!signal.aborted) {
+      const buffer = new Uint8Array(1024);
+      const length = await Promise.race([abortedPromise, reader.read(buffer)]);
+      if (length === 0 || length == null) {
+        break;
+      }
+      await writer.write(buffer.subarray(0, length));
+    }
+  } finally {
+    await writer.close();
+  }
+}
+
+export async function pipeReadableToWriterSync(
+  readable: ReadableStream<Uint8Array>,
+  writer: ShellPipeWriter,
+  signal: AbortSignal | KillSignal,
+) {
+  const reader = readable.getReader();
+  while (!signal.aborted) {
+    const result = await reader.read();
+    if (result.done) {
+      break;
+    }
+    const maybePromise = writer.writeAll(result.value);
+    if (maybePromise) {
+      await maybePromise;
     }
   }
 }
