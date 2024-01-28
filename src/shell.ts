@@ -49,7 +49,7 @@ export interface Command {
   redirect: Redirect | undefined;
 }
 
-export type CommandInner = SimpleCommand | TaggedSequentialList;
+export type CommandInner = SimpleCommand | Subshell;
 
 export interface SimpleCommand {
   kind: "simple";
@@ -81,8 +81,8 @@ export interface Quoted {
   value: WordPart[];
 }
 
-export interface TaggedSequentialList extends SequentialList {
-  kind: "sequentialList";
+export interface Subshell extends SequentialList {
+  kind: "subshell";
 }
 
 export interface PipeSequence {
@@ -873,9 +873,12 @@ function executeCommandInner(command: CommandInner, context: Context): Promise<E
   switch (command.kind) {
     case "simple":
       return executeSimpleCommand(command, context);
-    case "sequentialList":
-    default:
-      throw new Error(`Not implemented: ${command.kind}`);
+    case "subshell":
+      return executeSubshell(command, context);
+    default: {
+      const _assertNever: never = command;
+      throw new Error(`Not implemented: ${(command as CommandInner).kind}`);
+    }
   }
 }
 
@@ -1009,6 +1012,12 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       return "piped";
     }
   }
+}
+
+async function executeSubshell(subshell: Subshell, context: Context): Promise<ExecuteResult> {
+  const result = await executeSequentialList(subshell, context);
+  // sub shells do not change the environment or cause an exit
+  return { code: result.code, changes: [] };
 }
 
 async function pipeReaderToWritable(reader: Reader, writable: WritableStream<Uint8Array>, signal: AbortSignal) {

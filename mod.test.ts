@@ -1124,6 +1124,47 @@ Deno.test("piping in command", async () => {
   }
 });
 
+Deno.test("subshells", async () => {
+  {
+    const result = await $`(echo 1 && echo 2) | cat -`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`(echo 1 && echo 2) && echo 3`.text();
+    assertEquals(result, "1\n2\n3");
+  }
+  {
+    const result = await $`(echo 1 && echo 2) || echo 3`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 || echo 3)`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 && echo 3) || echo 4`.text();
+    assertEquals(result, "1\n2\n3");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 || echo 3) && echo 4`.text();
+    assertEquals(result, "1\n2\n4");
+  }
+  // exiting shouldn't exit the parent
+  {
+    const result = await $`echo 1 && (echo 2 && exit 0 && echo 3) && echo 4`.noThrow().text();
+    assertEquals(result, "1\n2\n4");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 && exit 1 && echo 3) || echo 4`.noThrow().text();
+    assertEquals(result, "1\n2\n4");
+  }
+  // shouldn't change the environment either
+  {
+    const result = await $`echo 1 && (echo 2 && export VAR=5 && echo $VAR) && echo $VAR`.text();
+    assertEquals(result, "1\n2\n5\n");
+  }
+});
+
 Deno.test("output redirects", async () => {
   await withTempDir(async (tempDir) => {
     // absolute
