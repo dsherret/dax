@@ -1149,6 +1149,14 @@ Deno.test("output redirects", async () => {
       assertEquals(result.code, 1);
       assert(result.stderr.startsWith("failed opening file for redirect"));
     }
+
+    {
+      assertThrows(
+        () => $`echo 1 > ${new TextEncoder()}`,
+        Error,
+        "Failed resolving expression in command. Unsupported object provided to output redirect.",
+      );
+    }
   });
 });
 
@@ -1158,6 +1166,13 @@ Deno.test("input redirects", async () => {
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
   });
+  {
+    assertThrows(
+      () => $`cat - < ${new TextEncoder()} && echo ${"test"}`,
+      Error,
+      "Failed resolving expression 1/2 in command. Unsupported object provided to input redirect.",
+    );
+  }
 });
 
 Deno.test("input redirects with readable", async () => {

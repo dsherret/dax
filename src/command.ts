@@ -1277,8 +1277,10 @@ function templateInner(
                 },
               });
             });
-          } else {
+          } else if (typeof expr === "string" || expr instanceof PathRef) {
             text += templateLiteralExprToString(expr, escape);
+          } else {
+            throw new Error("Unsupported object provided to input redirect.");
           }
         } else if (inputOrOutputRedirect === ">") {
           if (expr instanceof WritableStream) {
@@ -1294,16 +1296,19 @@ function templateInner(
               }
               return stream;
             });
-          } else {
+          } else if (typeof expr === "string" || expr instanceof PathRef) {
             text += templateLiteralExprToString(expr, escape);
+          } else {
+            throw new Error("Unsupported object provided to output redirect.");
           }
         } else {
           text += templateLiteralExprToString(expr, escape);
         }
       } catch (err) {
-        throw new Error(`Failed resolving expression ${i + 1}/${exprs.length}.`, {
-          cause: err,
-        });
+        const startMessage = exprs.length === 1
+          ? "Failed resolving expression in command."
+          : `Failed resolving expression ${i + 1}/${exprs.length} in command.`;
+        throw new Error(`${startMessage} ${err?.message ?? err}`);
       }
     }
   }
