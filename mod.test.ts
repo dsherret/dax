@@ -1169,10 +1169,9 @@ Deno.test("subshells", async () => {
     assertEquals(result, "1\n2\n5\n");
   }
   await withTempDir(async (tempDir) => {
-    tempDir = tempDir.resolve();
     const subDir = tempDir.join("subDir");
     subDir.mkdirSync();
-    const result = await $`(cd subDir && pwd) && pwd`.text();
+    const result = await $`(cd subDir && pwd) && pwd`.cwd(tempDir).text();
     assertEquals(result, `${subDir}\n${tempDir}`);
   });
 });
