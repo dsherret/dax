@@ -7,7 +7,6 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  toReadableStream,
   toWritableStream,
   withTempDir,
 } from "./src/deps.test.ts";
