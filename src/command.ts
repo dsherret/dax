@@ -22,7 +22,6 @@ import {
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
-  PipeSequencePipe,
   Reader,
   ShellPipeReaderKind,
   ShellPipeWriter,
@@ -36,7 +35,6 @@ import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
 import { StreamFds } from "./shell.ts";
 import { symbols } from "./common.ts";
-import { writeAll } from "./deps.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 

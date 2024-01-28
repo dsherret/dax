@@ -105,7 +105,6 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
       async pull(controller) {
         const { done, value } = await streamReader!.read();
         if (done || value == null) {
-          console.log(response?.signal);
           if (response?.signal?.aborted) {
             controller.error(response?.signal?.reason);
           } else {
