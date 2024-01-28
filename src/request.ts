@@ -1,3 +1,4 @@
+import { formatMillis } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { PathRef } from "./path.ts";
@@ -336,20 +337,31 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 }
 
+interface Timeout {
+  signal: AbortSignal;
+  clear(): void;
+}
+
 /** Result of making a request. */
 export class RequestResult {
   #response: Response;
   #downloadResponse: Response;
   #originalUrl: string;
+  #timeout: Timeout | undefined;
 
   /** @internal */
   constructor(opts: {
     response: Response;
     originalUrl: string;
     progressBar: ProgressBar | undefined;
+    timeout: Timeout | undefined;
   }) {
     this.#originalUrl = opts.originalUrl;
     this.#response = opts.response;
+    this.#timeout = opts.timeout;
+    if (opts.response.body == null) {
+      this.#timeout?.clear();
+    }
 
     if (opts.progressBar != null) {
       const pb = opts.progressBar;
@@ -363,11 +375,17 @@ export class RequestResult {
             try {
               while (true) {
                 const { done, value } = await reader.read();
-                if (done || value == null) break;
+                if (done || value == null) {
+                  break;
+                }
                 pb.increment(value.byteLength);
                 controller.enqueue(value);
               }
-              controller.close();
+              if (opts.timeout?.signal?.aborted) {
+                controller.error(opts.timeout.signal.reason);
+              } else {
+                controller.close();
+              }
             } finally {
               reader.releaseLock();
               pb.finish();
@@ -398,6 +416,11 @@ export class RequestResult {
   /** If the response is the result of a redirect. */
   get redirected(): boolean {
     return this.#response.redirected;
+  }
+
+  /** The underlying `AbortSignal` if a delay or signal was specified. */
+  get signal(): AbortSignal | undefined {
+    return this.#timeout?.signal;
   }
 
   /** Status code of the response. */
@@ -436,11 +459,15 @@ export class RequestResult {
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
   async arrayBuffer(): Promise<ArrayBuffer> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
+    try {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return this.#downloadResponse.arrayBuffer();
+    } finally {
+      this.#timeout?.clear();
     }
-    return this.#downloadResponse.arrayBuffer();
   }
 
   /**
@@ -449,11 +476,15 @@ export class RequestResult {
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
   async blob(): Promise<Blob> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
+    try {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.blob();
+    } finally {
+      this.#timeout?.clear();
     }
-    return this.#downloadResponse.blob();
   }
 
   /**
@@ -462,11 +493,15 @@ export class RequestResult {
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
   async formData(): Promise<FormData> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
+    try {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.formData();
+    } finally {
+      this.#timeout?.clear();
     }
-    return this.#downloadResponse.formData();
   }
 
   /**
@@ -475,11 +510,15 @@ export class RequestResult {
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
   async json<TResult = any>(): Promise<TResult> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined as any;
+    try {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined as any;
+      }
+      return await this.#downloadResponse.json();
+    } finally {
+      this.#timeout?.clear();
     }
-    return this.#downloadResponse.json();
   }
 
   /**
@@ -488,19 +527,27 @@ export class RequestResult {
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
   async text(): Promise<string> {
-    if (this.#response.status === 404) {
-      // most people don't need to bother with this and if they do, they will
-      // need to opt-in with `noThrow()`. So just assert non-nullable
-      // to make it easier to work with and highlight this behaviour in the jsdocs.
-      await this.#response.body?.cancel();
-      return undefined!;
+    try {
+      if (this.#response.status === 404) {
+        // most people don't need to bother with this and if they do, they will
+        // need to opt-in with `noThrow()`. So just assert non-nullable
+        // to make it easier to work with and highlight this behaviour in the jsdocs.
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.text();
+    } finally {
+      this.#timeout?.clear();
     }
-    return this.#downloadResponse.text();
   }
 
   /** Pipes the response body to the provided writable stream. */
-  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
-    return this.readable.pipeTo(dest, options);
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
+    try {
+      await this.readable.pipeTo(dest, options);
+    } finally {
+      this.#timeout?.clear();
+    }
   }
 
   /**
@@ -555,6 +602,7 @@ export class RequestResult {
         } catch {
           // do nothing
         }
+        this.#timeout?.clear();
       }
     } catch (err) {
       await this.#response.body?.cancel();
@@ -599,11 +647,11 @@ export async function makeRequest(state: RequestBuilderState) {
     referrerPolicy: state.referrerPolicy,
     signal: timeout?.signal,
   });
-  timeout?.clear();
   const result = new RequestResult({
     response,
     originalUrl: state.url.toString(),
     progressBar: getProgressBar(),
+    timeout,
   });
   if (!state.noThrow) {
     result.throwIfNotOk();
@@ -633,12 +681,16 @@ export async function makeRequest(state: RequestBuilderState) {
     }
   }
 
-  function getTimeout() {
+  function getTimeout(): Timeout | undefined {
     if (state.timeout == null) {
       return undefined;
     }
+    const timeout = state.timeout;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), state.timeout);
+    const timeoutId = setTimeout(
+      () => controller.abort(`Request timed out after ${formatMillis(timeout)}.`),
+      timeout,
+    );
     return {
       signal: controller.signal,
       clear() {

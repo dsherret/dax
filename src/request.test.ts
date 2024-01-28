@@ -34,6 +34,51 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else if (url.pathname.startsWith("/code/")) {
         const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
         return new Response(code.toString(), { status: code });
+      } else if (url.pathname.startsWith("/sleep/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep\//, ""), 0);
+        const signal = request.signal;
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            resolve(new Response("", { status: 200 }));
+          }, ms);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timeoutId);
+            reject(new Error("Client aborted."));
+          });
+        });
+      } else if (url.pathname.startsWith("/sleep-body/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep-body\//, ""), 0);
+        const signal = request.signal;
+        const abortController = new AbortController();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              return new Promise((resolve, reject) => {
+                if (signal.aborted || abortController.signal.aborted) {
+                  return;
+                }
+                const timeoutId = setTimeout(() => {
+                  controller.close();
+                  resolve();
+                }, ms);
+                signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+                abortController.signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+              });
+            },
+            cancel(reason) {
+              abortController.abort(reason);
+            },
+          }),
+          {
+            status: 200,
+          },
+        );
       } else {
         return new Response("Not Found", { status: 404 });
       }
@@ -232,6 +277,21 @@ Deno.test("$.request", (t) => {
         Error,
         "500",
       );
+    });
+
+    step("ensure times out  waiting for body", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10000", serverUrl))
+        .timeout(50)
+        .showProgress();
+      const response = await request.fetch();
+      let caughtErr: unknown;
+      try {
+        await response.text();
+      } catch (err) {
+        caughtErr = err;
+      }
+      assertEquals(caughtErr, "Request timed out after 50 milliseconds.");
     });
 
     await Promise.all(steps);
