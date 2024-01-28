@@ -1242,6 +1242,7 @@ function templateInner(
   let nextStreamFd = 3;
   let text = "";
   let streams: StreamFds | undefined;
+  const exprsCount = exprs.length;
   for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
     if (strings.length > i) {
       text += strings[i];
@@ -1261,7 +1262,7 @@ function templateInner(
               if (!(stream instanceof ReadableStream)) {
                 throw new Error(
                   "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
-                    `that returns a ReadableStream at expression ${i + 1}/${exprs.length}.`,
+                    `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
                 );
               }
               return stream;
@@ -1283,6 +1284,21 @@ function templateInner(
                 },
               });
             });
+          } else if (expr instanceof Function) {
+            handleReadableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof ReadableStream)) {
+                  throw new Error("Function did not return a ReadableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting ReadableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                );
+              }
+            });
           } else {
             throw new Error("Unsupported object provided to input redirect.");
           }
@@ -1300,7 +1316,7 @@ function templateInner(
                   if (nextPos > expr.length) {
                     const chunkLength = expr.length - pos;
                     expr.set(chunk.slice(0, chunkLength), pos); // fill as much as we can
-                    throw new Error(`Overflow writing ${nextPos} bytes to Uint8Array (length: ${expr.length}).`);
+                    throw new Error(`Overflow writing ${nextPos} bytes to Uint8Array (length: ${exprsCount}).`);
                   }
                   expr.set(chunk, pos);
                   pos = nextPos;
@@ -1313,10 +1329,25 @@ function templateInner(
               if (!(stream instanceof WritableStream)) {
                 throw new Error(
                   `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
-                    `that returns a WritableStream at expression ${i + 1}/${exprs.length}.`,
+                    `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
                 );
               }
               return stream;
+            });
+          } else if (expr instanceof Function) {
+            handleWritableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof WritableStream)) {
+                  throw new Error("Function did not return a WritableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting WritableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                );
+              }
             });
           } else {
             throw new Error("Unsupported object provided to output redirect.");
@@ -1325,9 +1356,9 @@ function templateInner(
           text += templateLiteralExprToString(expr, escape);
         }
       } catch (err) {
-        const startMessage = exprs.length === 1
+        const startMessage = exprsCount === 1
           ? "Failed resolving expression in command."
-          : `Failed resolving expression ${i + 1}/${exprs.length} in command.`;
+          : `Failed resolving expression ${i + 1}/${exprsCount} in command.`;
         throw new Error(`${startMessage} ${err?.message ?? err}`);
       }
     }

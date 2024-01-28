@@ -1211,6 +1211,13 @@ Deno.test("input redirects with provided object", async () => {
     const output = await $`cat - < ${file}`.text();
     assertEquals(output, text);
   });
+  // function
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${() => response.body!}`.text();
+    assertEquals(output, text);
+  }
 });
 
 Deno.test("output redirect with provided object", async () => {
@@ -1262,6 +1269,17 @@ Deno.test("output redirect with provided object", async () => {
     await $`echo testing > ${file}`;
     assertEquals(filePath.readTextSync(), "testing\n");
   });
+  // function
+  {
+    const chunks: Uint8Array[] = [];
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+    });
+    await $`echo 1 > ${() => writableStream}`;
+    assertEquals(chunks, [new Uint8Array([49, 10])]);
+  }
 });
 
 Deno.test("shebang support", async (t) => {
