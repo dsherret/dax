@@ -12,6 +12,7 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
    - Makes more code work on Windows.
    - Allows exporting the shell's environment to the current process.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+   - Has common commands built-in for better Windows support.
 1. Minimal globals or global configuration.
    - Only a default instance of `$`, but it's not mandatory to use this.
 1. No custom CLI.
@@ -27,8 +28,8 @@ import $ from "https://deno.land/x/dax/mod.ts";
 // run a command
 await $`echo 5`; // outputs: 5
 
-// more complex example outputting 1 to stdout and 2 to stderr
-await $`echo 1 && deno eval 'console.error(2);'`;
+// outputting 1 to stdout and running a sub process
+await $`echo 1 && deno run main.ts`;
 
 // parallel
 await Promise.all([
@@ -57,8 +58,8 @@ console.log(result.prop); // 5
 Get the result of stdout as bytes (makes stdout "quiet"):
 
 ```ts
-const result = await $`echo 'test'`.bytes();
-console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
+const bytes = await $`gzip < file.txt`.bytes();
+console.log(bytes);
 ```
 
 Get the result of stdout as a list of lines (makes stdout "quiet"):
@@ -106,10 +107,29 @@ Piping to a `WritableStream`:
 await $`echo 1`.stdout(Deno.stderr.writable, { preventClose: true });
 ```
 
-Or to a file:
+To a file path:
 
 ```ts
 await $`echo 1`.stdout($.path("data.txt"));
+```
+
+To a file:
+
+```ts
+using file = $.path("data.txt").openSync({ write: true, create: true });
+await $`echo 1`.stdout(file);
+```
+
+From one command to another:
+
+```ts
+const output = await $`echo foo && echo bar`
+  .pipe($`grep foo`)
+  .text();
+
+// or using a pipe sequence
+const output = await $`echo foo && echo bar | grep foo`
+  .text();
 ```
 
 ### Providing arguments to a command
@@ -157,6 +177,19 @@ console.log(finalText); // 1
 const result = await $`echo 1`.text();
 const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1
+```
+
+You can also provide JavaScript objects to shell output redirects:
+
+```ts
+const buffer = new Uint8Array(2);
+await $`echo 1 && (echo 2 > ${buffer}) && echo 3`;
+console.log(buffer); // Uint8Array(2) [ 50, 10 ]
+```
+
+Or input redirects:
+
+```ts
 ```
 
 ### Providing stdin
@@ -670,6 +703,17 @@ console.log(response.code);
 console.log(await response.json());
 ```
 
+Requests can be piped to commands:
+
+```ts
+const request = $.request("https://plugins.dprint.dev/info.json");
+await $`deno run main.ts`.stdin(request);
+
+// or as a redirect... this sleeps 5 seconds, then makes
+// request and redirects the output to the command
+await $`sleep 5 && deno run main.ts < ${request}`;
+```
+
 See the [documentation on `RequestBuilder`](https://deno.land/x/dax/src/request.ts?s=RequestBuilder) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
 ### Showing progress
@@ -701,6 +745,25 @@ Boolean lists:
 await $`echo 1 && echo 2`;
 // outputs to stdout with 1\n
 await $`echo 1 || echo 2`;
+```
+
+Pipe sequences:
+
+```ts
+await $`echo 1 | deno run main.ts`;
+```
+
+Redirects:
+
+```ts
+await $`echo 1 > output.txt`;
+const gzippedBytes = await $`gzip < input.txt`.bytes();
+```
+
+Sub shells:
+
+```ts
+await $`(echo 1 && echo 2) > output.txt`;
 ```
 
 Setting env var for command in the shell (generally you can just use `.env(...)` though):
