@@ -1151,11 +1151,11 @@ Deno.test("subshells", async () => {
   }
   // exiting shouldn't exit the parent
   {
-    const result = await $`echo 1 && (echo 2 && exit 0 && echo 3) && echo 4`.noThrow().text();
+    const result = await $`echo 1 && (echo 2 && exit 0 && echo 3) && echo 4`.text();
     assertEquals(result, "1\n2\n4");
   }
   {
-    const result = await $`echo 1 && (echo 2 && exit 1 && echo 3) || echo 4`.noThrow().text();
+    const result = await $`echo 1 && (echo 2 && exit 1 && echo 3) || echo 4`.text();
     assertEquals(result, "1\n2\n4");
   }
   // shouldn't change the environment either
