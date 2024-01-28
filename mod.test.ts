@@ -1165,6 +1165,9 @@ Deno.test("input redirects", async () => {
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
   });
+});
+
+Deno.test("input redirects with provided object", async () => {
   {
     assertThrows(
       () => $`cat - < ${new TextEncoder()} && echo ${"test"}`,
@@ -1172,9 +1175,7 @@ Deno.test("input redirects", async () => {
       "Failed resolving expression 1/2 in command. Unsupported object provided to input redirect.",
     );
   }
-});
-
-Deno.test("input redirects with readable", async () => {
+  // stream
   {
     const text = "testing".repeat(1000);
     const bytes = new TextEncoder().encode(text);
@@ -1187,9 +1188,6 @@ Deno.test("input redirects with readable", async () => {
     const output = await $`cat - < ${stream}`.text();
     assertEquals(output, text);
   }
-});
-
-Deno.test("input redirects with bytes", async () => {
   // bytes
   {
     const text = "testing".repeat(1000);
@@ -1204,6 +1202,15 @@ Deno.test("input redirects with bytes", async () => {
     const output = await $`cat - < ${response}`.text();
     assertEquals(output, text);
   }
+  // file
+  await withTempDir(async (tempDir) => {
+    const text = "testing".repeat(1000);
+    const filePath = tempDir.join("file.txt");
+    filePath.writeTextSync(text);
+    const file = filePath.openSync({ read: true });
+    const output = await $`cat - < ${file}`.text();
+    assertEquals(output, text);
+  });
 });
 
 Deno.test("output redirect with provided object", async () => {
@@ -1248,6 +1255,13 @@ Deno.test("output redirect with provided object", async () => {
     assertEquals(result.code, 1);
     assertEquals(bytes[0], 49);
   }
+  // file
+  await withTempDir(async (tempDir) => {
+    const filePath = tempDir.join("file.txt");
+    const file = filePath.openSync({ write: true, create: true, truncate: true });
+    await $`echo testing > ${file}`;
+    assertEquals(filePath.readTextSync(), "testing\n");
+  });
 });
 
 Deno.test("shebang support", async (t) => {
