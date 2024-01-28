@@ -183,10 +183,6 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return builder;
   }
 
-  [symbols.readable](): ReadableStream<Uint8Array> {
-    return this.stdout("piped").spawn().stdout();
-  }
-
   then<TResult1 = CommandResult, TResult2 = never>(
     onfulfilled?: ((value: CommandResult) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,

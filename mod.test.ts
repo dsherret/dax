@@ -1229,14 +1229,6 @@ Deno.test("output redirect with writable", async () => {
   }
 });
 
-Deno.test("input redirection to command", async () => {
-  {
-    const echos = $`echo 1 && echo 2`;
-    const text = await $`cat - < ${echos}`.text();
-    assertEquals(text, "1\n2");
-  }
-});
-
 Deno.test("shebang support", async (t) => {
   await withTempDir(async (dir) => {
     const steps: Promise<boolean>[] = [];
