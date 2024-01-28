@@ -1,4 +1,11 @@
-import { CommandBuilder, escapeArg, getRegisteredCommandNamesSymbol, template, templateRaw } from "./src/command.ts";
+import {
+  CommandBuilder,
+  escapeArg,
+  getRegisteredCommandNamesSymbol,
+  setCommandTextAndFdsSymbol,
+  template,
+  templateRaw,
+} from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -7,6 +14,7 @@ import {
   delayToMs,
   formatMillis,
   LoggerTreeBox,
+  symbols,
   TreeBox,
 } from "./src/common.ts";
 import {
@@ -468,6 +476,8 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * ```
    */
   sleep(delay: Delay): Promise<void>;
+  /** Symbols that can be attached to objects for better integration with Dax. */
+  symbols: typeof symbols;
   /**
    * Executes the command as raw text without escaping expressions.
    *
@@ -617,7 +627,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      return state.commandBuilder.getValue().command(template(strings, exprs));
+      const { text, streams } = template(strings, exprs);
+      return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
     },
     helperObject,
     logDepthObj,
@@ -741,11 +752,13 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         const commandBuilder = state.commandBuilder.getValue().printCommand(value);
         state.commandBuilder.setValue(commandBuilder);
       },
+      symbols,
       request(url: string | URL) {
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        return state.commandBuilder.getValue().command(templateRaw(strings, exprs));
+        const { text, streams } = templateRaw(strings, exprs);
+        return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);

@@ -15,7 +15,7 @@ import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,
@@ -33,7 +33,8 @@ import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
-import { writerFromStreamWriter } from "https://deno.land/std@0.213.0/streams/writer_from_stream_writer.ts";
+import { StreamFds } from "./shell.ts";
+import { symbols } from "./common.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -53,8 +54,13 @@ interface ShellPipeWriterKindWithOptions {
   options?: PipeOptions;
 }
 
+interface CommandBuilderStateCommand {
+  text: string;
+  fds: StreamFds | undefined;
+}
+
 interface CommandBuilderState {
-  command: string | undefined;
+  command: Readonly<CommandBuilderStateCommand> | undefined;
   stdin:
     | "inherit"
     | "null"
@@ -96,6 +102,8 @@ const builtInCommands = {
 
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
+/** @internal */
+export const setCommandTextAndFdsSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -227,11 +235,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Sets the raw command to execute. */
   command(command: string | string[]): CommandBuilder {
     return this.#newWithState((state) => {
-      if (typeof command === "string") {
-        state.command = command;
-      } else {
-        state.command = command.map(escapeArg).join(" ");
+      if (command instanceof Array) {
+        command = command.map(escapeArg).join(" ");
       }
+      state.command = {
+        text: command,
+        fds: undefined,
+      };
     });
   }
 
@@ -569,6 +579,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);
   }
+
+  /** @internal */
+  [setCommandTextAndFdsSymbol](text: string, fds: StreamFds | undefined) {
+    return this.#newWithState((state) => {
+      state.command = {
+        text,
+        fds,
+      };
+    });
+  }
 }
 
 export class CommandChild extends Promise<CommandResult> {
@@ -631,6 +651,8 @@ export class CommandChild extends Promise<CommandResult> {
   }
 
   #bufferToStream(buffer: PipedBuffer) {
+    const self = this;
+    // todo(dsherret): stdout and stderr should use a pull model
     return new ReadableStream<Uint8Array>({
       start(controller) {
         buffer.setListener({
@@ -646,6 +668,9 @@ export class CommandChild extends Promise<CommandResult> {
           },
         });
       },
+      cancel(_reason) {
+        self.kill();
+      },
     });
   }
 }
@@ -656,7 +681,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command));
+    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command.text));
   }
 
   const disposables: Disposable[] = [];
@@ -696,12 +721,12 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     state.stderr.kind,
     stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
-  const command = state.command;
+  const { text: commandText, fds } = state.command;
   const signal = killSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
-      const list = parseCommand(command);
+      const list = parseCommand(commandText);
       const stdin = await takeStdin();
       let code = await spawn(list, {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
@@ -712,6 +737,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
         signal,
+        fds,
       });
       if (code !== 0) {
         if (timedOut) {
@@ -1213,17 +1239,181 @@ function templateInner(
   exprs: any[],
   escape: ((arg: string) => string) | undefined,
 ) {
+  let nextStreamFd = 3;
   let text = "";
+  let streams: StreamFds | undefined;
+  const exprsCount = exprs.length;
   for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
     if (strings.length > i) {
       text += strings[i];
     }
     if (exprs.length > i) {
-      const expr = exprs[i];
-      text += templateLiteralExprToString(expr, escape);
+      try {
+        const expr = exprs[i];
+        const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
+        if (inputOrOutputRedirect === "<") {
+          if (typeof expr === "string" || expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof ReadableStream) {
+            handleReadableStream(() => expr);
+          } else if (expr?.[symbols.readable]) {
+            handleReadableStream(() => {
+              const stream = expr[symbols.readable]?.();
+              if (!(stream instanceof ReadableStream)) {
+                throw new Error(
+                  "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
+                    `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
+                );
+              }
+              return stream;
+            });
+          } else if (expr instanceof Uint8Array) {
+            handleReadableStream(() => {
+              return new ReadableStream({
+                start(controller) {
+                  controller.enqueue(expr);
+                  controller.close();
+                },
+              });
+            });
+          } else if (expr instanceof Response) {
+            handleReadableStream(() => {
+              return expr.body ?? new ReadableStream({
+                start(controller) {
+                  controller.close();
+                },
+              });
+            });
+          } else if (expr instanceof Function) {
+            handleReadableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof ReadableStream)) {
+                  throw new Error("Function did not return a ReadableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting ReadableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                );
+              }
+            });
+          } else {
+            throw new Error("Unsupported object provided to input redirect.");
+          }
+        } else if (inputOrOutputRedirect === ">") {
+          if (typeof expr === "string" || expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof WritableStream) {
+            handleWritableStream(() => expr);
+          } else if (expr instanceof Uint8Array) {
+            let pos = 0;
+            handleWritableStream(() => {
+              return new WritableStream<Uint8Array>({
+                write(chunk) {
+                  const nextPos = chunk.length + pos;
+                  if (nextPos > expr.length) {
+                    const chunkLength = expr.length - pos;
+                    expr.set(chunk.slice(0, chunkLength), pos); // fill as much as we can
+                    throw new Error(`Overflow writing ${nextPos} bytes to Uint8Array (length: ${exprsCount}).`);
+                  }
+                  expr.set(chunk, pos);
+                  pos = nextPos;
+                },
+              });
+            });
+          } else if (expr?.[symbols.writable]) {
+            handleWritableStream(() => {
+              const stream = expr[symbols.writable]?.();
+              if (!(stream instanceof WritableStream)) {
+                throw new Error(
+                  `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
+                    `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
+                );
+              }
+              return stream;
+            });
+          } else if (expr instanceof Function) {
+            handleWritableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof WritableStream)) {
+                  throw new Error("Function did not return a WritableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting WritableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                );
+              }
+            });
+          } else {
+            throw new Error("Unsupported object provided to output redirect.");
+          }
+        } else {
+          text += templateLiteralExprToString(expr, escape);
+        }
+      } catch (err) {
+        const startMessage = exprsCount === 1
+          ? "Failed resolving expression in command."
+          : `Failed resolving expression ${i + 1}/${exprsCount} in command.`;
+        throw new Error(`${startMessage} ${err?.message ?? err}`);
+      }
     }
   }
-  return text;
+  return {
+    text,
+    streams,
+  };
+
+  function handleReadableStream(createStream: () => ReadableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertReader(fd, () => {
+      const reader = createStream().getReader();
+      return {
+        ...readerFromStreamReader(reader),
+        [Symbol.dispose]() {
+          reader.releaseLock();
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
+  }
+
+  function handleWritableStream(createStream: () => WritableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertWriter(fd, () => {
+      const stream = createStream();
+      const writer = stream.getWriter();
+      return {
+        ...writerFromStreamWriter(writer),
+        async [Symbol.asyncDispose]() {
+          writer.releaseLock();
+          try {
+            await stream.close();
+          } catch {
+            // ignore, the stream may have errored
+          }
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
+  }
+}
+
+function detectInputOrOutputRedirect(text: string) {
+  text = text.trimEnd();
+  if (text.endsWith(">")) {
+    return ">";
+  } else if (text.endsWith("<")) {
+    return "<";
+  } else {
+    return undefined;
+  }
 }
 
 function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {

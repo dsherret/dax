@@ -1,4 +1,4 @@
-import { formatMillis } from "./common.ts";
+import { formatMillis, symbols } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { PathRef } from "./path.ts";
@@ -84,6 +84,42 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
     action(state);
     builder.#state = state;
     return builder;
+  }
+
+  [symbols.readable](): ReadableStream<Uint8Array> {
+    const self = this;
+    let streamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let response: RequestResponse | undefined;
+    let wasCancelled = false;
+    let cancelledReason: unknown;
+    return new ReadableStream({
+      async start() {
+        response = await self.fetch();
+        const readable = response.readable;
+        if (wasCancelled) {
+          readable.cancel(cancelledReason);
+        } else {
+          streamReader = readable.getReader();
+        }
+      },
+      async pull(controller) {
+        const { done, value } = await streamReader!.read();
+        if (done || value == null) {
+          if (response?.signal?.aborted) {
+            controller.error(response?.signal?.reason);
+          } else {
+            controller.close();
+          }
+        } else {
+          controller.enqueue(value);
+        }
+      },
+      cancel(reason?: any) {
+        streamReader?.cancel(reason);
+        wasCancelled = true;
+        cancelledReason = reason;
+      },
+    });
   }
 
   then<TResult1 = RequestResponse, TResult2 = never>(

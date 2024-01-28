@@ -13,6 +13,7 @@ import {
   writeAll,
   writeAllSync,
 } from "./deps.ts";
+import { symbols } from "./common.ts";
 
 /**
  * `ExpandGlobOptions` from https://deno.land/std/fs/expand_glob.ts
@@ -1193,6 +1194,14 @@ function createFsFileWrapper(file: Deno.FsFile): FsFileWrapper {
 }
 
 export class FsFileWrapper extends Deno.FsFile {
+  [symbols.readable](): ReadableStream<Uint8Array> {
+    return this.readable;
+  }
+
+  [symbols.writable](): WritableStream<Uint8Array> {
+    return this.writable;
+  }
+
   /** Writes the provided text to this file. */
   writeText(text: string): Promise<this> {
     return this.writeBytes(new TextEncoder().encode(text));

@@ -66,6 +66,12 @@ export type ShellPipeWriterKind =
   | FsFileWrapper
   | PathRef;
 
+export class NullPipeReader implements Reader {
+  read(_p: Uint8Array): Promise<number | null> {
+    return Promise.resolve(null);
+  }
+}
+
 export class NullPipeWriter implements WriterSync {
   writeSync(p: Uint8Array): number {
     return p.length;
@@ -83,6 +89,10 @@ export class ShellPipeWriter {
 
   get kind() {
     return this.#kind;
+  }
+
+  get inner() {
+    return this.#inner;
   }
 
   write(p: Uint8Array) {
@@ -234,6 +244,9 @@ export class PipedBuffer implements WriterSync {
   }
 }
 
+// todo: this should provide some back pressure instead of
+// filling the buffer too much and the buffer size should probably
+// be configurable
 export class PipeSequencePipe implements Reader, WriterSync {
   #inner = new Buffer();
   #readListener: (() => void) | undefined;

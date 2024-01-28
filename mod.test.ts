@@ -1,4 +1,4 @@
-import { readAll } from "./src/deps.ts";
+import { readAll, readerFromStreamReader } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
@@ -7,7 +7,7 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  readerFromStreamReader,
+  toWritableStream,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
@@ -1148,6 +1148,14 @@ Deno.test("output redirects", async () => {
       assertEquals(result.code, 1);
       assert(result.stderr.startsWith("failed opening file for redirect"));
     }
+
+    {
+      assertThrows(
+        () => $`echo 1 > ${new TextEncoder()}`,
+        Error,
+        "Failed resolving expression in command. Unsupported object provided to output redirect.",
+      );
+    }
   });
 });
 
@@ -1157,6 +1165,121 @@ Deno.test("input redirects", async () => {
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
   });
+});
+
+Deno.test("input redirects with provided object", async () => {
+  {
+    assertThrows(
+      () => $`cat - < ${new TextEncoder()} && echo ${"test"}`,
+      Error,
+      "Failed resolving expression 1/2 in command. Unsupported object provided to input redirect.",
+    );
+  }
+  // stream
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    const output = await $`cat - < ${stream}`.text();
+    assertEquals(output, text);
+  }
+  // bytes
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const output = await $`cat - < ${bytes}`.text();
+    assertEquals(output, text);
+  }
+  // response
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${response}`.text();
+    assertEquals(output, text);
+  }
+  // file
+  await withTempDir(async (tempDir) => {
+    const text = "testing".repeat(1000);
+    const filePath = tempDir.join("file.txt");
+    filePath.writeTextSync(text);
+    const file = filePath.openSync({ read: true });
+    const output = await $`cat - < ${file}`.text();
+    assertEquals(output, text);
+  });
+  // function
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${() => response.body!}`.text();
+    assertEquals(output, text);
+  }
+});
+
+Deno.test("output redirect with provided object", async () => {
+  await withTempDir(async (tempDir) => {
+    const buffer = new Buffer();
+    const pipedText = "testing\nthis\nout".repeat(1_000);
+    tempDir.join("data.txt").writeTextSync(pipedText);
+    await $`cat data.txt > ${toWritableStream(buffer)}`.cwd(tempDir);
+    assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
+  });
+  {
+    const chunks = [];
+    let wasClosed = false;
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+      close() {
+        wasClosed = true;
+      },
+    });
+    let didThrow = false;
+    try {
+      await $`echo 1 > ${writableStream} ; exit 1`;
+    } catch {
+      didThrow = true;
+    }
+    assert(didThrow);
+    assertEquals(chunks.length, 1);
+    assert(wasClosed);
+  }
+  {
+    const bytes = new Uint8Array(2);
+    await $`echo 1 > ${bytes}`;
+    assertEquals(new TextDecoder().decode(bytes), "1\n");
+  }
+  // overflow
+  {
+    const bytes = new Uint8Array(1);
+    const result = await $`echo 1 > ${bytes}`.noThrow().stderr("piped");
+    assertEquals(result.stderr, "echo: Overflow writing 2 bytes to Uint8Array (length: 1).\n");
+    assertEquals(result.code, 1);
+    assertEquals(bytes[0], 49);
+  }
+  // file
+  await withTempDir(async (tempDir) => {
+    const filePath = tempDir.join("file.txt");
+    const file = filePath.openSync({ write: true, create: true, truncate: true });
+    await $`echo testing > ${file}`;
+    assertEquals(filePath.readTextSync(), "testing\n");
+  });
+  // function
+  {
+    const chunks: Uint8Array[] = [];
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+    });
+    await $`echo 1 > ${() => writableStream}`;
+    assertEquals(chunks, [new Uint8Array([49, 10])]);
+  }
 });
 
 Deno.test("shebang support", async (t) => {

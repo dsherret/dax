@@ -49,7 +49,7 @@ dependencies = [
 [[package]]
 name = "deno_task_shell"
 version = "0.14.4"
-source = "git+https://github.com/dsherret/deno_task_shell?branch=feat_support_input_redirects#35db0e748c7e6bdf409bc906c6b2cf27ffd01e24"
+source = "git+https://github.com/dsherret/deno_task_shell?branch=feat_support_parsing_fd_redirects#ed3d4d046add5c1e41a7fe8020fb14ad07f3bdeb"
 dependencies = [
  "anyhow",
  "monch",

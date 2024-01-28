@@ -309,6 +309,52 @@ Deno.test("$.request", (t) => {
       assertEquals(caughtErr, "Cancel.");
     });
 
+    step("use in a redirect", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress();
+      const text = await $`cat - && echo there && cat - < ${request}`.stdinText("hi").text();
+      assertEquals(text, "hithere\n" + "text".repeat(1000));
+    });
+
+    step("use in a redirect that errors", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/code/500", serverUrl))
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Error making request to http://localhost:8000/code/500: Internal Server Error\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the response", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep/100", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the body", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10_000", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
     await Promise.all(steps);
   });
 });
