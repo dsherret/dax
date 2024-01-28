@@ -61,7 +61,7 @@ export type {
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
-export { RequestBuilder, RequestResult } from "./src/request.ts";
+export { RequestBuilder, RequestResponse } from "./src/request.ts";
 // these are used when registering commands
 export type {
   CdChange,
