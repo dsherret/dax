@@ -1,4 +1,4 @@
-import { pipeReadableToWriterSync, pipeReaderToWritable, Reader, ShellPipeWriter, Writer } from "../pipes.ts";
+import { pipeReadableToWriterSync, pipeReaderToWritable, Reader, ShellPipeWriter } from "../pipes.ts";
 import { SpawnCommand } from "./process.common.ts";
 
 export const spawnCommand: SpawnCommand = (path, options) => {

@@ -40,6 +40,7 @@ await build({
     target: "ES2022",
   },
   mappings: {
+    "./src/runtimes/process.deno.ts": "./src/runtimes/process.node.ts",
     "./src/test/server.deno.ts": "./src/test/server.node.ts",
   },
   package: {

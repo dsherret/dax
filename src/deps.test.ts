@@ -30,3 +30,19 @@ export async function withTempDir(action: (path: PathRef) => Promise<void> | voi
     Deno.chdir(originalDirPath);
   }
 }
+
+export function usingTempDir(): PathRef & AsyncDisposable {
+  const originalDirPath = Deno.cwd();
+  const dirPath = Deno.makeTempDirSync();
+  Deno.chdir(dirPath);
+  const pathRef = createPathRef(dirPath).resolve();
+  (pathRef as any)[Symbol.asyncDispose] = async () => {
+    try {
+      await Deno.remove(dirPath, { recursive: true });
+    } catch {
+      // ignore
+    }
+    Deno.chdir(originalDirPath);
+  };
+  return pathRef as PathRef & AsyncDisposable;
+}

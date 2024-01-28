@@ -1205,7 +1205,7 @@ function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
   }
 }
 
-function getSignalAbortCode(signal: Deno.Signal) {
+export function getSignalAbortCode(signal: Deno.Signal) {
   // consider the command aborted if the signal is any one of these
   switch (signal) {
     case "SIGTERM":

@@ -898,7 +898,7 @@ Deno.test("instanceof check", () => {
 });
 
 Deno.test("toFileUrl", () => {
-  const path = createPathRef(import.meta);
+  const path = createPathRef(import.meta.url);
   assertEquals(path.toString(), stdPath.fromFileUrl(import.meta.url));
   assertEquals(path.toFileUrl(), new URL(import.meta.url));
 });

@@ -8,6 +8,7 @@ import {
   assertStringIncludes,
   assertThrows,
   toWritableStream,
+  usingTempDir,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
@@ -76,7 +77,9 @@ Deno.test("should not get stderr when null", async () => {
 });
 
 Deno.test("should capture stderr when piped", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("piped");
+  const output = await $`deno eval 'console.error(5);'`
+    .env("NO_COLOR", "1") // deno uses colors when only stderr is piped
+    .stderr("piped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
@@ -738,7 +741,7 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("timeout", async () => {
-  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
+  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 10_000));'`
     .timeout(200);
   await assertRejects(async () => await command, Error, "Timed out with exit code: 124");
 
@@ -764,46 +767,42 @@ Deno.test("abort", async () => {
   assertEquals(result.code, 124);
 });
 
-Deno.test("piping to stdin", async () => {
-  // Reader
-  {
+Deno.test.only("piping to stdin", async (t) => {
+  await t.step("reader", async () => {
     const bytes = new TextEncoder().encode("test\n");
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new Buffer(bytes))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // string
-  {
+  await t.step("string", async () => {
     const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
       .stdinText("test\n");
     // should support calling multiple times
     assertEquals(await command.text(), "test");
     assertEquals(await command.text(), "test");
-  }
+  });
 
-  // Uint8Array
-  {
+  await t.step("Uint8Array", async () => {
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new TextEncoder().encode("test\n"))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // readable stream
-  {
+  await t.step("readable stream", async () => {
     const child = $`echo 1 && echo 2`.stdout("piped").spawn();
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stdout())
       .text();
     assertEquals(result, "1\n2");
-  }
+  });
 
-  // PathRef
-  await withTempDir(async (tempDir) => {
+  await t.step("PathRef", async () => {
+    await using tempDir = usingTempDir();
     const tempFile = tempDir.join("temp_file.txt");
     const fileText = "1 testing this out\n".repeat(1_000);
     tempFile.writeTextSync(fileText);
@@ -811,17 +810,15 @@ Deno.test("piping to stdin", async () => {
     assertEquals(output, fileText.trim());
   });
 
-  // command via stdin
-  {
+  await t.step("command via stdin", async () => {
     const child = $`echo 1 && echo 2`;
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child)
       .text();
     assertEquals(result, "1\n2");
-  }
+  });
 
-  // command that exits via stdin
-  {
+  await t.step("command that exits via stdin", async () => {
     const child = $`echo 1 && echo 2 && exit 1`;
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child)
@@ -829,7 +826,7 @@ Deno.test("piping to stdin", async () => {
       .noThrow();
     assertEquals(result.code, 1);
     assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
-  }
+  });
 });
 
 Deno.test("pipe", async () => {
@@ -1848,10 +1845,10 @@ Deno.test("cd", () => {
   try {
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    $.cd(import.meta);
+    $.cd(import.meta.url);
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    const path = $.path(import.meta).parentOrThrow();
+    const path = $.path(import.meta.url).parentOrThrow();
     $.cd(path);
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
