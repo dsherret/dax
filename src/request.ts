@@ -337,9 +337,10 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
   }
 }
 
-interface Timeout {
-  signal: AbortSignal;
-  clear(): void;
+interface RequestAbortController {
+  controller: AbortController;
+  /** Clears the timeout that may be set if there's a delay */
+  clearTimeout(): void;
 }
 
 /** Response of making a request where the body can be read. */
@@ -347,20 +348,20 @@ export class RequestResponse {
   #response: Response;
   #downloadResponse: Response;
   #originalUrl: string;
-  #timeout: Timeout | undefined;
+  #abortController: RequestAbortController;
 
   /** @internal */
   constructor(opts: {
     response: Response;
     originalUrl: string;
     progressBar: ProgressBar | undefined;
-    timeout: Timeout | undefined;
+    abortController: RequestAbortController;
   }) {
     this.#originalUrl = opts.originalUrl;
     this.#response = opts.response;
-    this.#timeout = opts.timeout;
+    this.#abortController = opts.abortController;
     if (opts.response.body == null) {
-      this.#timeout?.clear();
+      opts.abortController.clearTimeout();
     }
 
     if (opts.progressBar != null) {
@@ -381,8 +382,9 @@ export class RequestResponse {
                 pb.increment(value.byteLength);
                 controller.enqueue(value);
               }
-              if (opts.timeout?.signal?.aborted) {
-                controller.error(opts.timeout.signal.reason);
+              const signal = opts.abortController.controller.signal;
+              if (signal.aborted) {
+                controller.error(signal.reason);
               } else {
                 controller.close();
               }
@@ -418,9 +420,10 @@ export class RequestResponse {
     return this.#response.redirected;
   }
 
-  /** The underlying `AbortSignal` if a delay or signal was specified. */
-  get signal(): AbortSignal | undefined {
-    return this.#timeout?.signal;
+  /** The underlying `AbortSignal` used to abort the request body
+   * when a timeout is reached or when the `.abort()` method is called. */
+  get signal(): AbortSignal {
+    return this.#abortController.controller.signal;
   }
 
   /** Status code of the response. */
@@ -436,6 +439,11 @@ export class RequestResponse {
   /** URL of the response. */
   get url(): string {
     return this.#response.url;
+  }
+
+  /** Aborts  */
+  abort(reason?: unknown) {
+    this.#abortController?.controller.abort(reason);
   }
 
   /**
@@ -466,7 +474,7 @@ export class RequestResponse {
       }
       return this.#downloadResponse.arrayBuffer();
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -483,7 +491,7 @@ export class RequestResponse {
       }
       return await this.#downloadResponse.blob();
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -500,7 +508,7 @@ export class RequestResponse {
       }
       return await this.#downloadResponse.formData();
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -517,7 +525,7 @@ export class RequestResponse {
       }
       return await this.#downloadResponse.json();
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -537,7 +545,7 @@ export class RequestResponse {
       }
       return await this.#downloadResponse.text();
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -546,7 +554,7 @@ export class RequestResponse {
     try {
       await this.readable.pipeTo(dest, options);
     } finally {
-      this.#timeout?.clear();
+      this.#abortController?.clearTimeout();
     }
   }
 
@@ -602,7 +610,7 @@ export class RequestResponse {
         } catch {
           // do nothing
         }
-        this.#timeout?.clear();
+        this.#abortController?.clearTimeout();
       }
     } catch (err) {
       await this.#response.body?.cancel();
@@ -633,7 +641,12 @@ export async function makeRequest(state: RequestBuilderState) {
   if (state.url == null) {
     throw new Error("You must specify a URL before fetching.");
   }
-  const timeout = getTimeout();
+  const abortController = getTimeoutAbortController() ?? {
+    controller: new AbortController(),
+    clearTimeout() {
+      // do nothing
+    },
+  };
   const response = await fetch(state.url, {
     body: state.body,
     cache: state.cache,
@@ -645,13 +658,13 @@ export async function makeRequest(state: RequestBuilderState) {
     redirect: state.redirect,
     referrer: state.referrer,
     referrerPolicy: state.referrerPolicy,
-    signal: timeout?.signal,
+    signal: abortController.controller.signal,
   });
   const result = new RequestResponse({
     response,
     originalUrl: state.url.toString(),
     progressBar: getProgressBar(),
-    timeout,
+    abortController,
   });
   if (!state.noThrow) {
     result.throwIfNotOk();
@@ -681,7 +694,7 @@ export async function makeRequest(state: RequestBuilderState) {
     }
   }
 
-  function getTimeout(): Timeout | undefined {
+  function getTimeoutAbortController(): RequestAbortController | undefined {
     if (state.timeout == null) {
       return undefined;
     }
@@ -692,8 +705,8 @@ export async function makeRequest(state: RequestBuilderState) {
       timeout,
     );
     return {
-      signal: controller.signal,
-      clear() {
+      controller,
+      clearTimeout() {
         clearTimeout(timeoutId);
       },
     };
