@@ -7,7 +7,7 @@ export interface RenderIntervalProgressBar {
 
 const intervalMs = 60;
 const progressBars: RenderIntervalProgressBar[] = [];
-let renderIntervalId: number | undefined;
+let renderIntervalId: ReturnType<typeof setTimeout> | undefined;
 
 export function addProgressBar(render: (size: ConsoleSize) => TextItem[]): RenderIntervalProgressBar {
   const pb = {

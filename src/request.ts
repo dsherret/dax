@@ -559,7 +559,7 @@ export class RequestResponse {
         await this.#response.body?.cancel();
         return undefined as any;
       }
-      return await this.#downloadResponse.json();
+      return (await this.#downloadResponse.json()) as TResult;
     } finally {
       this.#abortController?.clearTimeout();
     }
@@ -685,6 +685,7 @@ export async function makeRequest(state: RequestBuilderState) {
   };
   const response = await fetch(state.url, {
     body: state.body,
+    // @ts-ignore not supported in Node.js yet
     cache: state.cache,
     headers: filterEmptyRecordValues(state.headers),
     integrity: state.integrity,

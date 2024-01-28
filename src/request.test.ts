@@ -1,24 +1,12 @@
 import { Buffer, path } from "./deps.ts";
 import { assertEquals, assertRejects, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
+import { startServer } from "./test/server.deno.ts";
 import $ from "../mod.ts";
 
-function withServer(action: (serverUrl: URL) => Promise<void>) {
-  return new Promise<void>((resolve, reject) => {
-    const server = Deno.serve({
-      hostname: "localhost",
-      async onListen(details) {
-        const url = new URL(`http://${details.hostname}:${details.port}/`);
-        try {
-          await action(url);
-          await server.shutdown();
-          resolve();
-        } catch (err) {
-          await server.shutdown();
-          reject(err);
-        }
-      },
-    }, (request) => {
+async function withServer(action: (serverUrl: URL) => Promise<void>) {
+  const server = await startServer({
+    handle(request) {
       const url = new URL(request.url);
       if (url.pathname === "/text-file") {
         const data = "text".repeat(1000);
@@ -53,7 +41,7 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
         return new Response(
           new ReadableStream({
             start(controller) {
-              return new Promise((resolve, reject) => {
+              return new Promise<void>((resolve, reject) => {
                 if (signal.aborted || abortController.signal.aborted) {
                   return;
                 }
@@ -82,8 +70,20 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else {
         return new Response("Not Found", { status: 404 });
       }
-    });
+    },
   });
+
+  try {
+    await action(server.rootUrl);
+  } catch (err) {
+    throw err;
+  } finally {
+    try {
+      await server.shutdown();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 Deno.test("$.request", (t) => {
