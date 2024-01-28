@@ -7,6 +7,7 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
+  toReadableStream,
   toWritableStream,
   withTempDir,
 } from "./src/deps.test.ts";
@@ -1157,6 +1158,21 @@ Deno.test("input redirects", async () => {
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
   });
+});
+
+Deno.test("input redirects with readable", async () => {
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    const output = await $`cat - < ${stream}`.text();
+    assertEquals(output, text);
+  }
 });
 
 Deno.test("output redirect with writable", async () => {
