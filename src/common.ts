@@ -2,6 +2,39 @@ import { logger } from "./console/mod.ts";
 import { BufReader, path } from "./deps.ts";
 import { Reader } from "./pipes.ts";
 
+export const symbols = {
+  /** Use this symbol to enable the provided object to be written to in
+   * an output redirect within a template literal expression.
+   *
+   * @example
+   * ```ts
+   * class MyClass {
+   *   [$.symbols.writable](): WritableStream<Uint8Array> {
+   *     // return a WritableStream here
+   *   }
+   * }
+   * const myObj = new MyClass();
+   * await $`echo 1 > ${myObj}`;
+   * ```
+   */
+  writable: Symbol.for("dax.OutputWritable"),
+  /** Use this symbol to enable the provided object to be read from in
+   * an input redirect within a template literal expression.
+   *
+   * @example
+   * ```ts
+   * class MyClass {
+   *   [$.symbols.readable](): ReadableStream<Uint8Array> {
+   *     // return a ReadableStream here
+   *   }
+   * }
+   * const myObj = new MyClass();
+   * await $`gzip < ${myObj}`;
+   * ```
+   */
+  readable: Symbol.for("dax.InputReadable"),
+};
+
 /**
  * Delay used for certain actions.
  *

@@ -14,6 +14,7 @@ import {
   delayToMs,
   formatMillis,
   LoggerTreeBox,
+  symbols,
   TreeBox,
 } from "./src/common.ts";
 import {
@@ -475,6 +476,8 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * ```
    */
   sleep(delay: Delay): Promise<void>;
+  /** Symbols that can be attached to objects for better integration with Dax. */
+  symbols: typeof symbols;
   /**
    * Executes the command as raw text without escaping expressions.
    *
@@ -749,6 +752,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         const commandBuilder = state.commandBuilder.getValue().printCommand(value);
         state.commandBuilder.setValue(commandBuilder);
       },
+      symbols,
       request(url: string | URL) {
         return state.requestBuilder.url(url);
       },

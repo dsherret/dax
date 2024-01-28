@@ -34,6 +34,7 @@ import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
 import { StreamFds } from "./shell.ts";
+import { symbols } from "./common.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -1241,34 +1242,50 @@ function templateInner(
       text += strings[i];
     }
     if (exprs.length > i) {
-      const expr = exprs[i];
-      if (expr instanceof ReadableStream) {
-        ensureInputRedirect(text);
-        streams ??= new StreamFds();
-        const fd = nextStreamFd++;
-        streams.insertReader(fd, () => readerFromStreamReader(expr.getReader()));
-        text = text.trimEnd() + "&" + fd;
-      } else if (expr instanceof WritableStream) {
-        ensureOutputRedirect(text);
-        streams ??= new StreamFds();
-        const fd = nextStreamFd++;
-        streams.insertWriter(fd, () => {
-          const writer = expr.getWriter();
-          return {
-            ...writerFromStreamWriter(writer),
-            async [Symbol.asyncDispose]() {
-              writer.releaseLock();
-              try {
-                await expr.close();
-              } catch {
-                // ignore, the stream may have errored
+      try {
+        const expr = exprs[i];
+        const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
+        if (inputOrOutputRedirect === "<") {
+          if (expr instanceof ReadableStream) {
+            handleReadableStream(() => expr);
+          } else if (expr?.[symbols.readable]) {
+            handleReadableStream(() => {
+              const stream = expr[symbols.readable]?.();
+              if (!(stream instanceof ReadableStream)) {
+                throw new Error(
+                  "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
+                    `that returns a ReadableStream at expression ${i + 1}/${exprs.length}.`,
+                );
               }
-            },
-          };
+              return stream;
+            });
+          } else {
+            text += templateLiteralExprToString(expr, escape);
+          }
+        } else if (inputOrOutputRedirect === ">") {
+          if (expr instanceof WritableStream) {
+            handleWritableStream(() => expr);
+          } else if (expr?.[symbols.writable]) {
+            handleWritableStream(() => {
+              const stream = expr[symbols.writable]?.();
+              if (!(stream instanceof WritableStream)) {
+                throw new Error(
+                  `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
+                    `that returns a WritableStream at expression ${i + 1}/${exprs.length}.`,
+                );
+              }
+              return stream;
+            });
+          } else {
+            text += templateLiteralExprToString(expr, escape);
+          }
+        } else {
+          text += templateLiteralExprToString(expr, escape);
+        }
+      } catch (err) {
+        throw new Error(`Failed resolving expression ${i + 1}/${exprs.length}.`, {
+          cause: err,
         });
-        text = text.trimEnd() + "&" + fd;
-      } else {
-        text += templateLiteralExprToString(expr, escape);
       }
     }
   }
@@ -1276,17 +1293,52 @@ function templateInner(
     text,
     streams,
   };
-}
 
-function ensureInputRedirect(text: string) {
-  if (!text.trimEnd().endsWith("<")) {
-    throw new Error(`Readable streams can only be provided after an input redirect (\`<\`).`);
+  function handleReadableStream(createStream: () => ReadableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertReader(fd, () => {
+      const reader = createStream().getReader();
+      return {
+        ...readerFromStreamReader(reader),
+        [Symbol.dispose]() {
+          reader.releaseLock();
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
+  }
+
+  function handleWritableStream(createStream: () => WritableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertWriter(fd, () => {
+      const stream = createStream();
+      const writer = stream.getWriter();
+      return {
+        ...writerFromStreamWriter(writer),
+        async [Symbol.asyncDispose]() {
+          writer.releaseLock();
+          try {
+            await stream.close();
+          } catch {
+            // ignore, the stream may have errored
+          }
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
   }
 }
 
-function ensureOutputRedirect(text: string) {
-  if (!text.trimEnd().endsWith(">")) {
-    throw new Error(`Writable streams can only be provided after an output redirect (\`>\`).`);
+function detectInputOrOutputRedirect(text: string) {
+  text = text.trimEnd();
+  if (text.endsWith(">")) {
+    return ">";
+  } else if (text.endsWith("<")) {
+    return "<";
+  } else {
+    return undefined;
   }
 }
 

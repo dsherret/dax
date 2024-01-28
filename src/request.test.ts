@@ -34,6 +34,51 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else if (url.pathname.startsWith("/code/")) {
         const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
         return new Response(code.toString(), { status: code });
+      } else if (url.pathname.startsWith("/sleep/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep\//, ""), 0);
+        const signal = request.signal;
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            resolve(new Response("", { status: 200 }));
+          }, ms);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timeoutId);
+            reject(new Error("Client aborted."));
+          });
+        });
+      } else if (url.pathname.startsWith("/sleep-body/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep-body\//, ""), 0);
+        const signal = request.signal;
+        const abortController = new AbortController();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              return new Promise((resolve, reject) => {
+                if (signal.aborted || abortController.signal.aborted) {
+                  return;
+                }
+                const timeoutId = setTimeout(() => {
+                  controller.close();
+                  resolve();
+                }, ms);
+                signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+                abortController.signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+              });
+            },
+            cancel(reason) {
+              abortController.abort(reason);
+            },
+          }),
+          {
+            status: 200,
+          },
+        );
       } else {
         return new Response("Not Found", { status: 404 });
       }
@@ -232,6 +277,52 @@ Deno.test("$.request", (t) => {
         Error,
         "500",
       );
+    });
+
+    step("use in a redirect", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress();
+      const text = await $`cat - && echo there && cat - < ${request}`.stdinText("hi").text();
+      assertEquals(text, "hithere\n" + "text".repeat(1000));
+    });
+
+    step("use in a redirect that errors", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/code/500", serverUrl))
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Error making request to http://localhost:8000/code/500: Internal Server Error\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the response", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep/100", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the body", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10_000", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
     });
 
     await Promise.all(steps);
