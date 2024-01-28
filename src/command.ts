@@ -1251,7 +1251,9 @@ function templateInner(
         const expr = exprs[i];
         const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
         if (inputOrOutputRedirect === "<") {
-          if (expr instanceof ReadableStream) {
+          if (typeof expr === "string" || expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof ReadableStream) {
             handleReadableStream(() => expr);
           } else if (expr?.[symbols.readable]) {
             handleReadableStream(() => {
@@ -1273,13 +1275,21 @@ function templateInner(
                 },
               });
             });
-          } else if (typeof expr === "string" || expr instanceof PathRef) {
-            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof Response) {
+            handleReadableStream(() => {
+              return expr.body ?? new ReadableStream({
+                start(controller) {
+                  controller.close();
+                },
+              });
+            });
           } else {
             throw new Error("Unsupported object provided to input redirect.");
           }
         } else if (inputOrOutputRedirect === ">") {
-          if (expr instanceof WritableStream) {
+          if (typeof expr === "string" || expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof WritableStream) {
             handleWritableStream(() => expr);
           } else if (expr?.[symbols.writable]) {
             handleWritableStream(() => {
@@ -1292,8 +1302,6 @@ function templateInner(
               }
               return stream;
             });
-          } else if (typeof expr === "string" || expr instanceof PathRef) {
-            text += templateLiteralExprToString(expr, escape);
           } else {
             throw new Error("Unsupported object provided to output redirect.");
           }

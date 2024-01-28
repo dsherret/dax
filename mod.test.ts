@@ -1190,10 +1190,18 @@ Deno.test("input redirects with readable", async () => {
 });
 
 Deno.test("input redirects with bytes", async () => {
+  // bytes
   {
     const text = "testing".repeat(1000);
     const bytes = new TextEncoder().encode(text);
     const output = await $`cat - < ${bytes}`.text();
+    assertEquals(output, text);
+  }
+  // response
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${response}`.text();
     assertEquals(output, text);
   }
 });
