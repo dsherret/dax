@@ -299,9 +299,9 @@ Deno.test("$.request", (t) => {
         .url(new URL("/sleep-body/10000", serverUrl))
         .showProgress();
       const response = await request.fetch();
+      response.abort("Cancel.");
       let caughtErr: unknown;
       try {
-        response.abort("Cancel.");
         await response.text();
       } catch (err) {
         caughtErr = err;
