@@ -1423,6 +1423,10 @@ function templateLiteralExprToString(expr: any, escape: ((arg: string) => string
   } else if (expr instanceof CommandResult) {
     // remove last newline
     result = expr.stdout.replace(/\r?\n$/, "");
+  } else if (typeof expr === "string") {
+    result = expr;
+  } else if (typeof expr === "object" && expr.toString === Object.prototype.toString) {
+    throw new Error("Provided object does not override `toString()`.");
   } else {
     result = `${expr}`;
   }

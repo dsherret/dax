@@ -169,6 +169,35 @@ Deno.test("should throw when exit code is non-zero", async () => {
   );
 });
 
+Deno.test("throws when providing an object that doesn't override toString", async () => {
+  {
+    const obj1 = {};
+    assertThrows(
+      () => $`echo ${obj1}`,
+      Error,
+      "Failed resolving expression in command. Provided object does not override `toString()`.",
+    );
+  }
+  {
+    const obj2 = {
+      toString() {
+        return "1";
+      },
+    };
+    const result = await $`echo ${obj2}`.text();
+    assertEquals(result, "1");
+  }
+  class Test {
+    toString() {
+      return 1;
+    }
+  }
+  {
+    const result = await $`echo ${new Test()}`.text();
+    assertEquals(result, "1");
+  }
+});
+
 Deno.test("should change the cwd, but only in the shell", async () => {
   const output = await $`cd src ; deno eval 'console.log(Deno.cwd());'`.stdout("piped");
   const standardizedOutput = output.stdout.trim().replace(/\\/g, "/");
