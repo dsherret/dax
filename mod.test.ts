@@ -1175,6 +1175,15 @@ Deno.test("input redirects with readable", async () => {
   }
 });
 
+Deno.test("input redirects with bytes", async () => {
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const output = await $`cat - < ${bytes}`.text();
+    assertEquals(output, text);
+  }
+});
+
 Deno.test("output redirect with writable", async () => {
   await withTempDir(async (tempDir) => {
     const buffer = new Buffer();

@@ -1268,6 +1268,15 @@ function templateInner(
               }
               return stream;
             });
+          } else if (expr instanceof Uint8Array) {
+            handleReadableStream(() => {
+              return new ReadableStream({
+                start(controller) {
+                  controller.enqueue(expr);
+                  controller.close();
+                },
+              });
+            });
           } else {
             text += templateLiteralExprToString(expr, escape);
           }
