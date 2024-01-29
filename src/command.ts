@@ -1252,8 +1252,17 @@ function templateInner(
         const expr = exprs[i];
         const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
         if (inputOrOutputRedirect === "<") {
-          if (typeof expr === "string" || expr instanceof PathRef) {
+          if (expr instanceof PathRef) {
             text += templateLiteralExprToString(expr, escape);
+          } else if (typeof expr === "string") {
+            handleReadableStream(() =>
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(new TextEncoder().encode(expr));
+                  controller.close();
+                },
+              })
+            );
           } else if (expr instanceof ReadableStream) {
             handleReadableStream(() => expr);
           } else if (expr?.[symbols.readable]) {
@@ -1303,7 +1312,7 @@ function templateInner(
             throw new Error("Unsupported object provided to input redirect.");
           }
         } else if (inputOrOutputRedirect === ">") {
-          if (typeof expr === "string" || expr instanceof PathRef) {
+          if (expr instanceof PathRef) {
             text += templateLiteralExprToString(expr, escape);
           } else if (expr instanceof WritableStream) {
             handleWritableStream(() => expr);
@@ -1349,6 +1358,10 @@ function templateInner(
                 );
               }
             });
+          } else if (typeof expr === "string") {
+            throw new Error(
+              "Cannot provide strings to output redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
+            );
           } else {
             throw new Error("Unsupported object provided to output redirect.");
           }
