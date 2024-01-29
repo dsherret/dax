@@ -1269,6 +1269,12 @@ Deno.test("input redirects with provided object", async () => {
     const output = await $`cat - < ${stream}`.text();
     assertEquals(output, text);
   }
+  // string
+  {
+    const text = "testing".repeat(1000);
+    const output = await $`cat - < ${text}`.text();
+    assertEquals(output, text);
+  }
   // bytes
   {
     const text = "testing".repeat(1000);
@@ -1360,6 +1366,14 @@ Deno.test("output redirect with provided object", async () => {
     });
     await $`echo 1 > ${() => writableStream}`;
     assertEquals(chunks, [new Uint8Array([49, 10])]);
+  }
+  {
+    assertThrows(
+      () => $`echo 1 > ${"test.txt"}`,
+      Error,
+      "Failed resolving expression in command. Cannot provide strings to output " +
+        "redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
+    );
   }
 });
 

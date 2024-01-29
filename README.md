@@ -179,18 +179,36 @@ const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1
 ```
 
+#### JavaScript objects to redirects
+
 You can also provide JavaScript objects to shell output redirects:
 
 ```ts
 const buffer = new Uint8Array(2);
-await $`echo 1 && (echo 2 > ${buffer}) && echo 3`;
-console.log(buffer); // Uint8Array(2) [ 50, 10 ]
+await $`echo 1 && (echo 2 > ${buffer}) && echo 3`; // 1\n3\n
+console.log(buffer); // Uint8Array(2) [ 50, 10 ] (2\n)
 ```
+
+Supported objects: `Uint8Array`, `PathRef`, `WritableStream`, function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
 
 Or input redirects:
 
 ```ts
+// strings
+const data = "my data in a string";
+const bytes = await $`gzip < ${data}`;
+
+// paths
+const path = $.path("file.txt");
+const bytes = await $`gzip < ${path}`;
+
+// requests (this example does not make the request until after 5 seconds)
+const request = $.request("https://plugins.dprint.dev/info.json")
+  .showProgress(); // show a progress bar while downloading
+const bytes = await $`sleep 5 && gzip < ${request}`.bytes();
 ```
+
+Supported objects: `string`, `Uint8Array`, `PathRef`, `RequestBuilder`, `ReadableStream`, function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
 
 ### Providing stdin
 
