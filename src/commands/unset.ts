@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 
 export function unsetCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
@@ -8,7 +9,7 @@ export function unsetCommand(context: CommandContext): ExecuteResult | Promise<E
       changes: parseNames(context.args).map((name) => ({ kind: "unsetvar", name })),
     };
   } catch (err) {
-    return context.error(`unset: ${err?.message ?? err}`);
+    return context.error(`unset: ${errorToString(err)}`);
   }
 }
 

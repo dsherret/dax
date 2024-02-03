@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { path } from "../deps.ts";
 import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
@@ -19,7 +20,7 @@ export function pwdCommand(context: CommandContext): ExecuteResult | Promise<Exe
 }
 
 function handleError(context: CommandContext, err: any) {
-  return context.error(`pwd: ${err?.message ?? err}`);
+  return context.error(`pwd: ${errorToString(err)}`);
 }
 
 function executePwd(cwd: string, args: string[]) {

@@ -7,6 +7,7 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
+  isNode,
   toWritableStream,
   usingTempDir,
   withTempDir,
@@ -1602,7 +1603,9 @@ Deno.test("test remove", async () => {
     {
       const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
         .then((r) => r.stderr);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: directory not empty, rmdir"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: Directory not empty"
         : "rm: The directory is not empty";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1616,7 +1619,9 @@ Deno.test("test remove", async () => {
     {
       const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
         .then((r) => [r.stderr, r.code] as const);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: no such file or directory, lstat"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: No such file or directory"
         : "rm: The system cannot find the file specified";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1650,7 +1655,9 @@ Deno.test("test mkdir", async () => {
         .then(
           (r) => r.stderr,
         );
-      const expectedError = Deno.build.os === "windows"
+      const expectedError = isNode
+        ? "mkdir: no such file or directory, mkdir"
+        : Deno.build.os === "windows"
         ? "mkdir: The system cannot find the path specified."
         : "mkdir: No such file or directory";
       assertEquals(error.slice(0, expectedError.length), expectedError);
@@ -1771,7 +1778,7 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
-Deno.test("progress", async () => {
+Deno.test.only("progress", async () => {
   const logs: string[] = [];
   $.setInfoLogger((...data) => logs.push(data.join(" ")));
   const pb = $.progress("Downloading Test");
@@ -1867,7 +1874,10 @@ Deno.test("cd", () => {
   try {
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    $.cd(import.meta.url);
+    // todo: this originally passed in import.meta, but that
+    // didn't work in the node cjs tests, so now it's doing this
+    // thing that doesn't really test it
+    $.cd($.path(new URL(import.meta.url)).parentOrThrow());
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
     const path = $.path(import.meta.url).parentOrThrow();

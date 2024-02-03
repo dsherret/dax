@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export async function touchCommand(context: CommandContext) {
@@ -6,7 +7,7 @@ export async function touchCommand(context: CommandContext) {
     await executetouch(context.args);
     return { code: 0 };
   } catch (err) {
-    return context.error(`touch: ${err?.message ?? err}`);
+    return context.error(`touch: ${errorToString(err)}`);
   }
 }
 

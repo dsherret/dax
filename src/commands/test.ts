@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { resolvePath, safeLstat } from "../common.ts";
+import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import { fs } from "../deps.ts";
 import { ExecuteResult } from "../result.ts";
 
@@ -34,7 +34,7 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     return { code: result ? 0 : 1 };
   } catch (err) {
     // bash test returns 2 on error, e.g. -bash: test: -8: unary operator expected
-    return context.error(2, `test: ${err?.message ?? err}`);
+    return context.error(2, `test: ${errorToString(err)}`);
   }
 }
 

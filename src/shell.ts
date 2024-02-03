@@ -1,6 +1,6 @@
 import { KillSignal } from "./command.ts";
 import { CommandContext, CommandHandler, type CommandPipeReader } from "./command_handler.ts";
-import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
+import { errorToString, getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
@@ -698,7 +698,7 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
       }
     } catch (err) {
       if (result.code === 0) {
-        return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
+        return context.error(`failed disposing redirected pipe. ${errorToString(err)}`);
       }
     }
     return result;
@@ -723,7 +723,7 @@ async function resolveRedirectPipe(
   context: Context,
 ): Promise<ResolvedRedirectPipe | ExecuteResult> {
   function handleFileOpenError(outputPath: string, err: any) {
-    return context.error(`failed opening file for redirect (${outputPath}). ${err?.message ?? err}`);
+    return context.error(`failed opening file for redirect (${outputPath}). ${errorToString(err)}`);
   }
 
   const toFd = resolveRedirectToFd(redirect, context);
@@ -896,6 +896,16 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
   return await executeCommandArgs(commandArgs, context);
 }
 
+function checkMapCwdNotExistsError(cwd: string, err: unknown) {
+  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
+    throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
+      cause: err,
+    });
+  } else {
+    throw err;
+  }
+}
+
 async function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
   // look for a registered command first
   const command = context.getCommand(commandArgs[0]);
@@ -925,13 +935,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       ...pipeStringVals,
     });
   } catch (err) {
-    if (err.code === "ENOENT" && !fs.existsSync(cwd)) {
-      throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
-        cause: err,
-      });
-    } else {
-      throw err;
-    }
+    // Deno throws this sync, Node.js throws it async
+    throw checkMapCwdNotExistsError(cwd, err);
   }
   const listener = (signal: Deno.Signal) => p.kill(signal);
   context.signal.addListener(listener);
@@ -945,7 +950,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         return;
       }
 
-      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${err?.message ?? err}`);
+      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${errorToString(err)}`);
       if (maybePromise != null) {
         await maybePromise;
       }
@@ -969,7 +974,9 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       ? p.pipeStderrTo(context.stderr, neverAbortedSignal)
       : Promise.resolve();
     const [exitCode] = await Promise.all([
-      p.waitExitCode(),
+      p.waitExitCode()
+        // for node.js, which throws this async
+        .catch((err) => Promise.reject(checkMapCwdNotExistsError(cwd, err))),
       readStdoutTask,
       readStderrTask,
     ]);

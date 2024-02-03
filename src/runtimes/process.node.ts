@@ -27,14 +27,16 @@ export const spawnCommand: SpawnCommand = (path, options) => {
       toNodeStdio(options.stderr),
     ],
   });
-  const exitCode = new Promise<number>((resolve, reject) => {
-    child.on("exit", (code) => {
-      if (code == null && receivedSignal != null) {
-        resolve(getSignalAbortCode(receivedSignal) ?? 1);
-      } else {
-        resolve(code ?? 0);
-      }
-    });
+  const exitResolvers = Promise.withResolvers<number>();
+  child.on("exit", (code) => {
+    if (code == null && receivedSignal != null) {
+      exitResolvers.resolve(getSignalAbortCode(receivedSignal) ?? 1);
+    } else {
+      exitResolvers.resolve(code ?? 0);
+    }
+  });
+  child.on("error", (err) => {
+    exitResolvers.reject(err);
   });
   return {
     getWritableStdin() {
@@ -45,7 +47,7 @@ export const spawnCommand: SpawnCommand = (path, options) => {
       child.kill(signo as any);
     },
     waitExitCode() {
-      return exitCode;
+      return exitResolvers.promise;
     },
     async pipeStdoutTo(writer: ShellPipeWriter, signal: AbortSignal) {
       const stdout = child.stdout!;

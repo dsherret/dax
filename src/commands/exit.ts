@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 
 export function exitCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
@@ -9,7 +10,7 @@ export function exitCommand(context: CommandContext): ExecuteResult | Promise<Ex
       code,
     };
   } catch (err) {
-    return context.error(2, `exit: ${err?.message ?? err}`);
+    return context.error(2, `exit: ${errorToString(err)}`);
   }
 }
 

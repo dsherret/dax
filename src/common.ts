@@ -292,3 +292,22 @@ export function abortSignalToPromise(signal: AbortSignal) {
     promise,
   };
 }
+
+const nodeENotEmpty = "ENOTEMPTY: ";
+const nodeENOENT = "ENOENT: ";
+
+export function errorToString(err: unknown) {
+  let message: string;
+  if (err instanceof Error) {
+    message = err.message;
+  } else {
+    message = String(err);
+  }
+  if (message.startsWith(nodeENotEmpty)) {
+    return message.slice(nodeENotEmpty.length);
+  } else if (message.startsWith(nodeENOENT)) {
+    return message.slice(nodeENOENT.length);
+  } else {
+    return message;
+  }
+}
