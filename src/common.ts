@@ -276,3 +276,19 @@ export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo 
     };
   }
 }
+
+export function abortSignalToPromise(signal: AbortSignal) {
+  const { resolve, promise } = Promise.withResolvers<void>();
+
+  const listener = () => {
+    signal.removeEventListener("abort", listener);
+    resolve();
+  };
+  signal.addEventListener("abort", listener);
+  return {
+    [Symbol.dispose]() {
+      signal.removeEventListener("abort", listener);
+    },
+    promise,
+  };
+}

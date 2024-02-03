@@ -3,6 +3,7 @@ import { logger } from "./console/logger.ts";
 import { Buffer, writeAll, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";
 import type { CommandBuilder, KillSignal } from "./command.ts";
+import { abortSignalToPromise } from "./common.ts";
 
 const encoder = new TextEncoder();
 
@@ -294,18 +295,12 @@ export async function pipeReaderToWritable(
   writable: WritableStream<Uint8Array>,
   signal: AbortSignal,
 ) {
-  const abortedPromise = new Promise<void>((resolve) => {
-    signal.addEventListener("abort", listener);
-    function listener() {
-      signal.removeEventListener("abort", listener);
-      resolve();
-    }
-  });
+  using abortedPromise = abortSignalToPromise(signal);
   const writer = writable.getWriter();
   try {
     while (!signal.aborted) {
       const buffer = new Uint8Array(1024);
-      const length = await Promise.race([abortedPromise, reader.read(buffer)]);
+      const length = await Promise.race([abortedPromise.promise, reader.read(buffer)]);
       if (length === 0 || length == null) {
         break;
       }

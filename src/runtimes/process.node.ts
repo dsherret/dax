@@ -1,5 +1,6 @@
 import * as cp from "node:child_process";
-import { Reader, ShellPipeWriter } from "../pipes.ts";
+import { Writable } from "node:stream";
+import { ShellPipeWriter } from "../pipes.ts";
 import { SpawnCommand } from "./process.common.ts";
 import { getSignalAbortCode } from "../command.ts";
 
@@ -36,32 +37,8 @@ export const spawnCommand: SpawnCommand = (path, options) => {
     });
   });
   return {
-    async pipeToStdin(source: Reader, signal: AbortSignal) {
-      const stdin = child.stdin!;
-      try {
-        const buffer = new Uint8Array(1024);
-        while (true) {
-          signal.throwIfAborted();
-          const bytesRead = await source.read(buffer);
-          if (bytesRead === null) {
-            break;
-          }
-          if (bytesRead > 0) {
-            await new Promise<void>((resolve, reject) => {
-              const chunk = buffer.slice(0, bytesRead);
-              stdin.write(chunk, (err) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve();
-                }
-              });
-            });
-          }
-        }
-      } finally {
-        stdin.end();
-      }
+    getWritableStdin() {
+      return Writable.toWeb(child.stdin!);
     },
     kill(signo?: Deno.Signal) {
       receivedSignal = signo;

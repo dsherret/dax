@@ -11,7 +11,7 @@ export interface SpawnCommandOptions {
 }
 
 export interface SpawnedChildProcess {
-  pipeToStdin(source: Reader, signal: AbortSignal): Promise<void>;
+  getWritableStdin(): WritableStream;
   pipeStdoutTo(writer: ShellPipeWriter, signal: AbortSignal): Promise<void>;
   pipeStderrTo(writer: ShellPipeWriter, signal: AbortSignal): Promise<void>;
   kill(signo?: Deno.Signal): void;

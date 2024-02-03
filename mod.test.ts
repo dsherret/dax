@@ -85,14 +85,18 @@ Deno.test("should capture stderr when piped", async () => {
 });
 
 Deno.test("should capture stderr when inherited and piped", async () => {
-  const output = await $`deno eval -q 'console.error(5);'`.stderr("inheritPiped");
+  const output = await $`deno eval -q 'console.error(5);'`
+    .env("NO_COLOR", "1")
+    .stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should not get stderr when set to writer", async () => {
   const buffer = new Buffer();
-  const output = await $`deno eval 'console.error(5); console.log(1);'`.stderr(buffer);
+  const output = await $`deno eval 'console.error(5); console.log(1);'`
+    .env("NO_COLOR", "1")
+    .stderr(buffer);
   assertEquals(output.code, 0);
   assertEquals(new TextDecoder().decode(buffer.bytes()), "5\n");
   assertThrows(
@@ -716,15 +720,13 @@ Deno.test("unset with -f should error", async () => {
 });
 
 Deno.test("cwd should be resolved based on cwd at time of method call and not execution", async () => {
-  const previousCwd = Deno.cwd();
-  try {
+  await withTempDir(async (tempDir) => {
+    await tempDir.join("./src/rs_lib").ensureDir();
     const command = $`echo $PWD`.cwd("./src");
     Deno.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
-  } finally {
-    Deno.chdir(previousCwd);
-  }
+  });
 });
 
 Deno.test("should handle the PWD variable", async () => {
@@ -767,7 +769,7 @@ Deno.test("abort", async () => {
   assertEquals(result.code, 124);
 });
 
-Deno.test.only("piping to stdin", async (t) => {
+Deno.test("piping to stdin", async (t) => {
   await t.step("reader", async () => {
     const bytes = new TextEncoder().encode("test\n");
     const result =
@@ -899,7 +901,9 @@ Deno.test("piping stdout/stderr to a file", async () => {
 
   await withTempDir(async (tempDir) => {
     const tempFile = tempDir.join("temp_file.txt");
-    await $`deno eval 'console.error(1);'`.stderr(tempFile);
+    await $`deno eval 'console.error(1);'`
+      .env("NO_COLOR", "1")
+      .stderr(tempFile);
     assertEquals(tempFile.readTextSync(), "1\n");
   });
 
@@ -981,7 +985,10 @@ Deno.test("streaming api", async () => {
 
   // stderr
   {
-    const child = $`deno eval -q 'console.error(1); console.error(2)'`.stderr("piped").spawn();
+    const child = $`deno eval -q 'console.error(1); console.error(2)'`
+      .env("NO_COLOR", "1")
+      .stderr("piped")
+      .spawn();
     const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stderr())
       .text();
@@ -1190,16 +1197,17 @@ Deno.test("output redirects", async () => {
     assertEquals(tempDir.join("sub_dir/temp_file.txt").readTextSync(), "3\n");
 
     // stderr
-    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`;
+    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`.env("NO_COLOR", "1");
     assertEquals(tempFile.readTextSync(), "5\n");
 
     // append
-    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`;
+    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`
+      .env("NO_COLOR", "1");
     assertEquals(tempFile.readTextSync(), "1\n2\n3\n");
 
     // /dev/null
     assertEquals(await $`echo 1 > /dev/null`.text(), "");
-    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.text(), "2");
+    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.env("NO_COLOR", "1").text(), "2");
 
     // not supported fd
     {

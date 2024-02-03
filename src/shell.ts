@@ -993,7 +993,13 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     if (typeof stdin === "string") {
       return;
     }
-    await p.pipeToStdin(stdin, signal);
+    const processStdin = p.getWritableStdin();
+    await pipeReaderToWritable(stdin, processStdin, signal);
+    try {
+      await processStdin.close();
+    } catch {
+      // ignore
+    }
   }
 
   function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {

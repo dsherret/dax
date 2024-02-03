@@ -1,17 +1,12 @@
-import { pipeReadableToWriterSync, pipeReaderToWritable, Reader, ShellPipeWriter } from "../pipes.ts";
+import { pipeReadableToWriterSync, ShellPipeWriter } from "../pipes.ts";
 import { SpawnCommand } from "./process.common.ts";
 
 export const spawnCommand: SpawnCommand = (path, options) => {
   const child = new Deno.Command(path, options).spawn();
   child.status;
   return {
-    async pipeToStdin(source: Reader, signal: AbortSignal) {
-      await pipeReaderToWritable(source, child.stdin, signal);
-      try {
-        await child.stdin.close();
-      } catch {
-        // ignore
-      }
+    getWritableStdin() {
+      return child.stdin;
     },
     kill(signo?: Deno.Signal) {
       child.kill(signo);
