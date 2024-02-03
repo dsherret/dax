@@ -1,5 +1,5 @@
 import { Buffer, path } from "./deps.ts";
-import { assertEquals, assertRejects, toWritableStream } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, isNode, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 import $ from "../mod.ts";
@@ -306,7 +306,13 @@ Deno.test("$.request", (t) => {
       } catch (err) {
         caughtErr = err;
       }
-      assertEquals(caughtErr, "Cancel.");
+      if (isNode) {
+        // seems like a bug in Node and Chrome where they throw a
+        // DOMException instead, but not sure
+        assert(caughtErr != null);
+      } else {
+        assertEquals(caughtErr, "Cancel.");
+      }
     });
 
     step("use in a redirect", async () => {
@@ -324,7 +330,7 @@ Deno.test("$.request", (t) => {
       const result = await $`cat - < ${request}`.noThrow().stderr("piped");
       assertEquals(
         result.stderr,
-        "cat: Error making request to http://localhost:8000/code/500: Internal Server Error\n",
+        `cat: Error making request to ${new URL("/code/500", serverUrl).toString()}: Internal Server Error\n`,
       );
       assertEquals(result.code, 1);
     });
