@@ -19,6 +19,8 @@ export const startServer: StartServerHandler = (options) => {
     server.listen(0, "localhost", () => {
       const address = server.address() as import("node:net").AddressInfo;
       const url = new URL(`http://localhost:${address.port}/`);
+      // deno-lint-ignore no-console
+      console.log(`Server listening at ${url}...`);
       resolve({
         rootUrl: url,
         shutdown() {

@@ -39,16 +39,24 @@ Deno.test("normalize", () => {
   assertEquals(path.toString(), stdPath.normalize("src"));
 });
 
-Deno.test("isDir", () => {
-  assert(createPathRef("src").isDirSync());
-  assert(!createPathRef("mod.ts").isDirSync());
-  assert(!createPathRef("nonExistent").isDirSync());
+Deno.test("isDir", async () => {
+  await withTempDir((dir) => {
+    assert(dir.isDirSync());
+    const file = dir.join("mod.ts");
+    file.writeTextSync("");
+    assert(!file.isDirSync());
+    assert(!dir.join("nonExistent").isDirSync());
+  });
 });
 
-Deno.test("isFile", () => {
-  assert(!createPathRef("src").isFileSync());
-  assert(createPathRef("mod.ts").isFileSync());
-  assert(!createPathRef("nonExistent").isFileSync());
+Deno.test("isFile", async () => {
+  await withTempDir((dir) => {
+    const file = dir.join("mod.ts");
+    file.writeTextSync("");
+    assert(!dir.isFileSync());
+    assert(file.isFileSync());
+    assert(!dir.join("nonExistent").isFileSync());
+  });
 });
 
 Deno.test("isSymlink", async () => {

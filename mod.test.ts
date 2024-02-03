@@ -13,6 +13,12 @@ import {
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
+import { setNotTtyForTesting } from "./src/console/utils.ts";
+
+// Deno will not be a tty because it captures the pipes, but Node
+// will be, so manually say that we're not a tty for testing so
+// the tests behave somewhat similarly in Node.js
+setNotTtyForTesting();
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -1778,11 +1784,11 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
-Deno.test.only("progress", async () => {
+Deno.test("progress", async () => {
   const logs: string[] = [];
   $.setInfoLogger((...data) => logs.push(data.join(" ")));
   const pb = $.progress("Downloading Test");
-  await pb.forceRender(); // should not throw;
+  pb.forceRender(); // should not throw;
   assertEquals(logs, [
     "Downloading Test",
   ]);
