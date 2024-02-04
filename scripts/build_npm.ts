@@ -45,7 +45,7 @@ await build({
     "./src/test/server.deno.ts": "./src/test/server.node.ts",
   },
   package: {
-    name: "",
+    name: "dax-sh",
     version: Deno.args[0],
     description: "Cross platform shell tools inspired by zx.",
     license: "MIT",
