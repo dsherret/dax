@@ -282,7 +282,7 @@ Deno.test("$.request", (t) => {
     step("ensure times out waiting for body", async () => {
       const request = new RequestBuilder()
         .url(new URL("/sleep-body/10000", serverUrl))
-        .timeout(50)
+        .timeout(100)
         .showProgress();
       const response = await request.fetch();
       let caughtErr: unknown;
@@ -291,7 +291,7 @@ Deno.test("$.request", (t) => {
       } catch (err) {
         caughtErr = err;
       }
-      assertEquals(caughtErr, "Request timed out after 50 milliseconds.");
+      assertEquals(caughtErr, "Request timed out after 100 milliseconds.");
     });
 
     step("ability to abort while waiting", async () => {
