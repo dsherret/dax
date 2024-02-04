@@ -1,7 +1,8 @@
 {
+  "lock": false,
   "tasks": {
     "test": "deno test -A",
-    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.4/main.ts --sync --out ./src/lib"
+    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.6/main.ts --sync --out ./src/lib"
   },
   "fmt": {
     "proseWrap": "preserve",
@@ -11,11 +12,13 @@
     "rules": {
       "exclude": ["ban-types", "no-explicit-any", "no-this-alias"],
       "include": [
+        "no-console",
         "no-sync-fn-in-async-fn"
       ]
     }
   },
   "exclude": [
+    "npm/",
     "target/"
   ]
 }

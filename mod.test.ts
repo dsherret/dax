@@ -1,4 +1,4 @@
-import { readAll } from "./src/deps.ts";
+import { readAll, readerFromStreamReader } from "./src/deps.ts";
 import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
 import {
   assert,
@@ -7,10 +7,18 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
-  readerFromStreamReader,
+  isNode,
+  toWritableStream,
+  usingTempDir,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
+import { setNotTtyForTesting } from "./src/console/utils.ts";
+
+// Deno will not be a tty because it captures the pipes, but Node
+// will be, so manually say that we're not a tty for testing so
+// the tests behave somewhat similarly in Node.js
+setNotTtyForTesting();
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -76,26 +84,32 @@ Deno.test("should not get stderr when null", async () => {
 });
 
 Deno.test("should capture stderr when piped", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("piped");
+  const output = await $`deno eval 'console.error(5);'`
+    .env("NO_COLOR", "1") // deno uses colors when only stderr is piped
+    .stderr("piped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should capture stderr when inherited and piped", async () => {
-  const output = await $`deno eval -q 'console.error(5);'`.stderr("inheritPiped");
+  const output = await $`deno eval -q 'console.error(5);'`
+    .env("NO_COLOR", "1")
+    .stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should not get stderr when set to writer", async () => {
   const buffer = new Buffer();
-  const output = await $`deno eval 'console.error(5); console.log(1);'`.stderr(buffer);
+  const output = await $`deno eval 'console.error(5); console.log(1);'`
+    .env("NO_COLOR", "1")
+    .stderr(buffer);
   assertEquals(output.code, 0);
   assertEquals(new TextDecoder().decode(buffer.bytes()), "5\n");
   assertThrows(
     () => output.stderr,
     Error,
-    `Stderr was not piped (was streamed). Call .stderr(\"piped\") or .stderr(\"inheritPiped\") when building the command.`,
+    `Stderr was streamed to another source and is no longer available.`,
   );
 });
 
@@ -167,6 +181,35 @@ Deno.test("should throw when exit code is non-zero", async () => {
     Error,
     "Exited with code: 3",
   );
+});
+
+Deno.test("throws when providing an object that doesn't override toString", async () => {
+  {
+    const obj1 = {};
+    assertThrows(
+      () => $`echo ${obj1}`,
+      Error,
+      "Failed resolving expression in command. Provided object does not override `toString()`.",
+    );
+  }
+  {
+    const obj2 = {
+      toString() {
+        return "1";
+      },
+    };
+    const result = await $`echo ${obj2}`.text();
+    assertEquals(result, "1");
+  }
+  class Test {
+    toString() {
+      return 1;
+    }
+  }
+  {
+    const result = await $`echo ${new Test()}`.text();
+    assertEquals(result, "1");
+  }
 });
 
 Deno.test("should change the cwd, but only in the shell", async () => {
@@ -374,23 +417,18 @@ Deno.test("should handle boolean list 'and'", async () => {
 
 Deno.test("should support custom command handlers", async () => {
   const builder = new CommandBuilder()
-    .registerCommand("zardoz-speaks", (context) => {
+    .registerCommand("zardoz-speaks", async (context) => {
       if (context.args.length != 1) {
-        context.stderr.writeLine("zardoz-speaks: expected 1 argument");
-        return {
-          kind: "continue",
-          code: 1,
-        };
+        return context.error("zardoz-speaks: expected 1 argument");
       }
-      context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
+      await context.stdout.writeLine(`zardoz speaks to ${context.args[0]}`);
       return {
-        kind: "continue",
         code: 0,
       };
     })
     .registerCommands({
-      "true": () => Promise.resolve({ kind: "continue", code: 0 }),
-      "false": () => Promise.resolve({ kind: "continue", code: 1 }),
+      "true": () => Promise.resolve({ code: 0 }),
+      "false": () => Promise.resolve({ code: 1 }),
     }).stderr("piped").stdout("piped");
 
   {
@@ -425,7 +463,6 @@ Deno.test("should not allow invalid command names", () => {
   const hax: CommandHandler = (context: CommandContext) => {
     context.stdout.writeLine("h4x!1!");
     return {
-      kind: "continue",
       code: 0,
     };
   };
@@ -690,15 +727,13 @@ Deno.test("unset with -f should error", async () => {
 });
 
 Deno.test("cwd should be resolved based on cwd at time of method call and not execution", async () => {
-  const previousCwd = Deno.cwd();
-  try {
+  await withTempDir(async (tempDir) => {
+    await tempDir.join("./src/rs_lib").ensureDir();
     const command = $`echo $PWD`.cwd("./src");
     Deno.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
-  } finally {
-    Deno.chdir(previousCwd);
-  }
+  });
 });
 
 Deno.test("should handle the PWD variable", async () => {
@@ -715,7 +750,7 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("timeout", async () => {
-  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
+  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 10_000));'`
     .timeout(200);
   await assertRejects(async () => await command, Error, "Timed out with exit code: 124");
 
@@ -741,43 +776,154 @@ Deno.test("abort", async () => {
   assertEquals(result.code, 124);
 });
 
-Deno.test("piping to stdin", async () => {
-  // Reader
-  {
+Deno.test("piping to stdin", async (t) => {
+  await t.step("reader", async () => {
     const bytes = new TextEncoder().encode("test\n");
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new Buffer(bytes))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // string
-  {
-    const result =
-      await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
-        .stdinText("test\n")
-        .text();
-    assertEquals(result, "test");
-  }
+  await t.step("string", async () => {
+    const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
+      .stdinText("test\n");
+    // should support calling multiple times
+    assertEquals(await command.text(), "test");
+    assertEquals(await command.text(), "test");
+  });
 
-  // Uint8Array
-  {
+  await t.step("Uint8Array", async () => {
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new TextEncoder().encode("test\n"))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // readable stream
-  {
+  await t.step("readable stream", async () => {
     const child = $`echo 1 && echo 2`.stdout("piped").spawn();
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stdout())
       .text();
     assertEquals(result, "1\n2");
+  });
+
+  await t.step("PathRef", async () => {
+    await using tempDir = usingTempDir();
+    const tempFile = tempDir.join("temp_file.txt");
+    const fileText = "1 testing this out\n".repeat(1_000);
+    tempFile.writeTextSync(fileText);
+    const output = await $`cat`.stdin(tempFile).text();
+    assertEquals(output, fileText.trim());
+  });
+
+  await t.step("command via stdin", async () => {
+    const child = $`echo 1 && echo 2`;
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child)
+      .text();
+    assertEquals(result, "1\n2");
+  });
+
+  await t.step("command that exits via stdin", async () => {
+    const child = $`echo 1 && echo 2 && exit 1`;
+    const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
+      .stdin(child)
+      .stderr("piped")
+      .noThrow();
+    assertEquals(result.code, 1);
+    assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
+  });
+});
+
+Deno.test("pipe", async () => {
+  {
+    const result = await $`echo 1 && echo 2`
+      .pipe($`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stderr.writable);'`)
+      .stderr("piped")
+      .stdout("piped")
+      .spawn();
+    assertEquals(result.stdout, "");
+    assertEquals(result.stderr, "1\n2\n");
   }
+});
+
+Deno.test("piping to a writable and the command fails", async () => {
+  const chunks = [];
+  let wasClosed = false;
+  const writableStream = new WritableStream({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    close() {
+      wasClosed = true;
+    },
+  });
+  await $`echo 1 ; exit 1`.stdout(writableStream).noThrow();
+  assertEquals(chunks.length, 1);
+  assert(wasClosed);
+});
+
+Deno.test("piping to a writable and the command fails and throws", async () => {
+  const chunks = [];
+  let wasClosed = false;
+  const writableStream = new WritableStream({
+    write(chunk) {
+      chunks.push(chunk);
+    },
+    close() {
+      wasClosed = true;
+    },
+  });
+  let didThrow = false;
+  try {
+    await $`echo 1 ; exit 1`.stdout(writableStream);
+  } catch {
+    didThrow = true;
+  }
+  assert(didThrow);
+  assertEquals(chunks.length, 1);
+  assert(wasClosed);
+});
+
+Deno.test("piping to a writable that throws", async () => {
+  const writableStream = new WritableStream({
+    write(_chunk) {
+      throw new Error("failed");
+    },
+  });
+  const result = await $`echo 1`.stdout(writableStream).stderr("piped").noThrow();
+  assertEquals(result.code, 1);
+  assertEquals(result.stderr, "echo: failed\n");
+});
+
+Deno.test("piping stdout/stderr to a file", async () => {
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`echo 1`.stdout(tempFile);
+    assertEquals(tempFile.readTextSync(), "1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`deno eval 'console.error(1);'`
+      .env("NO_COLOR", "1")
+      .stderr(tempFile);
+    assertEquals(tempFile.readTextSync(), "1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    const tempFile = tempDir.join("temp_file.txt");
+    {
+      using file = tempFile.openSync({ write: true, create: true, truncate: true });
+      await $`deno eval "console.log('1234\\n'.repeat(1_000));"`.stdout(file.writable);
+    }
+    const text = tempFile.readTextSync();
+    // last \n for the console.log itself
+    assertEquals(text, "1234\n".repeat(1_000) + "\n");
+  });
 });
 
 Deno.test("spawning a command twice that has stdin set to a Reader should error", async () => {
@@ -846,7 +992,10 @@ Deno.test("streaming api", async () => {
 
   // stderr
   {
-    const child = $`deno eval -q 'console.error(1); console.error(2)'`.stderr("piped").spawn();
+    const child = $`deno eval -q 'console.error(1); console.error(2)'`
+      .env("NO_COLOR", "1")
+      .stderr("piped")
+      .spawn();
     const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stderr())
       .text();
@@ -914,7 +1063,7 @@ Deno.test("streaming api errors while streaming", async () => {
       .stdout("piped")
       .stderr("piped")
       .spawn();
-    assertEquals(result.stderr, "stdin pipe broken. Error: Exited with code: 1\n");
+    assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
     assertEquals(result.stdout, "1\n2\n");
   }
 });
@@ -966,6 +1115,280 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
+Deno.test("piping in command", async () => {
+  await withTempDir(async (tempDir) => {
+    const result = await $`echo 1 | cat - > output.txt`.cwd(tempDir).text();
+    assertEquals(result, "");
+    assertEquals(tempDir.join("output.txt").readTextSync(), "1\n");
+  });
+  {
+    const result = await $`echo 1 | cat -`.text();
+    assertEquals(result, "1");
+  }
+  {
+    const result = await $`echo 1 && echo 2 | cat -`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 || echo 2 | cat -`.text();
+    assertEquals(result, "1");
+  }
+});
+
+Deno.test("subshells", async () => {
+  {
+    const result = await $`(echo 1 && echo 2) | cat -`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`(echo 1 && echo 2) && echo 3`.text();
+    assertEquals(result, "1\n2\n3");
+  }
+  {
+    const result = await $`(echo 1 && echo 2) || echo 3`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 || echo 3)`.text();
+    assertEquals(result, "1\n2");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 && echo 3) || echo 4`.text();
+    assertEquals(result, "1\n2\n3");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 || echo 3) && echo 4`.text();
+    assertEquals(result, "1\n2\n4");
+  }
+  // exiting shouldn't exit the parent
+  {
+    const result = await $`echo 1 && (echo 2 && exit 0 && echo 3) && echo 4`.text();
+    assertEquals(result, "1\n2\n4");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 && exit 1 && echo 3) || echo 4`.text();
+    assertEquals(result, "1\n2\n4");
+  }
+  // shouldn't change the environment either
+  {
+    assertEquals(await $`export VAR=5 && echo $VAR`.text(), "5"); // for reference
+    const result = await $`(export VAR=5) && echo $VAR`.text();
+    assertEquals(result, "");
+  }
+  {
+    const result = await $`echo 1 && (echo 2 && export VAR=5 && echo $VAR) && echo $VAR`.text();
+    assertEquals(result, "1\n2\n5\n");
+  }
+  await withTempDir(async (tempDir) => {
+    const subDir = tempDir.join("subDir");
+    subDir.mkdirSync();
+    const result = await $`(cd subDir && pwd) && pwd`.cwd(tempDir).text();
+    assertEquals(result, `${subDir}\n${tempDir}`);
+  });
+});
+
+Deno.test("output redirects", async () => {
+  await withTempDir(async (tempDir) => {
+    // absolute
+    const tempFile = tempDir.join("temp_file.txt");
+    await $`echo 1 > ${tempFile}`;
+    assertEquals(tempFile.readTextSync(), "1\n");
+    tempFile.removeSync();
+
+    // relative
+    await $`echo 2 > ./temp_file.txt`;
+    assertEquals(tempFile.readTextSync(), "2\n");
+
+    // changing directories then relative
+    await $`mkdir sub_dir && cd sub_dir && echo 3 > ./temp_file.txt`;
+    assertEquals(tempDir.join("sub_dir/temp_file.txt").readTextSync(), "3\n");
+
+    // stderr
+    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`.env("NO_COLOR", "1");
+    assertEquals(tempFile.readTextSync(), "5\n");
+
+    // append
+    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`
+      .env("NO_COLOR", "1");
+    assertEquals(tempFile.readTextSync(), "1\n2\n3\n");
+
+    // /dev/null
+    assertEquals(await $`echo 1 > /dev/null`.text(), "");
+    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.env("NO_COLOR", "1").text(), "2");
+
+    // not supported fd
+    {
+      const result = await $`echo 1 3> file.txt`.noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assertEquals(result.stderr, "only redirecting to stdout (1) and stderr (2) is supported\n");
+    }
+
+    // multiple words
+    {
+      const result = await $`echo 1 > $var`.env("var", "testing this").noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assertEquals(
+        result.stderr,
+        'redirect path must be 1 argument, but found 2 (testing this). Did you mean to quote it (ex. "testing this")?\n',
+      );
+    }
+
+    // piping to a directory
+    {
+      const dir = tempDir.join("dir");
+      dir.mkdirSync();
+      const result = await $`echo 1 > ${dir}`.noThrow().stderr("piped");
+      assertEquals(result.code, 1);
+      assert(result.stderr.startsWith("failed opening file for redirect"));
+    }
+
+    {
+      assertThrows(
+        () => $`echo 1 > ${new TextEncoder()}`,
+        Error,
+        "Failed resolving expression in command. Unsupported object provided to output redirect.",
+      );
+    }
+  });
+});
+
+Deno.test("input redirects", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("Hi!");
+    const text = await $`cat - < test.txt`.text();
+    assertEquals(text, "Hi!");
+  });
+});
+
+Deno.test("input redirects with provided object", async () => {
+  {
+    assertThrows(
+      () => $`cat - < ${new TextEncoder()} && echo ${"test"}`,
+      Error,
+      "Failed resolving expression 1/2 in command. Unsupported object provided to input redirect.",
+    );
+  }
+  // stream
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    const output = await $`cat - < ${stream}`.text();
+    assertEquals(output, text);
+  }
+  // string
+  {
+    const text = "testing".repeat(1000);
+    const output = await $`cat - < ${text}`.text();
+    assertEquals(output, text);
+  }
+  // bytes
+  {
+    const text = "testing".repeat(1000);
+    const bytes = new TextEncoder().encode(text);
+    const output = await $`cat - < ${bytes}`.text();
+    assertEquals(output, text);
+  }
+  // response
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${response}`.text();
+    assertEquals(output, text);
+  }
+  // file
+  await withTempDir(async (tempDir) => {
+    const text = "testing".repeat(1000);
+    const filePath = tempDir.join("file.txt");
+    filePath.writeTextSync(text);
+    const file = filePath.openSync({ read: true });
+    const output = await $`cat - < ${file}`.text();
+    assertEquals(output, text);
+  });
+  // function
+  {
+    const text = "testing".repeat(1000);
+    const response = new Response(text);
+    const output = await $`cat - < ${() => response.body!}`.text();
+    assertEquals(output, text);
+  }
+});
+
+Deno.test("output redirect with provided object", async () => {
+  await withTempDir(async (tempDir) => {
+    const buffer = new Buffer();
+    const pipedText = "testing\nthis\nout".repeat(1_000);
+    tempDir.join("data.txt").writeTextSync(pipedText);
+    await $`cat data.txt > ${toWritableStream(buffer)}`.cwd(tempDir);
+    assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
+  });
+  {
+    const chunks = [];
+    let wasClosed = false;
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+      close() {
+        wasClosed = true;
+      },
+    });
+    let didThrow = false;
+    try {
+      await $`echo 1 > ${writableStream} ; exit 1`;
+    } catch {
+      didThrow = true;
+    }
+    assert(didThrow);
+    assertEquals(chunks.length, 1);
+    assert(wasClosed);
+  }
+  {
+    const bytes = new Uint8Array(2);
+    await $`echo 1 > ${bytes}`;
+    assertEquals(new TextDecoder().decode(bytes), "1\n");
+  }
+  // overflow
+  {
+    const bytes = new Uint8Array(1);
+    const result = await $`echo 1 > ${bytes}`.noThrow().stderr("piped");
+    assertEquals(result.stderr, "echo: Overflow writing 2 bytes to Uint8Array (length: 1).\n");
+    assertEquals(result.code, 1);
+    assertEquals(bytes[0], 49);
+  }
+  // file
+  await withTempDir(async (tempDir) => {
+    const filePath = tempDir.join("file.txt");
+    const file = filePath.openSync({ write: true, create: true, truncate: true });
+    await $`echo testing > ${file}`;
+    assertEquals(filePath.readTextSync(), "testing\n");
+  });
+  // function
+  {
+    const chunks: Uint8Array[] = [];
+    const writableStream = new WritableStream({
+      write(chunk) {
+        chunks.push(chunk);
+      },
+    });
+    await $`echo 1 > ${() => writableStream}`;
+    assertEquals(chunks, [new Uint8Array([49, 10])]);
+  }
+  {
+    assertThrows(
+      () => $`echo 1 > ${"test.txt"}`,
+      Error,
+      "Failed resolving expression in command. Cannot provide strings to output " +
+        "redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
+    );
+  }
+});
+
 Deno.test("shebang support", async (t) => {
   await withTempDir(async (dir) => {
     const steps: Promise<boolean>[] = [];
@@ -1013,7 +1436,7 @@ Deno.test("shebang support", async (t) => {
     step("without -S, but valid", async () => {
       dir.join("echo_stdin.ts").writeTextSync(
         [
-          "#!/usr/bin/env -S deno run --unstable --allow-run",
+          "#!/usr/bin/env -S deno run --allow-run",
           "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
         ].join("\n"),
       );
@@ -1186,7 +1609,9 @@ Deno.test("test remove", async () => {
     {
       const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
         .then((r) => r.stderr);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: directory not empty, rmdir"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: Directory not empty"
         : "rm: The directory is not empty";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1200,7 +1625,9 @@ Deno.test("test remove", async () => {
     {
       const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
         .then((r) => [r.stderr, r.code] as const);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: no such file or directory, lstat"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: No such file or directory"
         : "rm: The system cannot find the file specified";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1234,7 +1661,9 @@ Deno.test("test mkdir", async () => {
         .then(
           (r) => r.stderr,
         );
-      const expectedError = Deno.build.os === "windows"
+      const expectedError = isNode
+        ? "mkdir: no such file or directory, mkdir"
+        : Deno.build.os === "windows"
         ? "mkdir: The system cannot find the path specified."
         : "mkdir: No such file or directory";
       assertEquals(error.slice(0, expectedError.length), expectedError);
@@ -1355,11 +1784,11 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
-Deno.test("progress", async () => {
+Deno.test("progress", () => {
   const logs: string[] = [];
   $.setInfoLogger((...data) => logs.push(data.join(" ")));
   const pb = $.progress("Downloading Test");
-  await pb.forceRender(); // should not throw;
+  pb.forceRender(); // should not throw;
   assertEquals(logs, [
     "Downloading Test",
   ]);
@@ -1386,7 +1815,7 @@ Deno.test("$.commandExists", async () => {
 
   const $new = build$({
     commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
-      return Promise.resolve({ code: 0, kind: "continue" });
+      return Promise.resolve({ code: 0 });
     }),
   });
   assertEquals(await $new.commandExists("some-fake-command"), true);
@@ -1398,7 +1827,7 @@ Deno.test("$.commandExistsSync", () => {
 
   const $new = build$({
     commandBuilder: new CommandBuilder().registerCommand("some-fake-command", () => {
-      return Promise.resolve({ code: 0, kind: "continue" });
+      return Promise.resolve({ code: 0 });
     }),
   });
   assertEquals($new.commandExistsSync("some-fake-command"), true);
@@ -1451,10 +1880,13 @@ Deno.test("cd", () => {
   try {
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    $.cd(import.meta);
+    // todo: this originally passed in import.meta, but that
+    // didn't work in the node cjs tests, so now it's doing this
+    // thing that doesn't really test it
+    $.cd($.path(new URL(import.meta.url)).parentOrThrow());
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    const path = $.path(import.meta).parentOrThrow();
+    const path = $.path(import.meta.url).parentOrThrow();
     $.cd(path);
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
@@ -1569,7 +2001,6 @@ Deno.test("signal listening in registered commands", async () => {
       function listener(signal: Deno.Signal) {
         if (signal === "SIGKILL") {
           resolve({
-            kind: "continue",
             code: 135,
           });
           handler.signal.removeListener(listener);

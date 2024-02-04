@@ -12,6 +12,7 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
    - Makes more code work on Windows.
    - Allows exporting the shell's environment to the current process.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+   - Has common commands built-in for better Windows support.
 1. Minimal globals or global configuration.
    - Only a default instance of `$`, but it's not mandatory to use this.
 1. No custom CLI.
@@ -21,13 +22,14 @@ Cross platform shell tools for Deno inspired by [zx](https://github.com/google/z
 ## Executing commands
 
 ```ts
+#!/usr/bin/env -S deno run --allow-all
 import $ from "https://deno.land/x/dax/mod.ts";
 
 // run a command
 await $`echo 5`; // outputs: 5
 
-// more complex example outputting 1 to stdout and 2 to stderr
-await $`echo 1 && deno eval 'console.error(2);'`;
+// outputting 1 to stdout and running a sub process
+await $`echo 1 && deno run main.ts`;
 
 // parallel
 await Promise.all([
@@ -56,8 +58,8 @@ console.log(result.prop); // 5
 Get the result of stdout as bytes (makes stdout "quiet"):
 
 ```ts
-const result = await $`echo 'test'`.bytes();
-console.log(result); // Uint8Array(5) [ 116, 101, 115, 116, 10 ]
+const bytes = await $`gzip < file.txt`.bytes();
+console.log(bytes);
 ```
 
 Get the result of stdout as a list of lines (makes stdout "quiet"):
@@ -88,6 +90,46 @@ const result = await $`deno eval 'console.log(1); console.error(2); console.log(
   .captureCombined();
 
 console.log(result.combined); // 1\n2\n3\n
+```
+
+### Piping
+
+Piping stdout or stderr to a `Deno.WriterSync`:
+
+```ts
+await $`echo 1`.stdout(Deno.stderr);
+await $`deno eval 'console.error(2);`.stderr(Deno.stdout);
+```
+
+Piping to a `WritableStream`:
+
+```ts
+await $`echo 1`.stdout(Deno.stderr.writable, { preventClose: true });
+```
+
+To a file path:
+
+```ts
+await $`echo 1`.stdout($.path("data.txt"));
+```
+
+To a file:
+
+```ts
+using file = $.path("data.txt").openSync({ write: true, create: true });
+await $`echo 1`.stdout(file);
+```
+
+From one command to another:
+
+```ts
+const output = await $`echo foo && echo bar`
+  .pipe($`grep foo`)
+  .text();
+
+// or using a pipe sequence
+const output = await $`echo foo && echo bar | grep foo`
+  .text();
 ```
 
 ### Providing arguments to a command
@@ -137,6 +179,37 @@ const finalText = await $`echo ${result}`.text();
 console.log(finalText); // 1
 ```
 
+#### JavaScript objects to redirects
+
+You can also provide JavaScript objects to shell output redirects:
+
+```ts
+const buffer = new Uint8Array(2);
+await $`echo 1 && (echo 2 > ${buffer}) && echo 3`; // 1\n3\n
+console.log(buffer); // Uint8Array(2) [ 50, 10 ] (2\n)
+```
+
+Supported objects: `Uint8Array`, `PathRef`, `WritableStream`, function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
+
+Or input redirects:
+
+```ts
+// strings
+const data = "my data in a string";
+const bytes = await $`gzip < ${data}`;
+
+// paths
+const path = $.path("file.txt");
+const bytes = await $`gzip < ${path}`;
+
+// requests (this example does not make the request until after 5 seconds)
+const request = $.request("https://plugins.dprint.dev/info.json")
+  .showProgress(); // show a progress bar while downloading
+const bytes = await $`sleep 5 && gzip < ${request}`.bytes();
+```
+
+Supported objects: `string`, `Uint8Array`, `PathRef`, `RequestBuilder`, `ReadableStream`, function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
+
 ### Providing stdin
 
 ```ts
@@ -144,6 +217,8 @@ await $`command`.stdin("inherit"); // default
 await $`command`.stdin("null");
 await $`command`.stdin(new Uint8Array[1, 2, 3, 4]());
 await $`command`.stdin(someReaderOrReadableStream);
+await $`command`.stdin($.path("data.json"));
+await $`command`.stdin($.request("https://plugins.dprint.dev/info.json"));
 await $`command`.stdinText("some value");
 ```
 
@@ -646,6 +721,17 @@ console.log(response.code);
 console.log(await response.json());
 ```
 
+Requests can be piped to commands:
+
+```ts
+const request = $.request("https://plugins.dprint.dev/info.json");
+await $`deno run main.ts`.stdin(request);
+
+// or as a redirect... this sleeps 5 seconds, then makes
+// request and redirects the output to the command
+await $`sleep 5 && deno run main.ts < ${request}`;
+```
+
 See the [documentation on `RequestBuilder`](https://deno.land/x/dax/src/request.ts?s=RequestBuilder) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
 ### Showing progress
@@ -677,6 +763,25 @@ Boolean lists:
 await $`echo 1 && echo 2`;
 // outputs to stdout with 1\n
 await $`echo 1 || echo 2`;
+```
+
+Pipe sequences:
+
+```ts
+await $`echo 1 | deno run main.ts`;
+```
+
+Redirects:
+
+```ts
+await $`echo 1 > output.txt`;
+const gzippedBytes = await $`gzip < input.txt`.bytes();
+```
+
+Sub shells:
+
+```ts
+await $`(echo 1 && echo 2) > output.txt`;
 ```
 
 Setting env var for command in the shell (generally you can just use `.env(...)` though):
@@ -789,7 +894,7 @@ You can also register your own custom commands using the `registerCommand` or `r
 const commandBuilder = new CommandBuilder()
   .registerCommand(
     "true",
-    () => Promise.resolve({ kind: "continue", code: 0 }),
+    () => Promise.resolve({ code: 0 }),
   );
 
 const result = await commandBuilder

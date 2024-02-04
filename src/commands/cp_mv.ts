@@ -1,7 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { resolvePath, safeLstat } from "../common.ts";
+import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import { path } from "../deps.ts";
 
 export async function cpCommand(
@@ -9,10 +9,9 @@ export async function cpCommand(
 ): Promise<ExecuteResult> {
   try {
     await executeCp(context.cwd, context.args);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`cp: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return context.error(`cp: ${errorToString(err)}`);
   }
 }
 
@@ -99,10 +98,9 @@ export async function mvCommand(
 ): Promise<ExecuteResult> {
   try {
     await executeMove(context.cwd, context.args);
-    return resultFromCode(0);
+    return { code: 0 };
   } catch (err) {
-    context.stderr.writeLine(`mv: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return context.error(`mv: ${errorToString(err)}`);
   }
 }
 

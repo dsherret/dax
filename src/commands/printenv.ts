@@ -1,7 +1,8 @@
 import { CommandContext } from "../command_handler.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { errorToString } from "../common.ts";
+import { ExecuteResult } from "../result.ts";
 
-export function printEnvCommand(context: CommandContext): ExecuteResult {
+export function printEnvCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   // windows expects env vars to be upcased
   let args;
   if (Deno.build.os === "windows") {
@@ -12,15 +13,20 @@ export function printEnvCommand(context: CommandContext): ExecuteResult {
 
   try {
     const result = executePrintEnv(context.env, args);
-    context.stdout.writeLine(result);
-    if (args.some((arg) => context.env[arg] === undefined)) {
-      return resultFromCode(1);
+    const code = args.some((arg) => context.env[arg] === undefined) ? 1 : 0;
+    const maybePromise = context.stdout.writeLine(result);
+    if (maybePromise instanceof Promise) {
+      return maybePromise.then(() => ({ code })).catch((err) => handleError(context, err));
+    } else {
+      return { code };
     }
-    return resultFromCode(0);
   } catch (err) {
-    context.stderr.writeLine(`printenv: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return handleError(context, err);
   }
+}
+
+function handleError(context: CommandContext, err: any): ExecuteResult | Promise<ExecuteResult> {
+  return context.error(`printenv: ${errorToString(err)}`);
 }
 
 /**

@@ -1,4 +1,11 @@
-import { CommandBuilder, CommandResult, escapeArg, getRegisteredCommandNamesSymbol } from "./src/command.ts";
+import {
+  CommandBuilder,
+  escapeArg,
+  getRegisteredCommandNamesSymbol,
+  setCommandTextAndFdsSymbol,
+  template,
+  templateRaw,
+} from "./src/command.ts";
 import {
   Box,
   Delay,
@@ -7,6 +14,7 @@ import {
   delayToMs,
   formatMillis,
   LoggerTreeBox,
+  symbols,
   TreeBox,
 } from "./src/common.ts";
 import {
@@ -31,11 +39,19 @@ import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathRef, PathRef } from "./src/path.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
+export { TimeoutError } from "./src/common.ts";
 export { FsFileWrapper, PathRef } from "./src/path.ts";
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
-export { CommandBuilder, CommandChild, CommandResult, KillSignal, KillSignalController } from "./src/command.ts";
+export {
+  CommandBuilder,
+  CommandChild,
+  CommandResult,
+  KillSignal,
+  KillSignalController,
+  type KillSignalListener,
+} from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { Closer, Reader, ShellPipeReader, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
+export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export type {
   ConfirmOptions,
   MultiSelectOption,
@@ -46,7 +62,7 @@ export type {
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
-export { RequestBuilder, RequestResult } from "./src/request.ts";
+export { RequestBuilder, RequestResponse } from "./src/request.ts";
 // these are used when registering commands
 export type {
   CdChange,
@@ -64,14 +80,15 @@ export type {
  *
  * Differences:
  *
+ * 1. Cross platform shell.
+ *    - Makes more code work on Windows.
+ *    - Allows exporting the shell's environment to the current process.
+ *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
+ *    - Has common commands built-in for better Windows support.
  * 1. Minimal globals or global configuration.
  *    - Only a default instance of `$`, but it's not mandatory to use this.
  * 1. No custom CLI.
- * 1. Cross platform shell.
- *    - Makes more code work on Windows.
- *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
- *    - Allows exporting the shell's environment to the current process.
- * 1. Good for application code in addition to use as a shell script replacement
+ * 1. Good for application code in addition to use as a shell script replacement.
  * 1. Named after my cat.
  *
  * ## Example
@@ -104,6 +121,7 @@ export type $Type<TExtras extends ExtrasObject = {}> =
     : Omit<$BuiltInProperties<TExtras>, keyof TExtras>)
   & TExtras;
 
+/** String literal template. */
 export interface $Template {
   (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
 }
@@ -124,6 +142,7 @@ type Which = typeof import("./src/deps.ts").which;
  */
 type WhichSync = typeof import("./src/deps.ts").whichSync;
 
+/** Collection of built-in properties that come with a `$`. */
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /**
    * Makes a request to the provided URL throwing by default if the
@@ -459,6 +478,8 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * ```
    */
   sleep(delay: Delay): Promise<void>;
+  /** Symbols that can be attached to objects for better integration with Dax. */
+  symbols: typeof symbols;
   /**
    * Executes the command as raw text without escaping expressions.
    *
@@ -548,8 +569,11 @@ function buildInitial$State<TExtras extends ExtrasObject>(
   return {
     commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
     requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
+    // deno-lint-ignore no-console
     infoLogger: new LoggerTreeBox(console.error),
+    // deno-lint-ignore no-console
     warnLogger: new LoggerTreeBox(console.error),
+    // deno-lint-ignore no-console
     errorLogger: new LoggerTreeBox(console.error),
     indentLevel: new Box(0),
     extras: opts.extras,
@@ -587,6 +611,7 @@ export interface Create$Options<TExtras extends ExtrasObject> {
   commandBuilder?: CommandBuilder;
   /** Uses the state of this request builder as a starting point. */
   requestBuilder?: RequestBuilder;
+  /** Extra properties to put on the `$`. */
   extras?: TExtras;
 }
 
@@ -604,16 +629,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      let result = "";
-      for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-        if (strings.length > i) {
-          result += strings[i];
-        }
-        if (exprs.length > i) {
-          result += templateLiteralExprToString(exprs[i], escapeArg);
-        }
-      }
-      return state.commandBuilder.getValue().command(result);
+      const { text, streams } = template(strings, exprs);
+      return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
     },
     helperObject,
     logDepthObj,
@@ -739,20 +756,13 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         const commandBuilder = state.commandBuilder.getValue().printCommand(value);
         state.commandBuilder.setValue(commandBuilder);
       },
+      symbols,
       request(url: string | URL) {
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        let result = "";
-        for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
-          if (strings.length > i) {
-            result += strings[i];
-          }
-          if (exprs.length > i) {
-            result += templateLiteralExprToString(exprs[i]);
-          }
-        }
-        return state.commandBuilder.getValue().command(result);
+        const { text, streams } = templateRaw(strings, exprs);
+        return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);
@@ -858,19 +868,6 @@ export function build$<TExtras extends ExtrasObject = {}>(
     isGlobal: false,
     ...options,
   }));
-}
-
-function templateLiteralExprToString(expr: any, escape?: (arg: string) => string): string {
-  let result: string;
-  if (expr instanceof Array) {
-    return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");
-  } else if (expr instanceof CommandResult) {
-    // remove last newline
-    result = expr.stdout.replace(/\r?\n$/, "");
-  } else {
-    result = `${expr}`;
-  }
-  return escape ? escape(result) : result;
 }
 
 /**

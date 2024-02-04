@@ -1,17 +1,15 @@
-import { ExecuteResult } from "../../mod.ts";
 import { CommandContext } from "../command_handler.ts";
-import { resultFromCode } from "../result.ts";
+import { errorToString } from "../common.ts";
+import { ExecuteResult } from "../result.ts";
 
-export function unsetCommand(context: CommandContext): ExecuteResult {
+export function unsetCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   try {
     return {
-      kind: "continue",
       code: 0,
       changes: parseNames(context.args).map((name) => ({ kind: "unsetvar", name })),
     };
   } catch (err) {
-    context.stderr.writeLine(`unset: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return context.error(`unset: ${errorToString(err)}`);
   }
 }
 

@@ -13,6 +13,7 @@ import {
   writeAll,
   writeAllSync,
 } from "./deps.ts";
+import { symbols } from "./common.ts";
 
 /**
  * `ExpandGlobOptions` from https://deno.land/std/fs/expand_glob.ts
@@ -84,13 +85,18 @@ export class PathRef {
   }
 
   /** @internal */
-  static [Symbol.hasInstance](instance: any) {
+  static [Symbol.hasInstance](instance: any): boolean {
     // this should never change because it should work accross versions
     return instance?.constructor?.instanceofSymbol === PathRef.instanceofSymbol;
   }
 
   /** @internal */
-  [Symbol.for("Deno.customInspect")]() {
+  [Symbol.for("Deno.customInspect")](): string {
+    return `PathRef("${this.#path}")`;
+  }
+
+  /** @internal */
+  [Symbol.for("nodejs.util.inspect.custom")](): string {
     return `PathRef("${this.#path}")`;
   }
 
@@ -1193,6 +1199,14 @@ function createFsFileWrapper(file: Deno.FsFile): FsFileWrapper {
 }
 
 export class FsFileWrapper extends Deno.FsFile {
+  [symbols.readable](): ReadableStream<Uint8Array> {
+    return this.readable;
+  }
+
+  [symbols.writable](): WritableStream<Uint8Array> {
+    return this.writable;
+  }
+
   /** Writes the provided text to this file. */
   writeText(text: string): Promise<this> {
     return this.writeBytes(new TextEncoder().encode(text));

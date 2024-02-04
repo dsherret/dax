@@ -1,3 +1,5 @@
+import { formatMillis, symbols } from "./common.ts";
+import { TimeoutError } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { PathRef } from "./path.ts";
@@ -21,12 +23,12 @@ interface RequestBuilderState {
 }
 
 /** @internal */
-export const withProgressBarFactorySymbol = Symbol();
+export const withProgressBarFactorySymbol: unique symbol = Symbol();
 
 /**
  * Builder API for downloading files.
  */
-export class RequestBuilder implements PromiseLike<RequestResult> {
+export class RequestBuilder implements PromiseLike<RequestResponse> {
   #state: Readonly<RequestBuilderState> | undefined = undefined;
 
   #getClonedState(): RequestBuilderState {
@@ -85,16 +87,57 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     return builder;
   }
 
-  then<TResult1 = RequestResult, TResult2 = never>(
-    onfulfilled?: ((value: RequestResult) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+  [symbols.readable](): ReadableStream<Uint8Array> {
+    const self = this;
+    let streamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let response: RequestResponse | undefined;
+    let wasCancelled = false;
+    let cancelledReason: unknown;
+    return new ReadableStream({
+      async start() {
+        response = await self.fetch();
+        const readable = response.readable;
+        if (wasCancelled) {
+          readable.cancel(cancelledReason);
+        } else {
+          streamReader = readable.getReader();
+        }
+      },
+      async pull(controller) {
+        const { done, value } = await streamReader!.read();
+        if (done || value == null) {
+          if (response?.signal?.aborted) {
+            controller.error(response?.signal?.reason);
+          } else {
+            controller.close();
+          }
+        } else {
+          controller.enqueue(value);
+        }
+      },
+      cancel(reason?: any) {
+        streamReader?.cancel(reason);
+        wasCancelled = true;
+        cancelledReason = reason;
+      },
+    });
+  }
+
+  then<TResult1 = RequestResponse, TResult2 = never>(
+    onfulfilled?: ((value: RequestResponse) => TResult1 | PromiseLike<TResult1>) | null | undefined,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined,
   ): PromiseLike<TResult1 | TResult2> {
     return this.fetch().then(onfulfilled).catch(onrejected);
   }
 
   /** Fetches and gets the response. */
-  fetch(): Promise<RequestResult> {
-    return makeRequest(this.#getClonedState());
+  fetch(): Promise<RequestResponse> {
+    return makeRequest(this.#getClonedState()).catch((err) => {
+      if (err instanceof TimeoutError) {
+        Error.captureStackTrace(err, TimeoutError);
+      }
+      return Promise.reject(err);
+    });
   }
 
   /** Specifies the URL to send the request to. */
@@ -197,7 +240,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 
   /** @internal */
-  [withProgressBarFactorySymbol](factory: (message: string) => ProgressBar) {
+  [withProgressBarFactorySymbol](factory: (message: string) => ProgressBar): RequestBuilder {
     return this.#newWithState((state) => {
       state.progressBarFactory = factory;
     });
@@ -239,7 +282,7 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
     });
   }
 
-  /** Timeout the request after the specified delay. */
+  /** Timeout the request after the specified delay throwing a `TimeoutError`. */
   timeout(delay: Delay | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.timeout = delay == null ? undefined : delayToMs(delay);
@@ -336,20 +379,32 @@ export class RequestBuilder implements PromiseLike<RequestResult> {
   }
 }
 
-/** Result of making a request. */
-export class RequestResult {
+interface RequestAbortController {
+  controller: AbortController;
+  /** Clears the timeout that may be set if there's a delay */
+  clearTimeout(): void;
+}
+
+/** Response of making a request where the body can be read. */
+export class RequestResponse {
   #response: Response;
   #downloadResponse: Response;
   #originalUrl: string;
+  #abortController: RequestAbortController;
 
   /** @internal */
   constructor(opts: {
     response: Response;
     originalUrl: string;
     progressBar: ProgressBar | undefined;
+    abortController: RequestAbortController;
   }) {
     this.#originalUrl = opts.originalUrl;
     this.#response = opts.response;
+    this.#abortController = opts.abortController;
+    if (opts.response.body == null) {
+      opts.abortController.clearTimeout();
+    }
 
     if (opts.progressBar != null) {
       const pb = opts.progressBar;
@@ -363,11 +418,18 @@ export class RequestResult {
             try {
               while (true) {
                 const { done, value } = await reader.read();
-                if (done || value == null) break;
+                if (done || value == null) {
+                  break;
+                }
                 pb.increment(value.byteLength);
                 controller.enqueue(value);
               }
-              controller.close();
+              const signal = opts.abortController.controller.signal;
+              if (signal.aborted) {
+                controller.error(signal.reason);
+              } else {
+                controller.close();
+              }
             } finally {
               reader.releaseLock();
               pb.finish();
@@ -400,6 +462,12 @@ export class RequestResult {
     return this.#response.redirected;
   }
 
+  /** The underlying `AbortSignal` used to abort the request body
+   * when a timeout is reached or when the `.abort()` method is called. */
+  get signal(): AbortSignal {
+    return this.#abortController.controller.signal;
+  }
+
   /** Status code of the response. */
   get status(): number {
     return this.#response.status;
@@ -413,6 +481,11 @@ export class RequestResult {
   /** URL of the response. */
   get url(): string {
     return this.#response.url;
+  }
+
+  /** Aborts  */
+  abort(reason?: unknown) {
+    this.#abortController?.controller.abort(reason);
   }
 
   /**
@@ -435,12 +508,14 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async arrayBuffer(): Promise<ArrayBuffer> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
-    }
-    return this.#downloadResponse.arrayBuffer();
+  arrayBuffer(): Promise<ArrayBuffer> {
+    return this.#withReturnHandling(async () => {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return this.#downloadResponse.arrayBuffer();
+    });
   }
 
   /**
@@ -448,12 +523,14 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async blob(): Promise<Blob> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
-    }
-    return this.#downloadResponse.blob();
+  blob(): Promise<Blob> {
+    return this.#withReturnHandling(async () => {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.blob();
+    });
   }
 
   /**
@@ -461,12 +538,14 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async formData(): Promise<FormData> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined!;
-    }
-    return this.#downloadResponse.formData();
+  formData(): Promise<FormData> {
+    return this.#withReturnHandling(async () => {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.formData();
+    });
   }
 
   /**
@@ -474,12 +553,14 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async json<TResult = any>(): Promise<TResult> {
-    if (this.#response.status === 404) {
-      await this.#response.body?.cancel();
-      return undefined as any;
-    }
-    return this.#downloadResponse.json();
+  json<TResult = any>(): Promise<TResult> {
+    return this.#withReturnHandling(async () => {
+      if (this.#response.status === 404) {
+        await this.#response.body?.cancel();
+        return undefined as any;
+      }
+      return (await this.#downloadResponse.json()) as TResult;
+    });
   }
 
   /**
@@ -487,20 +568,22 @@ export class RequestResult {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async text(): Promise<string> {
-    if (this.#response.status === 404) {
-      // most people don't need to bother with this and if they do, they will
-      // need to opt-in with `noThrow()`. So just assert non-nullable
-      // to make it easier to work with and highlight this behaviour in the jsdocs.
-      await this.#response.body?.cancel();
-      return undefined!;
-    }
-    return this.#downloadResponse.text();
+  text(): Promise<string> {
+    return this.#withReturnHandling(async () => {
+      if (this.#response.status === 404) {
+        // most people don't need to bother with this and if they do, they will
+        // need to opt-in with `noThrow()`. So just assert non-nullable
+        // to make it easier to work with and highlight this behaviour in the jsdocs.
+        await this.#response.body?.cancel();
+        return undefined!;
+      }
+      return await this.#downloadResponse.text();
+    });
   }
 
   /** Pipes the response body to the provided writable stream. */
   pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
-    return this.#getDownloadBody().pipeTo(dest, options);
+    return this.#withReturnHandling(() => this.readable.pipeTo(dest, options));
   }
 
   /**
@@ -538,7 +621,7 @@ export class RequestResult {
     // to allow the server to select which file path to save the file to if using the
     // response url
     const { filePath, options } = resolvePipeToPathParams(filePathOrOptions, maybeOptions, this.#originalUrl);
-    const body = this.#getDownloadBody();
+    const body = this.readable;
     try {
       const file = await filePath.open({
         write: true,
@@ -549,12 +632,17 @@ export class RequestResult {
         await body.pipeTo(file.writable, {
           preventClose: true,
         });
+        // Need to do this for node.js for some reason
+        // in order to fully flush to the file. Maybe
+        // it's a bug in node_shims
+        await file.writable.close();
       } finally {
         try {
           file.close();
         } catch {
           // do nothing
         }
+        this.#abortController?.clearTimeout();
       }
     } catch (err) {
       await this.#response.body?.cancel();
@@ -569,15 +657,31 @@ export class RequestResult {
     writable: WritableStream<Uint8Array>;
     readable: ReadableStream<T>;
   }): ReadableStream<T> {
-    return this.#getDownloadBody().pipeThrough(transform);
+    return this.readable.pipeThrough(transform);
   }
 
-  #getDownloadBody() {
+  get readable(): ReadableStream<Uint8Array> {
     const body = this.#downloadResponse.body;
     if (body == null) {
       throw new Error("Response had no body.");
     }
     return body;
+  }
+
+  async #withReturnHandling<T>(action: () => Promise<T>): Promise<T> {
+    try {
+      return await action();
+    } catch (err) {
+      if (err instanceof TimeoutError) {
+        // give the timeout error a better stack trace because
+        // otherwise it will have the stack where it was aborted
+        // which isn't very useful
+        Error.captureStackTrace(err);
+      }
+      throw err;
+    } finally {
+      this.#abortController.clearTimeout();
+    }
   }
 }
 
@@ -585,9 +689,15 @@ export async function makeRequest(state: RequestBuilderState) {
   if (state.url == null) {
     throw new Error("You must specify a URL before fetching.");
   }
-  const timeout = getTimeout();
+  const abortController = getTimeoutAbortController() ?? {
+    controller: new AbortController(),
+    clearTimeout() {
+      // do nothing
+    },
+  };
   const response = await fetch(state.url, {
     body: state.body,
+    // @ts-ignore not supported in Node.js yet?
     cache: state.cache,
     headers: filterEmptyRecordValues(state.headers),
     integrity: state.integrity,
@@ -597,13 +707,13 @@ export async function makeRequest(state: RequestBuilderState) {
     redirect: state.redirect,
     referrer: state.referrer,
     referrerPolicy: state.referrerPolicy,
-    signal: timeout?.signal,
+    signal: abortController.controller.signal,
   });
-  timeout?.clear();
-  const result = new RequestResult({
+  const result = new RequestResponse({
     response,
     originalUrl: state.url.toString(),
     progressBar: getProgressBar(),
+    abortController,
   });
   if (!state.noThrow) {
     result.throwIfNotOk();
@@ -633,15 +743,19 @@ export async function makeRequest(state: RequestBuilderState) {
     }
   }
 
-  function getTimeout() {
+  function getTimeoutAbortController(): RequestAbortController | undefined {
     if (state.timeout == null) {
       return undefined;
     }
+    const timeout = state.timeout;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), state.timeout);
+    const timeoutId = setTimeout(
+      () => controller.abort(new TimeoutError(`Request timed out after ${formatMillis(timeout)}.`)),
+      timeout,
+    );
     return {
-      signal: controller.signal,
-      clear() {
+      controller,
+      clearTimeout() {
         clearTimeout(timeoutId);
       },
     };

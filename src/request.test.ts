@@ -1,12 +1,13 @@
 import { Buffer, path } from "./deps.ts";
-import { assertEquals, assertRejects, serve, writableStreamFromWriter } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, isNode, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
+import { startServer } from "./test/server.deno.ts";
+import $ from "../mod.ts";
+import { TimeoutError } from "./common.ts";
 
-function withServer(action: (serverUrl: URL) => Promise<void>) {
-  const controller = new AbortController();
-  const signal = controller.signal;
-  return new Promise<void>((resolve, reject) => {
-    serve((request) => {
+async function withServer(action: (serverUrl: URL) => Promise<void>) {
+  const server = await startServer({
+    handle(request) {
       const url = new URL(request.url);
       if (url.pathname === "/text-file") {
         const data = "text".repeat(1000);
@@ -22,25 +23,68 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else if (url.pathname.startsWith("/code/")) {
         const code = parseInt(url.pathname.replace(/^\/code\//, ""), 0);
         return new Response(code.toString(), { status: code });
+      } else if (url.pathname.startsWith("/sleep/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep\//, ""), 0);
+        const signal = request.signal;
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            resolve(new Response("", { status: 200 }));
+          }, ms);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timeoutId);
+            reject(new Error("Client aborted."));
+          });
+        });
+      } else if (url.pathname.startsWith("/sleep-body/")) {
+        const ms = parseInt(url.pathname.replace(/^\/sleep-body\//, ""), 0);
+        const signal = request.signal;
+        const abortController = new AbortController();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              return new Promise<void>((resolve, reject) => {
+                if (signal.aborted || abortController.signal.aborted) {
+                  return;
+                }
+                const timeoutId = setTimeout(() => {
+                  controller.close();
+                  resolve();
+                }, ms);
+                signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+                abortController.signal.addEventListener("abort", () => {
+                  clearTimeout(timeoutId);
+                  reject(new Error("Client aborted."));
+                });
+              });
+            },
+            cancel(reason) {
+              abortController.abort(reason);
+            },
+          }),
+          {
+            status: 200,
+          },
+        );
       } else {
         return new Response("Not Found", { status: 404 });
       }
-    }, {
-      hostname: "localhost",
-      signal,
-      async onListen(details) {
-        const url = new URL(`http://${details.hostname}:${details.port}/`);
-        try {
-          await action(url);
-          resolve();
-          controller.abort();
-        } catch (err) {
-          reject(err);
-          controller.abort();
-        }
-      },
-    });
+    },
   });
+
+  try {
+    await action(server.rootUrl);
+  } catch (err) {
+    throw err;
+  } finally {
+    try {
+      await server.shutdown();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 Deno.test("$.request", (t) => {
@@ -92,7 +136,7 @@ Deno.test("$.request", (t) => {
       await new RequestBuilder()
         .url(new URL("/text-file", serverUrl))
         .showProgress()
-        .pipeTo(writableStreamFromWriter(buffer));
+        .pipeTo(toWritableStream(buffer));
       const text = new TextDecoder().decode(buffer.bytes());
       assertEquals(text, "text".repeat(1000));
     });
@@ -214,6 +258,115 @@ Deno.test("$.request", (t) => {
       );
 
       assertEquals(await request500.noThrow(500).text(), "500");
+    });
+
+    step("piping to a command", async () => {
+      const requestBuilder = new RequestBuilder().url(new URL("/json", serverUrl));
+      const data = await $`deno eval 'Deno.stdin.readable.pipeTo(Deno.stdout.writable)'`
+        .stdin(requestBuilder)
+        .json();
+      assertEquals(data, { value: 5 });
+    });
+
+    step("piping to a command that errors", async () => {
+      const requestBuilder = new RequestBuilder().url(new URL("/code/500", serverUrl));
+      await assertRejects(
+        () =>
+          $`deno eval 'Deno.stdin.readable.pipeTo(Deno.stdout.writable)'`
+            .stdin(requestBuilder)
+            .json(),
+        Error,
+        "500",
+      );
+    });
+
+    step("ensure times out waiting for body", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10000", serverUrl))
+        .timeout(200) // so high because CI was slow
+        .showProgress();
+      const response = await request.fetch();
+      let caughtErr: TimeoutError | undefined;
+      try {
+        await response.text();
+      } catch (err) {
+        caughtErr = err;
+      }
+      if (isNode) {
+        // seems like a bug in Node and Chrome where they throw a
+        // DOMException instead, but not sure
+        assert(caughtErr != null);
+      } else {
+        assertEquals(caughtErr!, new TimeoutError("Request timed out after 200 milliseconds."));
+        assert(caughtErr!.stack!.includes("request.test.ts")); // current file
+      }
+    });
+
+    step("ability to abort while waiting", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10000", serverUrl))
+        .showProgress();
+      const response = await request.fetch();
+      response.abort("Cancel.");
+      let caughtErr: unknown;
+      try {
+        await response.text();
+      } catch (err) {
+        caughtErr = err;
+      }
+      if (isNode) {
+        // seems like a bug in Node and Chrome where they throw a
+        // DOMException instead, but not sure
+        assert(caughtErr != null);
+      } else {
+        assertEquals(caughtErr, "Cancel.");
+      }
+    });
+
+    step("use in a redirect", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .showProgress();
+      const text = await $`cat - && echo there && cat - < ${request}`.stdinText("hi").text();
+      assertEquals(text, "hithere\n" + "text".repeat(1000));
+    });
+
+    step("use in a redirect that errors", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/code/500", serverUrl))
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        `cat: Error making request to ${new URL("/code/500", serverUrl).toString()}: Internal Server Error\n`,
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the response", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep/100", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
+    });
+
+    step("use in a redirect that times out waiting for the body", async () => {
+      const request = new RequestBuilder()
+        .url(new URL("/sleep-body/10_000", serverUrl))
+        .timeout(10)
+        .showProgress();
+      const result = await $`cat - < ${request}`.noThrow().stderr("piped");
+      assertEquals(
+        result.stderr,
+        "cat: Request timed out after 10 milliseconds.\n",
+      );
+      assertEquals(result.code, 1);
     });
 
     await Promise.all(steps);

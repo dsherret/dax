@@ -1,21 +1,55 @@
+import { type FsFileWrapper, PathRef } from "./path.ts";
 import { logger } from "./console/logger.ts";
-import { Buffer, writeAllSync } from "./deps.ts";
+import { Buffer, writeAll, writeAllSync } from "./deps.ts";
+import type { RequestBuilder } from "./request.ts";
+import type { CommandBuilder, KillSignal } from "./command.ts";
+import { abortSignalToPromise } from "./common.ts";
 
 const encoder = new TextEncoder();
 
+/** `Deno.Reader` stream. */
 export interface Reader {
   read(p: Uint8Array): Promise<number | null>;
 }
 
+/** `Deno.ReaderSync` stream. */
+export interface ReaderSync {
+  readSync(p: Uint8Array): number | null;
+}
+
+/** `Deno.WriterSync` stream. */
 export interface WriterSync {
   writeSync(p: Uint8Array): number;
 }
 
+/** `Deno.Writer` stream. */
+export interface Writer {
+  write(p: Uint8Array): Promise<number>;
+}
+
+export type PipeReader = Reader | ReaderSync;
+
+export type PipeWriter = Writer | WriterSync;
+
+/** `Deno.Closer` */
 export interface Closer {
   close(): void;
 }
 
-export type ShellPipeReader = "inherit" | "null" | Reader;
+/** Behaviour to use for stdin.
+ * @value "inherit" - Sends the stdin of the process to the shell (default).
+ * @value "null" - Does not pipe or redirect the pipe.
+ */
+export type ShellPipeReaderKind =
+  | "inherit"
+  | "null"
+  | Reader
+  | ReadableStream<Uint8Array>
+  | Uint8Array
+  | CommandBuilder
+  | FsFileWrapper
+  | PathRef
+  | RequestBuilder;
 /**
  * The behaviour to use for a shell pipe.
  * @value "inherit" - Sends the output directly to the current process' corresponding pipe (default).
@@ -23,7 +57,21 @@ export type ShellPipeReader = "inherit" | "null" | Reader;
  * @value "piped" - Captures the pipe without outputting.
  * @value "inheritPiped" - Captures the pipe with outputting.
  */
-export type ShellPipeWriterKind = "inherit" | "null" | "piped" | "inheritPiped" | WriterSync;
+export type ShellPipeWriterKind =
+  | "inherit"
+  | "null"
+  | "piped"
+  | "inheritPiped"
+  | WriterSync
+  | WritableStream<Uint8Array>
+  | FsFileWrapper
+  | PathRef;
+
+export class NullPipeReader implements Reader {
+  read(_p: Uint8Array): Promise<number | null> {
+    return Promise.resolve(null);
+  }
+}
 
 export class NullPipeWriter implements WriterSync {
   writeSync(p: Uint8Array): number {
@@ -31,11 +79,11 @@ export class NullPipeWriter implements WriterSync {
   }
 }
 
-export class ShellPipeWriter implements WriterSync {
+export class ShellPipeWriter {
   #kind: ShellPipeWriterKind;
-  #inner: WriterSync;
+  #inner: PipeWriter;
 
-  constructor(kind: ShellPipeWriterKind, inner: WriterSync) {
+  constructor(kind: ShellPipeWriterKind, inner: PipeWriter) {
     this.#kind = kind;
     this.#inner = inner;
   }
@@ -44,12 +92,28 @@ export class ShellPipeWriter implements WriterSync {
     return this.#kind;
   }
 
-  writeSync(p: Uint8Array) {
-    return this.#inner.writeSync(p);
+  get inner() {
+    return this.#inner;
+  }
+
+  write(p: Uint8Array) {
+    if ("write" in this.#inner) {
+      return this.#inner.write(p);
+    } else {
+      return this.#inner.writeSync(p);
+    }
+  }
+
+  writeAll(data: Uint8Array) {
+    if ("write" in this.#inner) {
+      return writeAll(this.#inner, data);
+    } else {
+      return writeAllSync(this.#inner, data);
+    }
   }
 
   writeText(text: string) {
-    return writeAllSync(this, encoder.encode(text));
+    return this.writeAll(encoder.encode(text));
   }
 
   writeLine(text: string) {
@@ -57,7 +121,27 @@ export class ShellPipeWriter implements WriterSync {
   }
 }
 
-export class CapturingBufferWriter implements WriterSync {
+export class CapturingBufferWriter implements Writer {
+  #buffer: Buffer;
+  #innerWriter: Writer;
+
+  constructor(innerWriter: Writer, buffer: Buffer) {
+    this.#innerWriter = innerWriter;
+    this.#buffer = buffer;
+  }
+
+  getBuffer() {
+    return this.#buffer;
+  }
+
+  async write(p: Uint8Array) {
+    const nWritten = await this.#innerWriter.write(p);
+    this.#buffer.writeSync(p.slice(0, nWritten));
+    return nWritten;
+  }
+}
+
+export class CapturingBufferWriterSync implements WriterSync {
   #buffer: Buffer;
   #innerWriter: WriterSync;
 
@@ -123,7 +207,7 @@ export class PipedBuffer implements WriterSync {
     this.#inner = new Buffer();
   }
 
-  getBuffer() {
+  getBuffer(): Buffer | undefined {
     if (this.#inner instanceof Buffer) {
       return this.#inner;
     } else {
@@ -143,7 +227,7 @@ export class PipedBuffer implements WriterSync {
     }
   }
 
-  writeSync(p: Uint8Array) {
+  writeSync(p: Uint8Array): number {
     return this.#inner.writeSync(p);
   }
 
@@ -158,5 +242,89 @@ export class PipedBuffer implements WriterSync {
 
     this.#inner = listener;
     this.#hasSet = true;
+  }
+}
+
+// todo: this should provide some back pressure instead of
+// filling the buffer too much and the buffer size should probably
+// be configurable
+export class PipeSequencePipe implements Reader, WriterSync {
+  #inner = new Buffer();
+  #readListener: (() => void) | undefined;
+  #closed = false;
+
+  close() {
+    this.#readListener?.();
+    this.#closed = true;
+  }
+
+  writeSync(p: Uint8Array): number {
+    const value = this.#inner.writeSync(p);
+    if (this.#readListener !== undefined) {
+      const listener = this.#readListener;
+      this.#readListener = undefined;
+      listener();
+    }
+    return value;
+  }
+
+  read(p: Uint8Array): Promise<number | null> {
+    if (this.#readListener !== undefined) {
+      // doesn't support multiple read listeners at the moment
+      throw new Error("Misuse of PipeSequencePipe");
+    }
+
+    if (this.#inner.length === 0) {
+      if (this.#closed) {
+        return Promise.resolve(null);
+      } else {
+        return new Promise((resolve) => {
+          this.#readListener = () => {
+            resolve(this.#inner.readSync(p));
+          };
+        });
+      }
+    } else {
+      return Promise.resolve(this.#inner.readSync(p));
+    }
+  }
+}
+
+export async function pipeReaderToWritable(
+  reader: Reader,
+  writable: WritableStream<Uint8Array>,
+  signal: AbortSignal,
+) {
+  using abortedPromise = abortSignalToPromise(signal);
+  const writer = writable.getWriter();
+  try {
+    while (!signal.aborted) {
+      const buffer = new Uint8Array(1024);
+      const length = await Promise.race([abortedPromise.promise, reader.read(buffer)]);
+      if (length === 0 || length == null) {
+        break;
+      }
+      await writer.write(buffer.subarray(0, length));
+    }
+  } finally {
+    await writer.close();
+  }
+}
+
+export async function pipeReadableToWriterSync(
+  readable: ReadableStream<Uint8Array>,
+  writer: ShellPipeWriter,
+  signal: AbortSignal | KillSignal,
+) {
+  const reader = readable.getReader();
+  while (!signal.aborted) {
+    const result = await reader.read();
+    if (result.done) {
+      break;
+    }
+    const maybePromise = writer.writeAll(result.value);
+    if (maybePromise) {
+      await maybePromise;
+    }
   }
 }

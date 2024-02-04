@@ -1,7 +1,20 @@
 import { CommandContext } from "../command_handler.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { errorToString } from "../common.ts";
+import { ExecuteResult } from "../result.ts";
 
-export function echoCommand(context: CommandContext): ExecuteResult {
-  context.stdout.writeLine(context.args.join(" "));
-  return resultFromCode(0);
+export function echoCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
+  try {
+    const maybePromise = context.stdout.writeLine(context.args.join(" "));
+    if (maybePromise instanceof Promise) {
+      return maybePromise.then(() => ({ code: 0 })).catch((err) => handleFailure(context, err));
+    } else {
+      return { code: 0 };
+    }
+  } catch (err) {
+    return handleFailure(context, err);
+  }
+}
+
+function handleFailure(context: CommandContext, err: any) {
+  return context.error(`echo: ${errorToString(err)}`);
 }

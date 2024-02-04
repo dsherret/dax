@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows, isNode, withTempDir } from "./deps.test.ts";
 import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
@@ -39,16 +39,24 @@ Deno.test("normalize", () => {
   assertEquals(path.toString(), stdPath.normalize("src"));
 });
 
-Deno.test("isDir", () => {
-  assert(createPathRef("src").isDirSync());
-  assert(!createPathRef("mod.ts").isDirSync());
-  assert(!createPathRef("nonExistent").isDirSync());
+Deno.test("isDir", async () => {
+  await withTempDir((dir) => {
+    assert(dir.isDirSync());
+    const file = dir.join("mod.ts");
+    file.writeTextSync("");
+    assert(!file.isDirSync());
+    assert(!dir.join("nonExistent").isDirSync());
+  });
 });
 
-Deno.test("isFile", () => {
-  assert(!createPathRef("src").isFileSync());
-  assert(createPathRef("mod.ts").isFileSync());
-  assert(!createPathRef("nonExistent").isFileSync());
+Deno.test("isFile", async () => {
+  await withTempDir((dir) => {
+    const file = dir.join("mod.ts");
+    file.writeTextSync("");
+    assert(!dir.isFileSync());
+    assert(file.isFileSync());
+    assert(!dir.join("nonExistent").isFileSync());
+  });
 });
 
 Deno.test("isSymlink", async () => {
@@ -317,11 +325,16 @@ Deno.test("exists", async () => {
 });
 
 Deno.test("realpath", async () => {
-  await withTempDir(async () => {
-    let file = createPathRef("file").resolve();
+  await withTempDir(async (tempDir) => {
+    let file = tempDir.join("file").resolve();
     file.writeTextSync("");
     // need to do realPathSync for GH actions CI
     file = file.realPathSync();
+    // for the comparison, node doesn't canonicalize
+    // RUNNER~1 to runneradmin for some reason
+    if (isNode && Deno.build.os === "windows") {
+      file = createPathRef(file.toString().replace("\\RUNNER~1\\", "\\runneradmin\\"));
+    }
     const symlink = createPathRef("other");
     symlink.createSymlinkToSync(file, { kind: "absolute" });
     assertEquals(
@@ -898,7 +911,7 @@ Deno.test("instanceof check", () => {
 });
 
 Deno.test("toFileUrl", () => {
-  const path = createPathRef(import.meta);
+  const path = createPathRef(import.meta.url);
   assertEquals(path.toString(), stdPath.fromFileUrl(import.meta.url));
   assertEquals(path.toFileUrl(), new URL(import.meta.url));
 });

@@ -2,6 +2,50 @@ import { logger } from "./console/mod.ts";
 import { BufReader, path } from "./deps.ts";
 import { Reader } from "./pipes.ts";
 
+export const symbols = {
+  /** Use this symbol to enable the provided object to be written to in
+   * an output redirect within a template literal expression.
+   *
+   * @example
+   * ```ts
+   * class MyClass {
+   *   [$.symbols.writable](): WritableStream<Uint8Array> {
+   *     // return a WritableStream here
+   *   }
+   * }
+   * const myObj = new MyClass();
+   * await $`echo 1 > ${myObj}`;
+   * ```
+   */
+  writable: Symbol.for("dax.writableStream"),
+  /** Use this symbol to enable the provided object to be read from in
+   * an input redirect within a template literal expression.
+   *
+   * @example
+   * ```ts
+   * class MyClass {
+   *   [$.symbols.readable](): ReadableStream<Uint8Array> {
+   *     // return a ReadableStream here
+   *   }
+   * }
+   * const myObj = new MyClass();
+   * await $`gzip < ${myObj}`;
+   * ```
+   */
+  readable: Symbol.for("dax.readableStream"),
+};
+
+/** A timeout error. */
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+
+  get name() {
+    return "TimeoutError";
+  }
+}
+
 /**
  * Delay used for certain actions.
  *
@@ -241,5 +285,40 @@ export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo 
       stringSplit: false,
       command: result,
     };
+  }
+}
+
+export function abortSignalToPromise(signal: AbortSignal) {
+  const { resolve, promise } = Promise.withResolvers<void>();
+
+  const listener = () => {
+    signal.removeEventListener("abort", listener);
+    resolve();
+  };
+  signal.addEventListener("abort", listener);
+  return {
+    [Symbol.dispose]() {
+      signal.removeEventListener("abort", listener);
+    },
+    promise,
+  };
+}
+
+const nodeENotEmpty = "ENOTEMPTY: ";
+const nodeENOENT = "ENOENT: ";
+
+export function errorToString(err: unknown) {
+  let message: string;
+  if (err instanceof Error) {
+    message = err.message;
+  } else {
+    message = String(err);
+  }
+  if (message.startsWith(nodeENotEmpty)) {
+    return message.slice(nodeENotEmpty.length);
+  } else if (message.startsWith(nodeENOENT)) {
+    return message.slice(nodeENOENT.length);
+  } else {
+    return message;
   }
 }

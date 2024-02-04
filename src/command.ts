@@ -13,32 +13,62 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader } from "./deps.ts";
+import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
   CapturingBufferWriter,
+  CapturingBufferWriterSync,
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
   Reader,
-  ShellPipeReader,
+  ShellPipeReaderKind,
   ShellPipeWriter,
   ShellPipeWriterKind,
+  Writer,
   WriterSync,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
 import { PathRef } from "./path.ts";
+import { RequestBuilder } from "./request.ts";
+import { StreamFds } from "./shell.ts";
+import { symbols } from "./common.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
+class Deferred<T> {
+  #create: () => T | Promise<T>;
+  constructor(create: () => T | Promise<T>) {
+    this.#create = create;
+  }
+
+  create() {
+    return this.#create();
+  }
+}
+
+interface ShellPipeWriterKindWithOptions {
+  kind: ShellPipeWriterKind;
+  options?: PipeOptions;
+}
+
+interface CommandBuilderStateCommand {
+  text: string;
+  fds: StreamFds | undefined;
+}
+
 interface CommandBuilderState {
-  command: string | undefined;
-  stdin: "inherit" | "null" | Box<Reader | ReadableStream<Uint8Array> | "consumed">;
+  command: Readonly<CommandBuilderStateCommand> | undefined;
+  stdin:
+    | "inherit"
+    | "null"
+    | Box<Reader | ReadableStream<Uint8Array> | "consumed">
+    | Deferred<ReadableStream<Uint8Array> | Reader>;
   combinedStdoutStderr: boolean;
-  stdoutKind: ShellPipeWriterKind;
-  stderrKind: ShellPipeWriterKind;
+  stdout: ShellPipeWriterKindWithOptions;
+  stderr: ShellPipeWriterKindWithOptions;
   noThrow: boolean | number[];
   env: Record<string, string | undefined>;
   commands: Record<string, CommandHandler>;
@@ -71,7 +101,9 @@ const builtInCommands = {
 };
 
 /** @internal */
-export const getRegisteredCommandNamesSymbol = Symbol();
+export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
+/** @internal */
+export const setCommandTextAndFdsSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -98,8 +130,12 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     command: undefined,
     combinedStdoutStderr: false,
     stdin: "inherit",
-    stdoutKind: "inherit",
-    stderrKind: "inherit",
+    stdout: {
+      kind: "inherit",
+    },
+    stderr: {
+      kind: "inherit",
+    },
     noThrow: false,
     env: {},
     cwd: undefined,
@@ -107,9 +143,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     exportEnv: false,
     printCommand: false,
     printCommandLogger: new LoggerTreeBox(
+      // deno-lint-ignore no-console
       (cmd) => console.error(colors.white(">"), colors.blue(cmd)),
     ),
-
     timeout: undefined,
     signal: undefined,
   };
@@ -121,8 +157,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       command: state.command,
       combinedStdoutStderr: state.combinedStdoutStderr,
       stdin: state.stdin,
-      stdoutKind: state.stdoutKind,
-      stderrKind: state.stderrKind,
+      stdout: {
+        kind: state.stdout.kind,
+        options: state.stdout.options,
+      },
+      stderr: {
+        kind: state.stderr.kind,
+        options: state.stderr.options,
+      },
       noThrow: state.noThrow instanceof Array ? [...state.noThrow] : state.noThrow,
       env: { ...state.env },
       cwd: state.cwd,
@@ -195,11 +237,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   /** Sets the raw command to execute. */
   command(command: string | string[]): CommandBuilder {
     return this.#newWithState((state) => {
-      if (typeof command === "string") {
-        state.command = command;
-      } else {
-        state.command = command.map(escapeArg).join(" ");
+      if (command instanceof Array) {
+        command = command.map(escapeArg).join(" ");
       }
+      state.command = {
+        text: command,
+        fds: undefined,
+      };
     });
   }
 
@@ -239,11 +283,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return this.#newWithState((state) => {
       state.combinedStdoutStderr = value;
       if (value) {
-        if (state.stdoutKind !== "piped" && state.stdoutKind !== "inheritPiped") {
-          state.stdoutKind = "piped";
+        if (state.stdout.kind !== "piped" && state.stdout.kind !== "inheritPiped") {
+          state.stdout.kind = "piped";
         }
-        if (state.stderrKind !== "piped" && state.stderrKind !== "inheritPiped") {
-          state.stderrKind = "piped";
+        if (state.stderr.kind !== "piped" && state.stderr.kind !== "inheritPiped") {
+          state.stderr.kind = "piped";
         }
       }
     });
@@ -257,12 +301,26 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * For this reason, if you are setting stdin to something other than "inherit" or
    * "null", then it's recommended to set this each time you spawn a command.
    */
-  stdin(reader: ShellPipeReader | Uint8Array | ReadableStream<Uint8Array>): CommandBuilder {
+  stdin(reader: ShellPipeReaderKind): CommandBuilder {
     return this.#newWithState((state) => {
       if (reader === "inherit" || reader === "null") {
         state.stdin = reader;
       } else if (reader instanceof Uint8Array) {
-        state.stdin = new Box(new Buffer(reader));
+        state.stdin = new Deferred(() => new Buffer(reader));
+      } else if (reader instanceof PathRef) {
+        state.stdin = new Deferred(async () => {
+          const file = await reader.open();
+          return file.readable;
+        });
+      } else if (reader instanceof RequestBuilder) {
+        state.stdin = new Deferred(async () => {
+          const body = await reader;
+          return body.readable;
+        });
+      } else if (reader instanceof CommandBuilder) {
+        state.stdin = new Deferred(() => {
+          return reader.stdout("piped").spawn().stdout();
+        });
       } else {
         state.stdin = new Box(reader);
       }
@@ -279,27 +337,61 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Set the stdout kind. */
-  stdout(kind: ShellPipeWriterKind): CommandBuilder {
+  stdout(kind: ShellPipeWriterKind): CommandBuilder;
+  stdout(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
+  stdout(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
           "Cannot set stdout's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
-      state.stdoutKind = kind;
+      if (options?.signal != null) {
+        // not sure what this would mean
+        throw new Error("Setting a signal for a stdout WritableStream is not yet supported.");
+      }
+      state.stdout = {
+        kind,
+        options,
+      };
     });
   }
 
   /** Set the stderr kind. */
-  stderr(kind: ShellPipeWriterKind): CommandBuilder {
+  stderr(kind: ShellPipeWriterKind): CommandBuilder;
+  stderr(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
+  stderr(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
           "Cannot set stderr's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
-      state.stderrKind = kind;
+      if (options?.signal != null) {
+        // not sure what this would mean
+        throw new Error("Setting a signal for a stderr WritableStream is not yet supported.");
+      }
+      state.stderr = {
+        kind,
+        options,
+      };
     });
+  }
+
+  /** Pipes the current command to the provided command returning the
+   * provided command builder. When chaining, it's important to call this
+   * after you are done configuring the current command or else you will
+   * start modifying the provided command instead.
+   *
+   * @example
+   * ```ts
+   * const lineCount = await $`echo 1 && echo 2`
+   *  .pipe($`wc -l`)
+   *  .text();
+   * ```
+   */
+  pipe(builder: CommandBuilder): CommandBuilder {
+    return builder.stdin(this.stdout("piped"));
   }
 
   /** Sets multiple environment variables to use at the same time via an object literal. */
@@ -401,10 +493,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   quiet(kind: "stdout" | "stderr" | "both" = "both"): CommandBuilder {
     return this.#newWithState((state) => {
       if (kind === "both" || kind === "stdout") {
-        state.stdoutKind = getQuietKind(state.stdoutKind);
+        state.stdout.kind = getQuietKind(state.stdout.kind);
       }
       if (kind === "both" || kind === "stderr") {
-        state.stderrKind = getQuietKind(state.stderrKind);
+        state.stderr.kind = getQuietKind(state.stderr.kind);
       }
     });
 
@@ -486,8 +578,18 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [getRegisteredCommandNamesSymbol]() {
+  [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);
+  }
+
+  /** @internal */
+  [setCommandTextAndFdsSymbol](text: string, fds: StreamFds | undefined) {
+    return this.#newWithState((state) => {
+      state.command = {
+        text,
+        fds,
+      };
+    });
   }
 }
 
@@ -551,6 +653,8 @@ export class CommandChild extends Promise<CommandResult> {
   }
 
   #bufferToStream(buffer: PipedBuffer) {
+    const self = this;
+    // todo(dsherret): stdout and stderr should use a pull model
     return new ReadableStream<Uint8Array>({
       start(controller) {
         buffer.setListener({
@@ -566,6 +670,9 @@ export class CommandChild extends Promise<CommandResult> {
           },
         });
       },
+      cancel(_reason) {
+        self.kill();
+      },
     });
   }
 }
@@ -576,46 +683,53 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(state.command);
+    state.printCommandLogger.getValue()(state.command.text);
   }
 
-  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
-  const stdout = new ShellPipeWriter(
-    state.stdoutKind,
-    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
-  );
-  const stderr = new ShellPipeWriter(
-    state.stderrKind,
-    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
-  );
+  const disposables: Disposable[] = [];
+  const asyncDisposables: AsyncDisposable[] = [];
 
   const parentSignal = state.signal;
-  let cleanupSignalListener: (() => void) | undefined;
   const killSignalController = new KillSignalController();
   if (parentSignal != null) {
     const parentSignalListener = (signal: Deno.Signal) => {
       killSignalController.kill(signal);
     };
     parentSignal.addListener(parentSignalListener);
-    cleanupSignalListener = () => {
-      parentSignal.removeListener(parentSignalListener);
-    };
+    disposables.push({
+      [Symbol.dispose]() {
+        parentSignal.removeListener(parentSignalListener);
+      },
+    });
   }
-  let timeoutId: number | undefined;
   let timedOut = false;
   if (state.timeout != null) {
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       timedOut = true;
       killSignalController.kill();
     }, state.timeout);
+    disposables.push({
+      [Symbol.dispose]() {
+        clearTimeout(timeoutId);
+      },
+    });
   }
-  const command = state.command;
+  const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
+  const stdout = new ShellPipeWriter(
+    state.stdout.kind,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
+  );
+  const stderr = new ShellPipeWriter(
+    state.stderr.kind,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
+  );
+  const { text: commandText, fds } = state.command;
   const signal = killSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
-      const list = parseCommand(command);
-      const stdin = takeStdin();
+      const list = parseCommand(commandText);
+      const stdin = await takeStdin();
       let code = await spawn(list, {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
         stdout,
@@ -625,6 +739,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
         signal,
+        fds,
       });
       if (code !== 0) {
         if (timedOut) {
@@ -647,23 +762,22 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
           }
         }
       }
-      resolve(
-        new CommandResult(
-          code,
-          finalizeCommandResultBuffer(stdoutBuffer),
-          finalizeCommandResultBuffer(stderrBuffer),
-          combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
-        ),
+      const result = new CommandResult(
+        code,
+        finalizeCommandResultBuffer(stdoutBuffer),
+        finalizeCommandResultBuffer(stderrBuffer),
+        combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
       );
+      const maybeError = await cleanupDisposablesAndMaybeGetError(undefined);
+      if (maybeError) {
+        reject(maybeError);
+      } else {
+        resolve(result);
+      }
     } catch (err) {
       finalizeCommandResultBufferForError(stdoutBuffer, err as Error);
       finalizeCommandResultBufferForError(stderrBuffer, err as Error);
-      reject(err);
-    } finally {
-      if (timeoutId != null) {
-        clearTimeout(timeoutId);
-      }
-      cleanupSignalListener?.();
+      reject(await cleanupDisposablesAndMaybeGetError(err));
     }
   }, {
     pipedStdoutBuffer: stdoutBuffer instanceof PipedBuffer ? stdoutBuffer : undefined,
@@ -671,7 +785,37 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     killSignalController,
   });
 
-  function takeStdin() {
+  async function cleanupDisposablesAndMaybeGetError(maybeError?: unknown) {
+    const errors = [];
+    if (maybeError) {
+      errors.push(maybeError);
+    }
+    for (const disposable of disposables) {
+      try {
+        disposable[Symbol.dispose]();
+      } catch (err) {
+        errors.push(err);
+      }
+    }
+    if (asyncDisposables.length > 0) {
+      await Promise.all(asyncDisposables.map(async (d) => {
+        try {
+          await d[Symbol.asyncDispose]();
+        } catch (err) {
+          errors.push(err);
+        }
+      }));
+    }
+    if (errors.length === 1) {
+      return errors[0];
+    } else if (errors.length > 1) {
+      return new AggregateError(errors);
+    } else {
+      return undefined;
+    }
+  }
+
+  async function takeStdin() {
     if (state.stdin instanceof Box) {
       const stdin = state.stdin.value;
       if (stdin === "consumed") {
@@ -683,6 +827,18 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       }
       state.stdin.value = "consumed";
       return stdin;
+    } else if (state.stdin instanceof Deferred) {
+      const stdin = await state.stdin.create();
+      if (stdin instanceof ReadableStream) {
+        asyncDisposables.push({
+          async [Symbol.asyncDispose]() {
+            if (!stdin.locked) {
+              await stdin.cancel();
+            }
+          },
+        });
+      }
+      return stdin;
     } else {
       return state.stdin;
     }
@@ -690,36 +846,65 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();
-    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdoutKind);
-    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderrKind);
+    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdout);
+    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderr);
     if (state.combinedStdoutStderr) {
       if (typeof stdoutBuffer === "string" || typeof stderrBuffer === "string") {
         throw new Error("Internal programming error. Expected writers for stdout and stderr.");
       }
       const combinedBuffer = new Buffer();
       return [
-        new CapturingBufferWriter(stdoutBuffer, combinedBuffer),
-        new CapturingBufferWriter(stderrBuffer, combinedBuffer),
+        getCapturingBuffer(stdoutBuffer, combinedBuffer),
+        getCapturingBuffer(stderrBuffer, combinedBuffer),
         combinedBuffer,
       ] as const;
     }
     return [stdoutBuffer, stderrBuffer, undefined] as const;
 
-    function getOutputBuffer(innerWriter: WriterSync, kind: ShellPipeWriterKind) {
+    function getCapturingBuffer(buffer: Writer | WriterSync, combinedBuffer: Buffer) {
+      if ("write" in buffer) {
+        return new CapturingBufferWriter(buffer, combinedBuffer);
+      } else {
+        return new CapturingBufferWriterSync(buffer, combinedBuffer);
+      }
+    }
+
+    function getOutputBuffer(inheritWriter: WriterSync, { kind, options }: ShellPipeWriterKindWithOptions) {
       if (typeof kind === "object") {
-        return kind;
+        if (kind instanceof PathRef) {
+          const file = kind.openSync({ write: true, truncate: true, create: true });
+          disposables.push(file);
+          return file;
+        } else if (kind instanceof WritableStream) {
+          const streamWriter = kind.getWriter();
+          asyncDisposables.push({
+            async [Symbol.asyncDispose]() {
+              streamWriter.releaseLock();
+              if (!options?.preventClose) {
+                try {
+                  await kind.close();
+                } catch {
+                  // ignore, the stream have errored
+                }
+              }
+            },
+          });
+          return writerFromStreamWriter(streamWriter);
+        } else {
+          return kind;
+        }
       }
       switch (kind) {
         case "inherit":
           if (hasProgressBars) {
-            return new InheritStaticTextBypassWriter(innerWriter);
+            return new InheritStaticTextBypassWriter(inheritWriter);
           } else {
             return "inherit";
           }
         case "piped":
           return new PipedBuffer();
         case "inheritPiped":
-          return new CapturingBufferWriter(innerWriter, new Buffer());
+          return new CapturingBufferWriterSync(inheritWriter, new Buffer());
         case "null":
           return "null";
         default: {
@@ -731,9 +916,17 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBuffer(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
+    buffer:
+      | PipedBuffer
+      | "inherit"
+      | "null"
+      | CapturingBufferWriter
+      | CapturingBufferWriterSync
+      | InheritStaticTextBypassWriter
+      | Writer
+      | WriterSync,
   ): BufferStdio {
-    if (buffer instanceof CapturingBufferWriter) {
+    if (buffer instanceof CapturingBufferWriterSync || buffer instanceof CapturingBufferWriter) {
       return buffer.getBuffer();
     } else if (buffer instanceof InheritStaticTextBypassWriter) {
       buffer.flush(); // this is line buffered, so flush anything left
@@ -749,7 +942,15 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   function finalizeCommandResultBufferForError(
-    buffer: PipedBuffer | "inherit" | "null" | CapturingBufferWriter | InheritStaticTextBypassWriter | WriterSync,
+    buffer:
+      | PipedBuffer
+      | "inherit"
+      | "null"
+      | CapturingBufferWriter
+      | CapturingBufferWriterSync
+      | InheritStaticTextBypassWriter
+      | Writer
+      | WriterSync,
     error: Error,
   ) {
     if (buffer instanceof InheritStaticTextBypassWriter) {
@@ -842,7 +1043,7 @@ export class CommandResult {
 
   /** Raw stderr bytes. */
   get stderrBytes(): Uint8Array {
-    if (this.#stdout === "streamed") {
+    if (this.#stderr === "streamed") {
       throw new Error(
         `Stderr was streamed to another source and is no longer available.`,
       );
@@ -904,7 +1105,7 @@ function validateCommandName(command: string) {
 const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
 interface KillSignalState {
-  aborted: boolean;
+  abortedCode: number | undefined;
   listeners: ((signal: Deno.Signal) => void)[];
 }
 
@@ -915,7 +1116,7 @@ export class KillSignalController {
 
   constructor() {
     this.#state = {
-      aborted: false,
+      abortedCode: undefined,
       listeners: [],
     };
     this.#killSignal = new KillSignal(SHELL_SIGNAL_CTOR_SYMBOL, this.#state);
@@ -934,6 +1135,9 @@ export class KillSignalController {
     sendSignalToState(this.#state, signal);
   }
 }
+
+/** Listener for when a KillSignal is killed. */
+export type KillSignalListener = (signal: Deno.Signal) => void;
 
 /** Similar to `AbortSignal`, but for `Deno.Signal`.
  *
@@ -957,7 +1161,12 @@ export class KillSignal {
    * SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP
    */
   get aborted(): boolean {
-    return this.#state.aborted;
+    return this.#state.abortedCode !== undefined;
+  }
+
+  /** Gets the exit code to use if aborted. */
+  get abortedExitCode(): number | undefined {
+    return this.#state.abortedCode;
   }
 
   /**
@@ -976,11 +1185,11 @@ export class KillSignal {
     };
   }
 
-  addListener(listener: (signal: Deno.Signal) => void) {
+  addListener(listener: KillSignalListener) {
     this.#state.listeners.push(listener);
   }
 
-  removeListener(listener: (signal: Deno.Signal) => void) {
+  removeListener(listener: KillSignalListener) {
     const index = this.#state.listeners.indexOf(listener);
     if (index >= 0) {
       this.#state.listeners.splice(index, 1);
@@ -989,25 +1198,252 @@ export class KillSignal {
 }
 
 function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
-  if (signalCausesAbort(signal)) {
-    state.aborted = true;
+  const code = getSignalAbortCode(signal);
+  if (code !== undefined) {
+    state.abortedCode = code;
   }
   for (const listener of state.listeners) {
     listener(signal);
   }
 }
 
-function signalCausesAbort(signal: Deno.Signal) {
+export function getSignalAbortCode(signal: Deno.Signal) {
   // consider the command aborted if the signal is any one of these
   switch (signal) {
     case "SIGTERM":
+      return 128 + 15;
     case "SIGKILL":
+      return 128 + 9;
     case "SIGABRT":
+      return 128 + 6;
     case "SIGQUIT":
+      return 128 + 3;
     case "SIGINT":
+      return 128 + 2;
     case "SIGSTOP":
-      return true;
+      // should SIGSTOP be considered an abort?
+      return 128 + 19;
     default:
-      return false;
+      return undefined;
   }
+}
+
+export function template(strings: TemplateStringsArray, exprs: any[]) {
+  return templateInner(strings, exprs, escapeArg);
+}
+
+export function templateRaw(strings: TemplateStringsArray, exprs: any[]) {
+  return templateInner(strings, exprs, undefined);
+}
+
+function templateInner(
+  strings: TemplateStringsArray,
+  exprs: any[],
+  escape: ((arg: string) => string) | undefined,
+) {
+  let nextStreamFd = 3;
+  let text = "";
+  let streams: StreamFds | undefined;
+  const exprsCount = exprs.length;
+  for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
+    if (strings.length > i) {
+      text += strings[i];
+    }
+    if (exprs.length > i) {
+      try {
+        const expr = exprs[i];
+        const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
+        if (inputOrOutputRedirect === "<") {
+          if (expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (typeof expr === "string") {
+            handleReadableStream(() =>
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(new TextEncoder().encode(expr));
+                  controller.close();
+                },
+              })
+            );
+          } else if (expr instanceof ReadableStream) {
+            handleReadableStream(() => expr);
+          } else if (expr?.[symbols.readable]) {
+            handleReadableStream(() => {
+              const stream = expr[symbols.readable]?.();
+              if (!(stream instanceof ReadableStream)) {
+                throw new Error(
+                  "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
+                    `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
+                );
+              }
+              return stream;
+            });
+          } else if (expr instanceof Uint8Array) {
+            handleReadableStream(() => {
+              return new ReadableStream({
+                start(controller) {
+                  controller.enqueue(expr);
+                  controller.close();
+                },
+              });
+            });
+          } else if (expr instanceof Response) {
+            handleReadableStream(() => {
+              return expr.body ?? new ReadableStream({
+                start(controller) {
+                  controller.close();
+                },
+              });
+            });
+          } else if (expr instanceof Function) {
+            handleReadableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof ReadableStream)) {
+                  throw new Error("Function did not return a ReadableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting ReadableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
+                );
+              }
+            });
+          } else {
+            throw new Error("Unsupported object provided to input redirect.");
+          }
+        } else if (inputOrOutputRedirect === ">") {
+          if (expr instanceof PathRef) {
+            text += templateLiteralExprToString(expr, escape);
+          } else if (expr instanceof WritableStream) {
+            handleWritableStream(() => expr);
+          } else if (expr instanceof Uint8Array) {
+            let pos = 0;
+            handleWritableStream(() => {
+              return new WritableStream<Uint8Array>({
+                write(chunk) {
+                  const nextPos = chunk.length + pos;
+                  if (nextPos > expr.length) {
+                    const chunkLength = expr.length - pos;
+                    expr.set(chunk.slice(0, chunkLength), pos); // fill as much as we can
+                    throw new Error(`Overflow writing ${nextPos} bytes to Uint8Array (length: ${exprsCount}).`);
+                  }
+                  expr.set(chunk, pos);
+                  pos = nextPos;
+                },
+              });
+            });
+          } else if (expr?.[symbols.writable]) {
+            handleWritableStream(() => {
+              const stream = expr[symbols.writable]?.();
+              if (!(stream instanceof WritableStream)) {
+                throw new Error(
+                  `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
+                    `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
+                );
+              }
+              return stream;
+            });
+          } else if (expr instanceof Function) {
+            handleWritableStream(() => {
+              try {
+                const result = expr();
+                if (!(result instanceof WritableStream)) {
+                  throw new Error("Function did not return a WritableStream.");
+                }
+                return result;
+              } catch (err) {
+                throw new Error(
+                  `Error getting WritableStream from function at ` +
+                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
+                );
+              }
+            });
+          } else if (typeof expr === "string") {
+            throw new Error(
+              "Cannot provide strings to output redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
+            );
+          } else {
+            throw new Error("Unsupported object provided to output redirect.");
+          }
+        } else {
+          text += templateLiteralExprToString(expr, escape);
+        }
+      } catch (err) {
+        const startMessage = exprsCount === 1
+          ? "Failed resolving expression in command."
+          : `Failed resolving expression ${i + 1}/${exprsCount} in command.`;
+        throw new Error(`${startMessage} ${errorToString(err)}`);
+      }
+    }
+  }
+  return {
+    text,
+    streams,
+  };
+
+  function handleReadableStream(createStream: () => ReadableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertReader(fd, () => {
+      const reader = createStream().getReader();
+      return {
+        ...readerFromStreamReader(reader),
+        [Symbol.dispose]() {
+          reader.releaseLock();
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
+  }
+
+  function handleWritableStream(createStream: () => WritableStream) {
+    streams ??= new StreamFds();
+    const fd = nextStreamFd++;
+    streams.insertWriter(fd, () => {
+      const stream = createStream();
+      const writer = stream.getWriter();
+      return {
+        ...writerFromStreamWriter(writer),
+        async [Symbol.asyncDispose]() {
+          writer.releaseLock();
+          try {
+            await stream.close();
+          } catch {
+            // ignore, the stream may have errored
+          }
+        },
+      };
+    });
+    text = text.trimEnd() + "&" + fd;
+  }
+}
+
+function detectInputOrOutputRedirect(text: string) {
+  text = text.trimEnd();
+  if (text.endsWith(">")) {
+    return ">";
+  } else if (text.endsWith("<")) {
+    return "<";
+  } else {
+    return undefined;
+  }
+}
+
+function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {
+  let result: string;
+  if (typeof expr === "string") {
+    result = expr;
+  } else if (expr instanceof Array) {
+    return expr.map((e) => templateLiteralExprToString(e, escape)).join(" ");
+  } else if (expr instanceof CommandResult) {
+    // remove last newline
+    result = expr.stdout.replace(/\r?\n$/, "");
+  } else if (typeof expr === "object" && expr.toString === Object.prototype.toString) {
+    throw new Error("Provided object does not override `toString()`.");
+  } else {
+    result = `${expr}`;
+  }
+  return escape ? escape(result) : result;
 }

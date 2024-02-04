@@ -1,21 +1,19 @@
 import { CommandContext } from "../command_handler.ts";
-import { resolvePath } from "../common.ts";
-import { ExecuteResult, resultFromCode } from "../result.ts";
+import { errorToString, resolvePath } from "../common.ts";
+import { ExecuteResult } from "../result.ts";
 
 export async function cdCommand(context: CommandContext): Promise<ExecuteResult> {
   try {
     const dir = await executeCd(context.cwd, context.args);
     return {
       code: 0,
-      kind: "continue",
       changes: [{
         kind: "cd",
         dir,
       }],
     };
   } catch (err) {
-    context.stderr.writeLine(`cd: ${err?.message ?? err}`);
-    return resultFromCode(1);
+    return context.error(`cd: ${errorToString(err)}`);
   }
 }
 

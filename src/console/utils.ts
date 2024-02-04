@@ -18,7 +18,7 @@ export async function* readKeys() {
   const { strip_ansi_codes } = wasmInstance;
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await Deno.read(Deno.stdin.rid, buf);
+    const byteCount = await Deno.stdin.read(buf);
     if (byteCount == null) {
       break;
     }
@@ -68,7 +68,26 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export const isOutputTty = safeConsoleSize() != null && Deno.isatty(Deno.stderr.rid);
+export let isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
+
+export function setNotTtyForTesting() {
+  isOutputTty = false;
+}
+
+function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
+  if (typeof pipe.isTerminal === "function") {
+    return pipe.isTerminal();
+  } else if (
+    pipe.rid != null &&
+    // deno-lint-ignore no-deprecated-deno-api
+    typeof Deno.isatty === "function"
+  ) {
+    // deno-lint-ignore no-deprecated-deno-api
+    return Deno.isatty(pipe.rid);
+  } else {
+    throw new Error("Unsupported pipe.");
+  }
+}
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
@@ -86,7 +105,7 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  if (!isOutputTty || !Deno.isatty(Deno.stdin.rid)) {
+  if (!isOutputTty || !isTerminal(Deno.stdin)) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
   if (safeConsoleSize() == null) {
