@@ -2,6 +2,7 @@ import {
   build,
   emptyDir,
 } from "https://raw.githubusercontent.com/denoland/dnt/2537df1c38851088bf1f504ae89dd7f037219f8b/mod.ts";
+import $ from "../mod.ts";
 
 await emptyDir("./npm");
 
@@ -90,3 +91,21 @@ await build({
     Deno.copyFileSync("README.md", "npm/README.md");
   },
 });
+
+// create bundles to improve startup time
+await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=external --outfile=npm/bundle.cjs npm/script/mod.js`;
+await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=external --format=esm --outfile=npm/bundle.mjs npm/esm/mod.js`;
+
+const npmPath = $.path("npm");
+
+// remove all the javascript files in the script folder
+for (const entry of npmPath.join("script").walkSync({ exts: ["js"] })) {
+  entry.path.removeSync();
+}
+for (const entry of npmPath.join("esm").walkSync({ exts: ["js"] })) {
+  entry.path.removeSync();
+}
+
+// move the bundle to the script folder
+npmPath.join("bundle.cjs").renameSync(npmPath.join("script/mod.js"));
+npmPath.join("bundle.mjs").renameSync(npmPath.join("esm/mod.js"));

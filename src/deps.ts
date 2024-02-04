@@ -6,7 +6,7 @@ export * as path from "https://deno.land/std@0.213.0/path/mod.ts";
 export { readAll } from "https://deno.land/std@0.213.0/io/read_all.ts";
 export { readerFromStreamReader } from "https://deno.land/std@0.213.0/streams/reader_from_stream_reader.ts";
 export { writeAll, writeAllSync } from "https://deno.land/std@0.213.0/io/write_all.ts";
-export { outdent } from "https://deno.land/x/outdent@v0.8.0/src/index.ts";
+export { outdent } from "./vendor/outdent.ts";
 export { RealEnvironment as DenoWhichRealEnvironment, which, whichSync } from "https://deno.land/x/which@0.3.0/mod.ts";
 export { writerFromStreamWriter } from "https://deno.land/std@0.213.0/streams/writer_from_stream_writer.ts";
 
