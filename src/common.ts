@@ -287,3 +287,38 @@ export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo 
     };
   }
 }
+
+export function abortSignalToPromise(signal: AbortSignal) {
+  const { resolve, promise } = Promise.withResolvers<void>();
+
+  const listener = () => {
+    signal.removeEventListener("abort", listener);
+    resolve();
+  };
+  signal.addEventListener("abort", listener);
+  return {
+    [Symbol.dispose]() {
+      signal.removeEventListener("abort", listener);
+    },
+    promise,
+  };
+}
+
+const nodeENotEmpty = "ENOTEMPTY: ";
+const nodeENOENT = "ENOENT: ";
+
+export function errorToString(err: unknown) {
+  let message: string;
+  if (err instanceof Error) {
+    message = err.message;
+  } else {
+    message = String(err);
+  }
+  if (message.startsWith(nodeENotEmpty)) {
+    return message.slice(nodeENotEmpty.length);
+  } else if (message.startsWith(nodeENOENT)) {
+    return message.slice(nodeENOENT.length);
+  } else {
+    return message;
+  }
+}

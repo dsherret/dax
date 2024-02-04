@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { resolvePath } from "../common.ts";
+import { errorToString, resolvePath } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 import { safeLstat } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
@@ -11,7 +11,7 @@ export async function mkdirCommand(
     await executeMkdir(context.cwd, context.args);
     return { code: 0 };
   } catch (err) {
-    return context.error(`mkdir: ${err?.message ?? err}`);
+    return context.error(`mkdir: ${errorToString(err)}`);
   }
 }
 

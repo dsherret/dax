@@ -68,7 +68,11 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export const isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
+export let isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
+
+export function setNotTtyForTesting() {
+  isOutputTty = false;
+}
 
 function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
   if (typeof pipe.isTerminal === "function") {

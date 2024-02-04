@@ -1,11 +1,12 @@
 import { KillSignal } from "./command.ts";
 import { CommandContext, CommandHandler, type CommandPipeReader } from "./command_handler.ts";
-import { getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
+import { errorToString, getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
 import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
   NullPipeReader,
   NullPipeWriter,
+  pipeReadableToWriterSync,
   PipeSequencePipe,
   PipeWriter,
   Reader,
@@ -14,6 +15,10 @@ import {
   ShellPipeWriterKind,
 } from "./pipes.ts";
 import { EnvChange, ExecuteResult, getAbortedResult } from "./result.ts";
+import { SpawnedChildProcess } from "./runtimes/process.common.ts";
+import { spawnCommand } from "./runtimes/process.deno.ts";
+
+const neverAbortedSignal = new AbortController().signal;
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -693,7 +698,7 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
       }
     } catch (err) {
       if (result.code === 0) {
-        return context.error(`failed disposing redirected pipe. ${err?.message ?? err}`);
+        return context.error(`failed disposing redirected pipe. ${errorToString(err)}`);
       }
     }
     return result;
@@ -718,7 +723,7 @@ async function resolveRedirectPipe(
   context: Context,
 ): Promise<ResolvedRedirectPipe | ExecuteResult> {
   function handleFileOpenError(outputPath: string, err: any) {
-    return context.error(`failed opening file for redirect (${outputPath}). ${err?.message ?? err}`);
+    return context.error(`failed opening file for redirect (${outputPath}). ${errorToString(err)}`);
   }
 
   const toFd = resolveRedirectToFd(redirect, context);
@@ -891,6 +896,16 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
   return await executeCommandArgs(commandArgs, context);
 }
 
+function checkMapCwdNotExistsError(cwd: string, err: unknown) {
+  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
+    throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
+      cause: err,
+    });
+  } else {
+    throw err;
+  }
+}
+
 async function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
   // look for a registered command first
   const command = context.getCommand(commandArgs[0]);
@@ -909,24 +924,19 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     stdout: getStdioStringValue(context.stdout.kind),
     stderr: getStdioStringValue(context.stderr.kind),
   };
-  let p: Deno.ChildProcess;
+  let p: SpawnedChildProcess;
   const cwd = context.getCwd();
   try {
-    p = new Deno.Command(resolvedCommand.path, {
+    p = spawnCommand(resolvedCommand.path, {
       args: commandArgs.slice(1),
       cwd,
       env: context.getEnvVars(),
       clearEnv: true,
       ...pipeStringVals,
-    }).spawn();
+    });
   } catch (err) {
-    if (err.code === "ENOENT" && !fs.existsSync(cwd)) {
-      throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
-        cause: err,
-      });
-    } else {
-      throw err;
-    }
+    // Deno throws this sync, Node.js throws it async
+    throw checkMapCwdNotExistsError(cwd, err);
   }
   const listener = (signal: Deno.Signal) => p.kill(signal);
   context.signal.addListener(listener);
@@ -940,7 +950,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         return;
       }
 
-      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${err?.message ?? err}`);
+      const maybePromise = context.stderr.writeLine(`stdin pipe broken. ${errorToString(err)}`);
       if (maybePromise != null) {
         await maybePromise;
       }
@@ -955,14 +965,18 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
       }
     });
   try {
+    // don't abort stdout and stderr reads... ensure all of stdout/stderr is
+    // read in case the process exits before this finishes
     const readStdoutTask = pipeStringVals.stdout === "piped"
-      ? readStdOutOrErr(p.stdout, context.stdout)
+      ? readStdOutOrErr(p.stdout(), context.stdout)
       : Promise.resolve();
     const readStderrTask = pipeStringVals.stderr === "piped"
-      ? readStdOutOrErr(p.stderr, context.stderr)
+      ? readStdOutOrErr(p.stderr(), context.stderr)
       : Promise.resolve();
-    const [status] = await Promise.all([
-      p.status,
+    const [exitCode] = await Promise.all([
+      p.waitExitCode()
+        // for node.js, which throws this async
+        .catch((err) => Promise.reject(checkMapCwdNotExistsError(cwd, err))),
       readStdoutTask,
       readStderrTask,
     ]);
@@ -972,7 +986,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
         kind: "exit",
       };
     } else {
-      return { code: status.code };
+      return { code: exitCode };
     }
   } finally {
     completeController.abort();
@@ -982,13 +996,14 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     await stdinPromise;
   }
 
-  async function writeStdin(stdin: CommandPipeReader, p: Deno.ChildProcess, signal: AbortSignal) {
+  async function writeStdin(stdin: CommandPipeReader, p: SpawnedChildProcess, signal: AbortSignal) {
     if (typeof stdin === "string") {
       return;
     }
-    await pipeReaderToWritable(stdin, p.stdin, signal);
+    const processStdin = p.stdin();
+    await pipeReaderToWritable(stdin, processStdin, signal);
     try {
-      await p.stdin.close();
+      await processStdin.close();
     } catch {
       // ignore
     }
@@ -1000,7 +1015,7 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     }
     // don't abort... ensure all of stdout/stderr is read in case the process
     // exits before this finishes
-    await pipeReadableToWriterSync(readable, writer, new AbortController().signal);
+    await pipeReadableToWriterSync(readable, writer, neverAbortedSignal);
   }
 
   function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
@@ -1040,24 +1055,6 @@ async function pipeReaderToWritable(reader: Reader, writable: WritableStream<Uin
     }
   } finally {
     await writer.close();
-  }
-}
-
-async function pipeReadableToWriterSync(
-  readable: ReadableStream<Uint8Array>,
-  writer: ShellPipeWriter,
-  signal: AbortSignal | KillSignal,
-) {
-  const reader = readable.getReader();
-  while (!signal.aborted) {
-    const result = await reader.read();
-    if (result.done) {
-      break;
-    }
-    const maybePromise = writer.writeAll(result.value);
-    if (maybePromise) {
-      await maybePromise;
-    }
   }
 }
 

@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { ExecuteResult, getAbortedResult } from "../result.ts";
 
 export async function sleepCommand(context: CommandContext): Promise<ExecuteResult> {
@@ -26,7 +27,7 @@ export async function sleepCommand(context: CommandContext): Promise<ExecuteResu
     }
     return { code: 0 };
   } catch (err) {
-    return context.error(`sleep: ${err?.message ?? err}`);
+    return context.error(`sleep: ${errorToString(err)}`);
   }
 }
 

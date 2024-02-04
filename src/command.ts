@@ -13,7 +13,7 @@ import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
-import { Box, delayToMs, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
@@ -1205,7 +1205,7 @@ function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
   }
 }
 
-function getSignalAbortCode(signal: Deno.Signal) {
+export function getSignalAbortCode(signal: Deno.Signal) {
   // consider the command aborted if the signal is any one of these
   switch (signal) {
     case "SIGTERM":
@@ -1304,7 +1304,7 @@ function templateInner(
               } catch (err) {
                 throw new Error(
                   `Error getting ReadableStream from function at ` +
-                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
                 );
               }
             });
@@ -1354,7 +1354,7 @@ function templateInner(
               } catch (err) {
                 throw new Error(
                   `Error getting WritableStream from function at ` +
-                    `expression ${i + 1}/${exprsCount}. ${err?.message ?? err}`,
+                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
                 );
               }
             });
@@ -1372,7 +1372,7 @@ function templateInner(
         const startMessage = exprsCount === 1
           ? "Failed resolving expression in command."
           : `Failed resolving expression ${i + 1}/${exprsCount} in command.`;
-        throw new Error(`${startMessage} ${err?.message ?? err}`);
+        throw new Error(`${startMessage} ${errorToString(err)}`);
       }
     }
   }

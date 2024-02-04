@@ -1,5 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
-import { resolvePath } from "../common.ts";
+import { errorToString, resolvePath } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 
 export async function cdCommand(context: CommandContext): Promise<ExecuteResult> {
@@ -13,7 +13,7 @@ export async function cdCommand(context: CommandContext): Promise<ExecuteResult>
       }],
     };
   } catch (err) {
-    return context.error(`cd: ${err?.message ?? err}`);
+    return context.error(`cd: ${errorToString(err)}`);
   }
 }
 

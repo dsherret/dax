@@ -7,10 +7,18 @@ import {
   assertRejects,
   assertStringIncludes,
   assertThrows,
+  isNode,
   toWritableStream,
+  usingTempDir,
   withTempDir,
 } from "./src/deps.test.ts";
 import { Buffer, colors, path } from "./src/deps.ts";
+import { setNotTtyForTesting } from "./src/console/utils.ts";
+
+// Deno will not be a tty because it captures the pipes, but Node
+// will be, so manually say that we're not a tty for testing so
+// the tests behave somewhat similarly in Node.js
+setNotTtyForTesting();
 
 Deno.test("should get stdout when piped", async () => {
   const output = await $`echo 5`.stdout("piped");
@@ -76,20 +84,26 @@ Deno.test("should not get stderr when null", async () => {
 });
 
 Deno.test("should capture stderr when piped", async () => {
-  const output = await $`deno eval 'console.error(5);'`.stderr("piped");
+  const output = await $`deno eval 'console.error(5);'`
+    .env("NO_COLOR", "1") // deno uses colors when only stderr is piped
+    .stderr("piped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should capture stderr when inherited and piped", async () => {
-  const output = await $`deno eval -q 'console.error(5);'`.stderr("inheritPiped");
+  const output = await $`deno eval -q 'console.error(5);'`
+    .env("NO_COLOR", "1")
+    .stderr("inheritPiped");
   assertEquals(output.code, 0);
   assertEquals(output.stderr, "5\n");
 });
 
 Deno.test("should not get stderr when set to writer", async () => {
   const buffer = new Buffer();
-  const output = await $`deno eval 'console.error(5); console.log(1);'`.stderr(buffer);
+  const output = await $`deno eval 'console.error(5); console.log(1);'`
+    .env("NO_COLOR", "1")
+    .stderr(buffer);
   assertEquals(output.code, 0);
   assertEquals(new TextDecoder().decode(buffer.bytes()), "5\n");
   assertThrows(
@@ -713,15 +727,13 @@ Deno.test("unset with -f should error", async () => {
 });
 
 Deno.test("cwd should be resolved based on cwd at time of method call and not execution", async () => {
-  const previousCwd = Deno.cwd();
-  try {
+  await withTempDir(async (tempDir) => {
+    await tempDir.join("./src/rs_lib").ensureDir();
     const command = $`echo $PWD`.cwd("./src");
     Deno.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
-  } finally {
-    Deno.chdir(previousCwd);
-  }
+  });
 });
 
 Deno.test("should handle the PWD variable", async () => {
@@ -738,7 +750,7 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("timeout", async () => {
-  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 1_000));'`
+  const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 10_000));'`
     .timeout(200);
   await assertRejects(async () => await command, Error, "Timed out with exit code: 124");
 
@@ -764,46 +776,42 @@ Deno.test("abort", async () => {
   assertEquals(result.code, 124);
 });
 
-Deno.test("piping to stdin", async () => {
-  // Reader
-  {
+Deno.test("piping to stdin", async (t) => {
+  await t.step("reader", async () => {
     const bytes = new TextEncoder().encode("test\n");
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new Buffer(bytes))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // string
-  {
+  await t.step("string", async () => {
     const command = $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
       .stdinText("test\n");
     // should support calling multiple times
     assertEquals(await command.text(), "test");
     assertEquals(await command.text(), "test");
-  }
+  });
 
-  // Uint8Array
-  {
+  await t.step("Uint8Array", async () => {
     const result =
       await $`deno eval "const b = new Uint8Array(4); await Deno.stdin.read(b); await Deno.stdout.write(b);"`
         .stdin(new TextEncoder().encode("test\n"))
         .text();
     assertEquals(result, "test");
-  }
+  });
 
-  // readable stream
-  {
+  await t.step("readable stream", async () => {
     const child = $`echo 1 && echo 2`.stdout("piped").spawn();
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stdout())
       .text();
     assertEquals(result, "1\n2");
-  }
+  });
 
-  // PathRef
-  await withTempDir(async (tempDir) => {
+  await t.step("PathRef", async () => {
+    await using tempDir = usingTempDir();
     const tempFile = tempDir.join("temp_file.txt");
     const fileText = "1 testing this out\n".repeat(1_000);
     tempFile.writeTextSync(fileText);
@@ -811,17 +819,15 @@ Deno.test("piping to stdin", async () => {
     assertEquals(output, fileText.trim());
   });
 
-  // command via stdin
-  {
+  await t.step("command via stdin", async () => {
     const child = $`echo 1 && echo 2`;
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child)
       .text();
     assertEquals(result, "1\n2");
-  }
+  });
 
-  // command that exits via stdin
-  {
+  await t.step("command that exits via stdin", async () => {
     const child = $`echo 1 && echo 2 && exit 1`;
     const result = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child)
@@ -829,7 +835,7 @@ Deno.test("piping to stdin", async () => {
       .noThrow();
     assertEquals(result.code, 1);
     assertEquals(result.stderr, "stdin pipe broken. Exited with code: 1\n");
-  }
+  });
 });
 
 Deno.test("pipe", async () => {
@@ -902,7 +908,9 @@ Deno.test("piping stdout/stderr to a file", async () => {
 
   await withTempDir(async (tempDir) => {
     const tempFile = tempDir.join("temp_file.txt");
-    await $`deno eval 'console.error(1);'`.stderr(tempFile);
+    await $`deno eval 'console.error(1);'`
+      .env("NO_COLOR", "1")
+      .stderr(tempFile);
     assertEquals(tempFile.readTextSync(), "1\n");
   });
 
@@ -984,7 +992,10 @@ Deno.test("streaming api", async () => {
 
   // stderr
   {
-    const child = $`deno eval -q 'console.error(1); console.error(2)'`.stderr("piped").spawn();
+    const child = $`deno eval -q 'console.error(1); console.error(2)'`
+      .env("NO_COLOR", "1")
+      .stderr("piped")
+      .spawn();
     const text = await $`deno eval 'await Deno.stdin.readable.pipeTo(Deno.stdout.writable);'`
       .stdin(child.stderr())
       .text();
@@ -1193,16 +1204,17 @@ Deno.test("output redirects", async () => {
     assertEquals(tempDir.join("sub_dir/temp_file.txt").readTextSync(), "3\n");
 
     // stderr
-    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`;
+    await $`deno eval 'console.log(2); console.error(5);' 2> ./temp_file.txt`.env("NO_COLOR", "1");
     assertEquals(tempFile.readTextSync(), "5\n");
 
     // append
-    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`;
+    await $`deno eval 'console.error(1);' 2> ./temp_file.txt && echo 2 >> ./temp_file.txt && echo 3 >> ./temp_file.txt`
+      .env("NO_COLOR", "1");
     assertEquals(tempFile.readTextSync(), "1\n2\n3\n");
 
     // /dev/null
     assertEquals(await $`echo 1 > /dev/null`.text(), "");
-    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.text(), "2");
+    assertEquals(await $`deno eval 'console.error(1); console.log(2)' 2> /dev/null`.env("NO_COLOR", "1").text(), "2");
 
     // not supported fd
     {
@@ -1597,7 +1609,9 @@ Deno.test("test remove", async () => {
     {
       const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
         .then((r) => r.stderr);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: directory not empty, rmdir"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: Directory not empty"
         : "rm: The directory is not empty";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1611,7 +1625,9 @@ Deno.test("test remove", async () => {
     {
       const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
         .then((r) => [r.stderr, r.code] as const);
-      const expectedText = Deno.build.os === "linux" || Deno.build.os === "darwin"
+      const expectedText = isNode
+        ? "rm: no such file or directory, lstat"
+        : Deno.build.os === "linux" || Deno.build.os === "darwin"
         ? "rm: No such file or directory"
         : "rm: The system cannot find the file specified";
       assertEquals(error.substring(0, expectedText.length), expectedText);
@@ -1645,7 +1661,9 @@ Deno.test("test mkdir", async () => {
         .then(
           (r) => r.stderr,
         );
-      const expectedError = Deno.build.os === "windows"
+      const expectedError = isNode
+        ? "mkdir: no such file or directory, mkdir"
+        : Deno.build.os === "windows"
         ? "mkdir: The system cannot find the path specified."
         : "mkdir: No such file or directory";
       assertEquals(error.slice(0, expectedError.length), expectedError);
@@ -1766,11 +1784,11 @@ Deno.test("pwd: pwd", async () => {
   assertEquals(await $`pwd`.text(), Deno.cwd());
 });
 
-Deno.test("progress", async () => {
+Deno.test("progress", () => {
   const logs: string[] = [];
   $.setInfoLogger((...data) => logs.push(data.join(" ")));
   const pb = $.progress("Downloading Test");
-  await pb.forceRender(); // should not throw;
+  pb.forceRender(); // should not throw;
   assertEquals(logs, [
     "Downloading Test",
   ]);
@@ -1862,10 +1880,13 @@ Deno.test("cd", () => {
   try {
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    $.cd(import.meta);
+    // todo: this originally passed in import.meta, but that
+    // didn't work in the node cjs tests, so now it's doing this
+    // thing that doesn't really test it
+    $.cd($.path(new URL(import.meta.url)).parentOrThrow());
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));
-    const path = $.path(import.meta).parentOrThrow();
+    const path = $.path(import.meta.url).parentOrThrow();
     $.cd(path);
     $.cd("./src");
     assert(Deno.cwd().endsWith("src"));

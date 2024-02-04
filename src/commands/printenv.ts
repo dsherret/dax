@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
@@ -25,7 +26,7 @@ export function printEnvCommand(context: CommandContext): ExecuteResult | Promis
 }
 
 function handleError(context: CommandContext, err: any): ExecuteResult | Promise<ExecuteResult> {
-  return context.error(`printenv: ${err?.message ?? err}`);
+  return context.error(`printenv: ${errorToString(err)}`);
 }
 
 /**

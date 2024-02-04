@@ -95,6 +95,11 @@ export class PathRef {
     return `PathRef("${this.#path}")`;
   }
 
+  /** @internal */
+  [Symbol.for("nodejs.util.inspect.custom")](): string {
+    return `PathRef("${this.#path}")`;
+  }
+
   /** Gets the string representation of this path. */
   toString(): string {
     return this.#path;

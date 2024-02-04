@@ -2,6 +2,7 @@ import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 import { path as pathUtils } from "../deps.ts";
+import { errorToString } from "../common.ts";
 
 interface CatFlags {
   paths: string[];
@@ -14,7 +15,7 @@ export async function catCommand(
     const code = await executeCat(context);
     return { code };
   } catch (err) {
-    return context.error(`cat: ${err?.message ?? err}`);
+    return context.error(`cat: ${errorToString(err)}`);
   }
 }
 
@@ -60,7 +61,7 @@ async function executeCat(context: CommandContext) {
         }
         exitCode = context.signal.abortedExitCode ?? 0;
       } catch (err) {
-        const maybePromise = context.stderr.writeLine(`cat ${path}: ${err?.message ?? err}`);
+        const maybePromise = context.stderr.writeLine(`cat ${path}: ${errorToString(err)}`);
         if (maybePromise instanceof Promise) {
           await maybePromise;
         }

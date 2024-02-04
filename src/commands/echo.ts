@@ -1,4 +1,5 @@
 import { CommandContext } from "../command_handler.ts";
+import { errorToString } from "../common.ts";
 import { ExecuteResult } from "../result.ts";
 
 export function echoCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
@@ -15,5 +16,5 @@ export function echoCommand(context: CommandContext): ExecuteResult | Promise<Ex
 }
 
 function handleFailure(context: CommandContext, err: any) {
-  return context.error(`echo: ${err?.message ?? err}`);
+  return context.error(`echo: ${errorToString(err)}`);
 }

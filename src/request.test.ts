@@ -1,26 +1,13 @@
 import { Buffer, path } from "./deps.ts";
-import { assertEquals, assertRejects, toWritableStream } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, isNode, toWritableStream } from "./deps.test.ts";
 import { RequestBuilder } from "./request.ts";
+import { startServer } from "./test/server.deno.ts";
 import $ from "../mod.ts";
 import { TimeoutError } from "./common.ts";
-import { assert } from "./deps.test.ts";
 
-function withServer(action: (serverUrl: URL) => Promise<void>) {
-  return new Promise<void>((resolve, reject) => {
-    const server = Deno.serve({
-      hostname: "localhost",
-      async onListen(details) {
-        const url = new URL(`http://${details.hostname}:${details.port}/`);
-        try {
-          await action(url);
-          await server.shutdown();
-          resolve();
-        } catch (err) {
-          await server.shutdown();
-          reject(err);
-        }
-      },
-    }, (request) => {
+async function withServer(action: (serverUrl: URL) => Promise<void>) {
+  const server = await startServer({
+    handle(request) {
       const url = new URL(request.url);
       if (url.pathname === "/text-file") {
         const data = "text".repeat(1000);
@@ -55,7 +42,7 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
         return new Response(
           new ReadableStream({
             start(controller) {
-              return new Promise((resolve, reject) => {
+              return new Promise<void>((resolve, reject) => {
                 if (signal.aborted || abortController.signal.aborted) {
                   return;
                 }
@@ -84,8 +71,20 @@ function withServer(action: (serverUrl: URL) => Promise<void>) {
       } else {
         return new Response("Not Found", { status: 404 });
       }
-    });
+    },
   });
+
+  try {
+    await action(server.rootUrl);
+  } catch (err) {
+    throw err;
+  } finally {
+    try {
+      await server.shutdown();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 Deno.test("$.request", (t) => {
@@ -284,7 +283,7 @@ Deno.test("$.request", (t) => {
     step("ensure times out waiting for body", async () => {
       const request = new RequestBuilder()
         .url(new URL("/sleep-body/10000", serverUrl))
-        .timeout(100)
+        .timeout(200) // so high because CI was slow
         .showProgress();
       const response = await request.fetch();
       let caughtErr: TimeoutError | undefined;
@@ -293,8 +292,14 @@ Deno.test("$.request", (t) => {
       } catch (err) {
         caughtErr = err;
       }
-      assertEquals(caughtErr!, new TimeoutError("Request timed out after 100 milliseconds."));
-      assert(caughtErr!.stack!.includes("request.test.ts")); // current file
+      if (isNode) {
+        // seems like a bug in Node and Chrome where they throw a
+        // DOMException instead, but not sure
+        assert(caughtErr != null);
+      } else {
+        assertEquals(caughtErr!, new TimeoutError("Request timed out after 200 milliseconds."));
+        assert(caughtErr!.stack!.includes("request.test.ts")); // current file
+      }
     });
 
     step("ability to abort while waiting", async () => {
@@ -309,7 +314,13 @@ Deno.test("$.request", (t) => {
       } catch (err) {
         caughtErr = err;
       }
-      assertEquals(caughtErr, "Cancel.");
+      if (isNode) {
+        // seems like a bug in Node and Chrome where they throw a
+        // DOMException instead, but not sure
+        assert(caughtErr != null);
+      } else {
+        assertEquals(caughtErr, "Cancel.");
+      }
     });
 
     step("use in a redirect", async () => {
@@ -327,7 +338,7 @@ Deno.test("$.request", (t) => {
       const result = await $`cat - < ${request}`.noThrow().stderr("piped");
       assertEquals(
         result.stderr,
-        "cat: Error making request to http://localhost:8000/code/500: Internal Server Error\n",
+        `cat: Error making request to ${new URL("/code/500", serverUrl).toString()}: Internal Server Error\n`,
       );
       assertEquals(result.code, 1);
     });

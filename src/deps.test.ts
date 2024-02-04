@@ -10,23 +10,29 @@ export {
 } from "https://deno.land/std@0.213.0/assert/mod.ts";
 export { toWritableStream } from "https://deno.land/std@0.213.0/io/to_writable_stream.ts";
 export { toReadableStream } from "https://deno.land/std@0.213.0/io/to_readable_stream.ts";
+export { isNode } from "https://deno.land/x/which_runtime@0.2.0/mod.ts";
 
 /**
  * Creates a temporary directory, changes the cwd to this directory,
  * then cleans up and restores the cwd when complete.
  */
 export async function withTempDir(action: (path: PathRef) => Promise<void> | void) {
+  await using dirPath = usingTempDir();
+  await action(createPathRef(dirPath).resolve());
+}
+
+export function usingTempDir(): PathRef & AsyncDisposable {
   const originalDirPath = Deno.cwd();
-  const dirPath = await Deno.makeTempDir();
+  const dirPath = Deno.makeTempDirSync();
   Deno.chdir(dirPath);
-  try {
-    await action(createPathRef(dirPath).resolve());
-  } finally {
+  const pathRef = createPathRef(dirPath).resolve();
+  (pathRef as any)[Symbol.asyncDispose] = async () => {
     try {
       await Deno.remove(dirPath, { recursive: true });
     } catch {
       // ignore
     }
     Deno.chdir(originalDirPath);
-  }
+  };
+  return pathRef as PathRef & AsyncDisposable;
 }
