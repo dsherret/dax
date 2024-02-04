@@ -35,6 +35,17 @@ export const symbols = {
   readable: Symbol.for("dax.readableStream"),
 };
 
+/** A timeout error. */
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+
+  get name() {
+    return "TimeoutError";
+  }
+}
+
 /**
  * Delay used for certain actions.
  *

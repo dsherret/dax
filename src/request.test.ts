@@ -3,6 +3,8 @@ import { assert, assertEquals, assertRejects, isNode, toWritableStream } from ".
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 import $ from "../mod.ts";
+import { TimeoutError } from "./common.ts";
+import { assert } from "./deps.test.ts";
 
 async function withServer(action: (serverUrl: URL) => Promise<void>) {
   const server = await startServer({
@@ -285,13 +287,14 @@ Deno.test("$.request", (t) => {
         .timeout(100)
         .showProgress();
       const response = await request.fetch();
-      let caughtErr: unknown;
+      let caughtErr: TimeoutError | undefined;
       try {
         await response.text();
       } catch (err) {
         caughtErr = err;
       }
-      assertEquals(caughtErr, "Request timed out after 100 milliseconds.");
+      assertEquals(caughtErr!, new TimeoutError("Request timed out after 100 milliseconds."));
+      assert(caughtErr!.stack!.includes("request.test.ts")); // current file
     });
 
     step("ability to abort while waiting", async () => {

@@ -39,6 +39,7 @@ import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPathRef, PathRef } from "./src/path.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
+export { TimeoutError } from "./src/common.ts";
 export { FsFileWrapper, PathRef } from "./src/path.ts";
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export {
