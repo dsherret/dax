@@ -1,5 +1,3 @@
-import { ShellPipeWriter } from "../pipes.ts";
-
 export interface SpawnCommandOptions {
   args: string[];
   cwd: string;
@@ -11,9 +9,9 @@ export interface SpawnCommandOptions {
 }
 
 export interface SpawnedChildProcess {
-  getWritableStdin(): WritableStream;
-  pipeStdoutTo(writer: ShellPipeWriter, signal: AbortSignal): Promise<void>;
-  pipeStderrTo(writer: ShellPipeWriter, signal: AbortSignal): Promise<void>;
+  stdin(): WritableStream;
+  stdout(): ReadableStream;
+  stderr(): ReadableStream;
   kill(signo?: Deno.Signal): void;
   waitExitCode(): Promise<number>;
 }

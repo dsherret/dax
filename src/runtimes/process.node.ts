@@ -1,6 +1,5 @@
 import * as cp from "node:child_process";
-import { Writable } from "node:stream";
-import { ShellPipeWriter } from "../pipes.ts";
+import { Readable, Writable } from "node:stream";
 import { SpawnCommand } from "./process.common.ts";
 import { getSignalAbortCode } from "../command.ts";
 
@@ -39,7 +38,7 @@ export const spawnCommand: SpawnCommand = (path, options) => {
     exitResolvers.reject(err);
   });
   return {
-    getWritableStdin() {
+    stdin() {
       return Writable.toWeb(child.stdin!);
     },
     kill(signo?: Deno.Signal) {
@@ -49,30 +48,11 @@ export const spawnCommand: SpawnCommand = (path, options) => {
     waitExitCode() {
       return exitResolvers.promise;
     },
-    async pipeStdoutTo(writer: ShellPipeWriter, signal: AbortSignal) {
-      const stdout = child.stdout!;
-      for await (const chunk of stdout) {
-        signal.throwIfAborted();
-
-        const uint8ArrayChunk = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-        const maybePromise = writer.writeAll(uint8ArrayChunk);
-        if (maybePromise instanceof Promise) {
-          await maybePromise;
-        }
-      }
+    stdout() {
+      return Readable.toWeb(child.stdout!) as ReadableStream;
     },
-    async pipeStderrTo(writer: ShellPipeWriter, signal: AbortSignal) {
-      // todo: consolidate with above
-      const stderr = child.stderr!;
-      for await (const chunk of stderr) {
-        signal.throwIfAborted();
-
-        const uint8ArrayChunk = new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-        const maybePromise = writer.writeAll(uint8ArrayChunk);
-        if (maybePromise instanceof Promise) {
-          await maybePromise;
-        }
-      }
+    stderr() {
+      return Readable.toWeb(child.stderr!) as ReadableStream;
     },
   };
 };

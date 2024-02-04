@@ -968,10 +968,10 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     // don't abort stdout and stderr reads... ensure all of stdout/stderr is
     // read in case the process exits before this finishes
     const readStdoutTask = pipeStringVals.stdout === "piped"
-      ? p.pipeStdoutTo(context.stdout, neverAbortedSignal)
+      ? readStdOutOrErr(p.stdout(), context.stdout)
       : Promise.resolve();
     const readStderrTask = pipeStringVals.stderr === "piped"
-      ? p.pipeStderrTo(context.stderr, neverAbortedSignal)
+      ? readStdOutOrErr(p.stderr(), context.stderr)
       : Promise.resolve();
     const [exitCode] = await Promise.all([
       p.waitExitCode()
@@ -1000,13 +1000,22 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
     if (typeof stdin === "string") {
       return;
     }
-    const processStdin = p.getWritableStdin();
+    const processStdin = p.stdin();
     await pipeReaderToWritable(stdin, processStdin, signal);
     try {
       await processStdin.close();
     } catch {
       // ignore
     }
+  }
+
+  async function readStdOutOrErr(readable: ReadableStream<Uint8Array>, writer: ShellPipeWriter) {
+    if (typeof writer === "string") {
+      return;
+    }
+    // don't abort... ensure all of stdout/stderr is read in case the process
+    // exits before this finishes
+    await pipeReadableToWriterSync(readable, writer, neverAbortedSignal);
   }
 
   function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
