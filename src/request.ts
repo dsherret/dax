@@ -1,4 +1,5 @@
 import { formatMillis, symbols } from "./common.ts";
+import { TimeoutError } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
 import { PathRef } from "./path.ts";
@@ -131,7 +132,12 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
 
   /** Fetches and gets the response. */
   fetch(): Promise<RequestResponse> {
-    return makeRequest(this.#getClonedState());
+    return makeRequest(this.#getClonedState()).catch((err) => {
+      if (err instanceof TimeoutError) {
+        Error.captureStackTrace(err, TimeoutError);
+      }
+      return Promise.reject(err);
+    });
   }
 
   /** Specifies the URL to send the request to. */
@@ -276,7 +282,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
     });
   }
 
-  /** Timeout the request after the specified delay. */
+  /** Timeout the request after the specified delay throwing a `TimeoutError`. */
   timeout(delay: Delay | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.timeout = delay == null ? undefined : delayToMs(delay);
@@ -502,16 +508,14 @@ export class RequestResponse {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async arrayBuffer(): Promise<ArrayBuffer> {
-    try {
+  arrayBuffer(): Promise<ArrayBuffer> {
+    return this.#withReturnHandling(async () => {
       if (this.#response.status === 404) {
         await this.#response.body?.cancel();
         return undefined!;
       }
       return this.#downloadResponse.arrayBuffer();
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+    });
   }
 
   /**
@@ -519,16 +523,14 @@ export class RequestResponse {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async blob(): Promise<Blob> {
-    try {
+  blob(): Promise<Blob> {
+    return this.#withReturnHandling(async () => {
       if (this.#response.status === 404) {
         await this.#response.body?.cancel();
         return undefined!;
       }
       return await this.#downloadResponse.blob();
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+    });
   }
 
   /**
@@ -536,16 +538,14 @@ export class RequestResponse {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async formData(): Promise<FormData> {
-    try {
+  formData(): Promise<FormData> {
+    return this.#withReturnHandling(async () => {
       if (this.#response.status === 404) {
         await this.#response.body?.cancel();
         return undefined!;
       }
       return await this.#downloadResponse.formData();
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+    });
   }
 
   /**
@@ -553,16 +553,14 @@ export class RequestResponse {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async json<TResult = any>(): Promise<TResult> {
-    try {
+  json<TResult = any>(): Promise<TResult> {
+    return this.#withReturnHandling(async () => {
       if (this.#response.status === 404) {
         await this.#response.body?.cancel();
         return undefined as any;
       }
       return await this.#downloadResponse.json();
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+    });
   }
 
   /**
@@ -570,8 +568,8 @@ export class RequestResponse {
    *
    * Note: Returns `undefined` when `.noThrow(404)` and status code is 404.
    */
-  async text(): Promise<string> {
-    try {
+  text(): Promise<string> {
+    return this.#withReturnHandling(async () => {
       if (this.#response.status === 404) {
         // most people don't need to bother with this and if they do, they will
         // need to opt-in with `noThrow()`. So just assert non-nullable
@@ -580,18 +578,12 @@ export class RequestResponse {
         return undefined!;
       }
       return await this.#downloadResponse.text();
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+    });
   }
 
   /** Pipes the response body to the provided writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
-    try {
-      await this.readable.pipeTo(dest, options);
-    } finally {
-      this.#abortController?.clearTimeout();
-    }
+  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
+    return this.#withReturnHandling(() => this.readable.pipeTo(dest, options));
   }
 
   /**
@@ -671,6 +663,22 @@ export class RequestResponse {
     }
     return body;
   }
+
+  async #withReturnHandling<T>(action: () => Promise<T>): Promise<T> {
+    try {
+      return await action();
+    } catch (err) {
+      if (err instanceof TimeoutError) {
+        // give the timeout error a better stack trace because
+        // otherwise it will have the stack where it was aborted
+        // which isn't very useful
+        Error.captureStackTrace(err);
+      }
+      throw err;
+    } finally {
+      this.#abortController.clearTimeout();
+    }
+  }
 }
 
 export async function makeRequest(state: RequestBuilderState) {
@@ -737,7 +745,7 @@ export async function makeRequest(state: RequestBuilderState) {
     const timeout = state.timeout;
     const controller = new AbortController();
     const timeoutId = setTimeout(
-      () => controller.abort(`Request timed out after ${formatMillis(timeout)}.`),
+      () => controller.abort(new TimeoutError(`Request timed out after ${formatMillis(timeout)}.`)),
       timeout,
     );
     return {
