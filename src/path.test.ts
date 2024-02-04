@@ -1,7 +1,6 @@
-import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows, isNode, withTempDir } from "./deps.test.ts";
 import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
-import { isNode } from "../npm/script/src/deps.test.js";
 
 Deno.test("create from path ref", () => {
   const path = createPathRef("src");
