@@ -31,7 +31,7 @@ import {
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
-import { PathRef } from "./path.ts";
+import { Path } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
 import { StreamFds } from "./shell.ts";
 import { symbols } from "./common.ts";
@@ -305,7 +305,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         state.stdin = reader;
       } else if (reader instanceof Uint8Array) {
         state.stdin = new Deferred(() => new Buffer(reader));
-      } else if (reader instanceof PathRef) {
+      } else if (reader instanceof Path) {
         state.stdin = new Deferred(async () => {
           const file = await reader.open();
           return file.readable;
@@ -416,11 +416,11 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** Sets the current working directory to use when executing this command. */
-  cwd(dirPath: string | URL | PathRef): CommandBuilder {
+  cwd(dirPath: string | URL | Path): CommandBuilder {
     return this.#newWithState((state) => {
       state.cwd = dirPath instanceof URL
         ? path.fromFileUrl(dirPath)
-        : dirPath instanceof PathRef
+        : dirPath instanceof Path
         ? dirPath.resolve().toString()
         : path.resolve(dirPath);
     });
@@ -869,7 +869,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
     function getOutputBuffer(inheritWriter: WriterSync, { kind, options }: ShellPipeWriterKindWithOptions) {
       if (typeof kind === "object") {
-        if (kind instanceof PathRef) {
+        if (kind instanceof Path) {
           const file = kind.openSync({ write: true, truncate: true, create: true });
           disposables.push(file);
           return file;
@@ -1252,7 +1252,7 @@ function templateInner(
         const expr = exprs[i];
         const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
         if (inputOrOutputRedirect === "<") {
-          if (expr instanceof PathRef) {
+          if (expr instanceof Path) {
             text += templateLiteralExprToString(expr, escape);
           } else if (typeof expr === "string") {
             handleReadableStream(() =>
@@ -1312,7 +1312,7 @@ function templateInner(
             throw new Error("Unsupported object provided to input redirect.");
           }
         } else if (inputOrOutputRedirect === ">") {
-          if (expr instanceof PathRef) {
+          if (expr instanceof Path) {
             text += templateLiteralExprToString(expr, escape);
           } else if (expr instanceof WritableStream) {
             handleWritableStream(() => expr);
