@@ -17,19 +17,8 @@ export { isNode } from "https://deno.land/x/which_runtime@0.2.0/mod.ts";
  * then cleans up and restores the cwd when complete.
  */
 export async function withTempDir(action: (path: PathRef) => Promise<void> | void) {
-  const originalDirPath = Deno.cwd();
-  const dirPath = await Deno.makeTempDir();
-  Deno.chdir(dirPath);
-  try {
-    await action(createPathRef(dirPath).resolve());
-  } finally {
-    try {
-      await Deno.remove(dirPath, { recursive: true });
-    } catch {
-      // ignore
-    }
-    Deno.chdir(originalDirPath);
-  }
+  await using dirPath = usingTempDir();
+  await action(createPathRef(dirPath).resolve());
 }
 
 export function usingTempDir(): PathRef & AsyncDisposable {

@@ -283,7 +283,7 @@ Deno.test("$.request", (t) => {
     step("ensure times out waiting for body", async () => {
       const request = new RequestBuilder()
         .url(new URL("/sleep-body/10000", serverUrl))
-        .timeout(100)
+        .timeout(200) // so high because CI was slow
         .showProgress();
       const response = await request.fetch();
       let caughtErr: TimeoutError | undefined;
@@ -297,7 +297,7 @@ Deno.test("$.request", (t) => {
         // DOMException instead, but not sure
         assert(caughtErr != null);
       } else {
-        assertEquals(caughtErr!, new TimeoutError("Request timed out after 100 milliseconds."));
+        assertEquals(caughtErr!, new TimeoutError("Request timed out after 200 milliseconds."));
         assert(caughtErr!.stack!.includes("request.test.ts")); // current file
       }
     });
