@@ -10,7 +10,6 @@ await build({
   outDir: "./npm",
   shims: {
     deno: true,
-    undici: true,
     custom: [{
       package: {
         name: "node:stream/web",
@@ -38,6 +37,26 @@ await build({
           typeOnly: true,
         },
       ],
+    }, {
+      package: {
+        name: "undici-types",
+      },
+      globalNames: [{
+        name: "BodyInit",
+        typeOnly: true,
+      }, {
+        name: "RequestCache",
+        typeOnly: true,
+      }, {
+        name: "RequestMode",
+        typeOnly: true,
+      }, {
+        name: "RequestRedirect",
+        typeOnly: true,
+      }, {
+        name: "ReferrerPolicy",
+        typeOnly: true,
+      }],
     }],
   },
   compilerOptions: {
@@ -59,8 +78,8 @@ await build({
     bugs: {
       url: "https://github.com/dsherret/dax/issues",
     },
-    "dependencies": {
-      "array-from-async": "3.0.0",
+    dependencies: {
+      "undici-types": "^5.26",
     },
     devDependencies: {
       "@types/node": "^20.11.9",
