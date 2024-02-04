@@ -1,4 +1,7 @@
-import { build, emptyDir } from "../../dnt/mod.ts";
+import {
+  build,
+  emptyDir,
+} from "https://raw.githubusercontent.com/denoland/dnt/2537df1c38851088bf1f504ae89dd7f037219f8b/mod.ts";
 
 await emptyDir("./npm");
 
