@@ -35,7 +35,6 @@ export function removeProgressBar(pb: RenderIntervalProgressBar) {
 }
 
 export function forceRender() {
-  console.log(isShowingProgressBars());
   if (!isShowingProgressBars()) {
     return;
   }

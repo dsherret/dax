@@ -10,6 +10,7 @@ export const startServer: StartServerHandler = (options) => {
         });
         const handlerResponse = await options.handle(webRequest);
         response.writeHead(handlerResponse.status);
+        response.flushHeaders();
         // todo: improve
         const body = await handlerResponse.arrayBuffer();
         response.end(new Uint8Array(body));

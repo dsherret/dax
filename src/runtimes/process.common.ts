@@ -1,4 +1,4 @@
-import { Reader, ShellPipeWriter } from "../pipes.ts";
+import { ShellPipeWriter } from "../pipes.ts";
 
 export interface SpawnCommandOptions {
   args: string[];

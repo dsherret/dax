@@ -16,6 +16,7 @@ await build({
         "ReadableStream",
         "WritableStream",
         "TextDecoderStream",
+        "TransformStream",
         {
           name: "ReadableStreamDefaultReader",
           typeOnly: true,

@@ -172,7 +172,7 @@ export interface ConsoleSize {
 export function safeConsoleSize(): ConsoleSize | undefined {
   try {
     return Deno.consoleSize();
-  } catch (err) {
+  } catch {
     return undefined;
   }
 }
