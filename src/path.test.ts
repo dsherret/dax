@@ -325,8 +325,8 @@ Deno.test("exists", async () => {
 });
 
 Deno.test("realpath", async () => {
-  await withTempDir(async () => {
-    let file = createPathRef("file").resolve();
+  await withTempDir(async (tempDir) => {
+    let file = tempDir.join("file").resolve();
     file.writeTextSync("");
     // need to do realPathSync for GH actions CI
     file = file.realPathSync();
