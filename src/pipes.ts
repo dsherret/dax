@@ -1,4 +1,4 @@
-import { type FsFileWrapper, PathRef } from "./path.ts";
+import { type FsFileWrapper, Path } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAll, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";
@@ -48,7 +48,7 @@ export type ShellPipeReaderKind =
   | Uint8Array
   | CommandBuilder
   | FsFileWrapper
-  | PathRef
+  | Path
   | RequestBuilder;
 /**
  * The behaviour to use for a shell pipe.
@@ -65,7 +65,7 @@ export type ShellPipeWriterKind =
   | WriterSync
   | WritableStream<Uint8Array>
   | FsFileWrapper
-  | PathRef;
+  | Path;
 
 export class NullPipeReader implements Reader {
   read(_p: Uint8Array): Promise<number | null> {

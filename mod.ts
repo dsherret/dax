@@ -36,11 +36,14 @@ import {
 import { colors, outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
-import { createPathRef, PathRef } from "./src/path.ts";
+import { createPath, Path } from "./src/path.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { TimeoutError } from "./src/common.ts";
-export { FsFileWrapper, PathRef } from "./src/path.ts";
+export { FsFileWrapper, Path } from "./src/path.ts";
+/** @deprecated Import `Path` instead. */
+const PathRef = Path;
+export { PathRef };
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export {
   CommandBuilder,
@@ -201,7 +204,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
     options?: Create$Options<TNewExtras>,
   ): $Type<Omit<TExtras, keyof TNewExtras> & TNewExtras>;
   /** Changes the directory of the current process. */
-  cd(path: string | URL | ImportMeta | PathRef): void;
+  cd(path: string | URL | ImportMeta | Path): void;
   /**
    * Escapes an argument for the shell when NOT using the template
    * literal.
@@ -259,9 +262,9 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /** Helper function for creating path references, which provide an easier way for
    * working with paths, directories, and files on the file system.
    *
-   * The function creates a new `PathRef` from a path or URL string, file URL, or for the current module.
+   * The function creates a new `Path` from a path or URL string, file URL, or for the current module.
    */
-  path: typeof createPathRef;
+  path: typeof createPath;
   /**
    * Logs with potential indentation (`$.logIndent`)
    * and output of commands or request responses.
@@ -541,11 +544,11 @@ async function withRetries<TReturn>(
   throw new Error(`Failed after ${opts.count} attempts.`);
 }
 
-function cd(path: string | URL | ImportMeta | PathRef) {
+function cd(path: string | URL | ImportMeta | Path) {
   if (typeof path === "string" || path instanceof URL) {
-    path = new PathRef(path);
-  } else if (!(path instanceof PathRef)) {
-    path = new PathRef(path satisfies ImportMeta).parentOrThrow();
+    path = new Path(path);
+  } else if (!(path instanceof Path)) {
+    path = new Path(path satisfies ImportMeta).parentOrThrow();
   }
   Deno.chdir(path.toString());
 }
@@ -581,7 +584,7 @@ function buildInitial$State<TExtras extends ExtrasObject>(
 }
 
 const helperObject = {
-  path: createPathRef,
+  path: createPath,
   cd,
   escapeArg,
   stripAnsi(text: string) {

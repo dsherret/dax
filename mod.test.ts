@@ -1,5 +1,14 @@
 import { readAll, readerFromStreamReader } from "./src/deps.ts";
-import $, { build$, CommandBuilder, CommandContext, CommandHandler, KillSignal, KillSignalController } from "./mod.ts";
+import $, {
+  build$,
+  CommandBuilder,
+  CommandContext,
+  CommandHandler,
+  KillSignal,
+  KillSignalController,
+  Path,
+  PathRef,
+} from "./mod.ts";
 import {
   assert,
   assertEquals,
@@ -810,7 +819,7 @@ Deno.test("piping to stdin", async (t) => {
     assertEquals(result, "1\n2");
   });
 
-  await t.step("PathRef", async () => {
+  await t.step("Path", async () => {
     await using tempDir = usingTempDir();
     const tempFile = tempDir.join("temp_file.txt");
     const fileText = "1 testing this out\n".repeat(1_000);
@@ -2097,6 +2106,12 @@ Deno.test("ensure KillSignalController readme example works", async () => {
 Deno.test("should support empty quoted string", async () => {
   const output = await $`echo '' test ''`.text();
   assertEquals(output, " test ");
+});
+
+Deno.test("esnure deprecated PathRef export still works", () => {
+  const path = new PathRef("hello");
+  assert(path instanceof Path);
+  assert(path instanceof PathRef);
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {

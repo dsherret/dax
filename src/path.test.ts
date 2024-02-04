@@ -1,41 +1,41 @@
 import { assert, assertEquals, assertRejects, assertThrows, isNode, withTempDir } from "./deps.test.ts";
-import { createPathRef, PathRef } from "./path.ts";
+import { createPath, Path } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
 
 Deno.test("create from path ref", () => {
-  const path = createPathRef("src");
-  const path2 = createPathRef(path);
-  const path3 = new PathRef(path);
+  const path = createPath("src");
+  const path2 = createPath(path);
+  const path3 = new Path(path);
   assertEquals(path, path2);
   assertEquals(path.toString(), path3.toString());
 });
 
 Deno.test("custom inspect", () => {
-  const path = createPathRef("src");
-  assertEquals(Deno.inspect(path), 'PathRef("src")');
+  const path = createPath("src");
+  assertEquals(Deno.inspect(path), 'Path("src")');
 });
 
 Deno.test("equals", () => {
-  const path = createPathRef("src");
-  assert(path.equals(createPathRef("src")));
-  assert(!path.equals(createPathRef("src2")));
-  assert(path.equals(createPathRef("src").resolve()));
+  const path = createPath("src");
+  assert(path.equals(createPath("src")));
+  assert(!path.equals(createPath("src2")));
+  assert(path.equals(createPath("src").resolve()));
 });
 
 Deno.test("join", () => {
-  const path = createPathRef("src");
+  const path = createPath("src");
   const newPath = path.join("other", "test");
   assertEquals(path.toString(), "src");
   assertEquals(newPath.toString(), stdPath.join("src", "other", "test"));
 });
 
 Deno.test("resolve", () => {
-  const path = createPathRef("src").resolve();
+  const path = createPath("src").resolve();
   assertEquals(path.toString(), stdPath.resolve("src"));
 });
 
 Deno.test("normalize", () => {
-  const path = createPathRef("src").normalize();
+  const path = createPath("src").normalize();
   assertEquals(path.toString(), stdPath.normalize("src"));
 });
 
@@ -61,8 +61,8 @@ Deno.test("isFile", async () => {
 
 Deno.test("isSymlink", async () => {
   await withTempDir(() => {
-    const file = createPathRef("file.txt").writeTextSync("");
-    const symlinkFile = createPathRef("test.txt");
+    const file = createPath("file.txt").writeTextSync("");
+    const symlinkFile = createPath("test.txt");
     symlinkFile.createSymlinkToSync(file, { kind: "absolute" });
     assert(symlinkFile.isSymlinkSync());
     assert(!file.isSymlinkSync());
@@ -70,31 +70,31 @@ Deno.test("isSymlink", async () => {
 });
 
 Deno.test("isAbsolute", () => {
-  assert(!createPathRef("src").isAbsolute());
-  assert(createPathRef("src").resolve().isAbsolute());
+  assert(!createPath("src").isAbsolute());
+  assert(createPath("src").resolve().isAbsolute());
 });
 
 Deno.test("isRelative", () => {
-  assert(createPathRef("src").isRelative());
-  assert(!createPathRef("src").resolve().isRelative());
+  assert(createPath("src").isRelative());
+  assert(!createPath("src").resolve().isRelative());
 });
 
 Deno.test("parent", () => {
-  const parent = createPathRef("src").parent()!;
+  const parent = createPath("src").parent()!;
   assertEquals(parent.toString(), Deno.cwd());
   const lastParent = Array.from(parent.ancestors()).at(-1)!;
   assertEquals(lastParent.parent(), undefined);
 });
 
 Deno.test("parentOrThrow", () => {
-  const parent = createPathRef("src").parentOrThrow();
+  const parent = createPath("src").parentOrThrow();
   assertEquals(parent.toString(), Deno.cwd());
   const lastParent = Array.from(parent.ancestors()).at(-1)!;
   assertThrows(() => lastParent.parentOrThrow(), Error);
 });
 
 Deno.test("ancestors", () => {
-  const srcDir = createPathRef("src").resolve();
+  const srcDir = createPath("src").resolve();
   let lastDir = srcDir;
   for (const ancestor of srcDir.ancestors()) {
     assert(ancestor.toString().length < lastDir.toString().length);
@@ -104,7 +104,7 @@ Deno.test("ancestors", () => {
 
 Deno.test("components", () => {
   {
-    const srcDir = createPathRef("src").resolve();
+    const srcDir = createPath("src").resolve();
     const components = Array.from(srcDir.components());
     for (const component of components) {
       assert(!component.includes("/"));
@@ -117,25 +117,25 @@ Deno.test("components", () => {
     assertEquals(components.length, expectedLength);
   }
   {
-    const srcDir = createPathRef("../src");
+    const srcDir = createPath("../src");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["..", "src"]);
   }
   {
-    const srcDir = createPathRef("./src");
+    const srcDir = createPath("./src");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["src"]);
   }
   // trailing slash
   {
-    const srcDir = createPathRef("./src/");
+    const srcDir = createPath("./src/");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["src"]);
   }
 
   // current dir
   {
-    const srcDir = createPathRef(".");
+    const srcDir = createPath(".");
     const components = Array.from(srcDir.components());
     // todo: is this correct?
     assertEquals(components, ["."]);
@@ -143,14 +143,14 @@ Deno.test("components", () => {
 
   // empty dir
   {
-    const srcDir = createPathRef("src/test//asdf");
+    const srcDir = createPath("src/test//asdf");
     const components = Array.from(srcDir.components());
     assertEquals(components, ["src", "test", "asdf"]); // does the same as rust
   }
 
   // windows prefix
   {
-    const prefixed = createPathRef("\\\\?\\testing\\this\\out");
+    const prefixed = createPath("\\\\?\\testing\\this\\out");
     const components = Array.from(prefixed.components());
     // todo: is this correct?
     assertEquals(components, ["\\\\?\\testing", "this", "out"]);
@@ -159,8 +159,8 @@ Deno.test("components", () => {
 
 Deno.test("startsWith", () => {
   {
-    const srcDir = createPathRef("src").resolve();
-    const thisDir = createPathRef(".").resolve();
+    const srcDir = createPath("src").resolve();
+    const thisDir = createPath(".").resolve();
     assert(srcDir.startsWith(thisDir));
     assert(!thisDir.startsWith(srcDir));
   }
@@ -168,33 +168,33 @@ Deno.test("startsWith", () => {
 
 Deno.test("endsWith", () => {
   {
-    const srcDir = createPathRef("src").resolve();
-    const thisDir = createPathRef(".").resolve();
+    const srcDir = createPath("src").resolve();
+    const thisDir = createPath(".").resolve();
     assert(!srcDir.endsWith(thisDir));
     assert(!thisDir.endsWith(srcDir));
     assert(srcDir.endsWith("src"));
   }
   // nested
   {
-    const nestedDir = createPathRef("src/nested");
+    const nestedDir = createPath("src/nested");
     assert(nestedDir.endsWith("src/nested"));
   }
   // trailing slash
   {
-    const nestedDir = createPathRef("src/nested/");
+    const nestedDir = createPath("src/nested/");
     assert(nestedDir.endsWith("src/nested"));
     assert(nestedDir.endsWith("src/nested/"));
   }
   // the same, then not
   {
-    const nestedDir = createPathRef("src/nested").resolve();
+    const nestedDir = createPath("src/nested").resolve();
     assert(!nestedDir.endsWith("test/src/nested"));
   }
 });
 
 Deno.test("resolve", () => {
   // there are more tests elsewhere
-  const srcDir = createPathRef("src").resolve();
+  const srcDir = createPath("src").resolve();
   const assetsDir = srcDir.resolve("assets");
   assert(assetsDir.toString().endsWith("assets"));
 
@@ -204,22 +204,22 @@ Deno.test("resolve", () => {
 
 Deno.test("known resolved", () => {
   // there are more tests elsewhere
-  const srcDir = createPathRef("src").resolve();
-  const newPath = createPathRef(srcDir.toString());
+  const srcDir = createPath("src").resolve();
+  const newPath = createPath(srcDir.toString());
 
   // should be the same object since the existing path was resolved
   assert(newPath === newPath.resolve());
 });
 
 Deno.test("stat", async () => {
-  const stat1 = await createPathRef("src").stat();
+  const stat1 = await createPath("src").stat();
   assertEquals(stat1?.isDirectory, true);
-  const stat2 = await createPathRef("nonExistent").stat();
+  const stat2 = await createPath("nonExistent").stat();
   assertEquals(stat2, undefined);
 
   await withTempDir(async () => {
-    const tempFile = createPathRef("temp.txt").writeTextSync("");
-    const symlinkFile = createPathRef("other.txt");
+    const tempFile = createPath("temp.txt").writeTextSync("");
+    const symlinkFile = createPath("other.txt");
     await symlinkFile.createSymlinkTo(tempFile, { kind: "absolute" });
     const stat3 = await symlinkFile.stat();
     assertEquals(stat3!.isFile, true);
@@ -228,14 +228,14 @@ Deno.test("stat", async () => {
 });
 
 Deno.test("statSync", async () => {
-  const stat1 = createPathRef("src").statSync();
+  const stat1 = createPath("src").statSync();
   assertEquals(stat1?.isDirectory, true);
-  const stat2 = createPathRef("nonExistent").statSync();
+  const stat2 = createPath("nonExistent").statSync();
   assertEquals(stat2, undefined);
 
   await withTempDir(() => {
-    const tempFile = createPathRef("temp.txt").writeTextSync("");
-    const symlinkFile = createPathRef("other.txt");
+    const tempFile = createPath("temp.txt").writeTextSync("");
+    const symlinkFile = createPath("other.txt");
     symlinkFile.createSymlinkToSync(tempFile, { kind: "absolute" });
     const stat3 = symlinkFile.statSync();
     assertEquals(stat3!.isFile, true);
@@ -244,14 +244,14 @@ Deno.test("statSync", async () => {
 });
 
 Deno.test("lstat", async () => {
-  const stat1 = await createPathRef("src").lstat();
+  const stat1 = await createPath("src").lstat();
   assertEquals(stat1?.isDirectory, true);
-  const stat2 = await createPathRef("nonExistent").lstat();
+  const stat2 = await createPath("nonExistent").lstat();
   assertEquals(stat2, undefined);
 
   await withTempDir(async () => {
-    const symlinkFile = createPathRef("temp.txt");
-    const otherFile = createPathRef("other.txt").writeTextSync("");
+    const symlinkFile = createPath("temp.txt");
+    const otherFile = createPath("other.txt").writeTextSync("");
     // path ref
     await symlinkFile.createSymlinkTo(otherFile, { kind: "absolute" });
     const stat3 = await symlinkFile.lstat();
@@ -260,21 +260,21 @@ Deno.test("lstat", async () => {
 });
 
 Deno.test("lstatSync", async () => {
-  const stat1 = createPathRef("src").lstatSync();
+  const stat1 = createPath("src").lstatSync();
   assertEquals(stat1?.isDirectory, true);
-  const stat2 = createPathRef("nonExistent").lstatSync();
+  const stat2 = createPath("nonExistent").lstatSync();
   assertEquals(stat2, undefined);
 
   await withTempDir(() => {
-    const symlinkFile = createPathRef("temp.txt");
-    const otherFile = createPathRef("other.txt").writeTextSync("");
+    const symlinkFile = createPath("temp.txt");
+    const otherFile = createPath("other.txt").writeTextSync("");
     symlinkFile.createSymlinkToSync(otherFile, { kind: "absolute" });
     assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
   });
 });
 
 Deno.test("withExtname", () => {
-  let path = createPathRef("src").resolve();
+  let path = createPath("src").resolve();
   path = path.join("temp", "other");
   assertEquals(path.basename(), "other");
   assertEquals(path.extname(), undefined);
@@ -295,7 +295,7 @@ Deno.test("withExtname", () => {
 });
 
 Deno.test("withBasename", () => {
-  let path = createPathRef("src").resolve();
+  let path = createPath("src").resolve();
   path = path.join("temp", "other");
   assertEquals(path.basename(), "other");
   path = path.withBasename("test");
@@ -305,8 +305,8 @@ Deno.test("withBasename", () => {
 });
 
 Deno.test("relative", () => {
-  const path1 = createPathRef("src");
-  const path2 = createPathRef(".github");
+  const path1 = createPath("src");
+  const path2 = createPath(".github");
   assertEquals(
     path1.relative(path2),
     Deno.build.os === "windows" ? "..\\.github" : "../.github",
@@ -315,7 +315,7 @@ Deno.test("relative", () => {
 
 Deno.test("exists", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file");
+    const file = createPath("file");
     assert(!await file.exists());
     assert(!file.existsSync());
     file.writeTextSync("");
@@ -333,9 +333,9 @@ Deno.test("realpath", async () => {
     // for the comparison, node doesn't canonicalize
     // RUNNER~1 to runneradmin for some reason
     if (isNode && Deno.build.os === "windows") {
-      file = createPathRef(file.toString().replace("\\RUNNER~1\\", "\\runneradmin\\"));
+      file = createPath(file.toString().replace("\\RUNNER~1\\", "\\runneradmin\\"));
     }
-    const symlink = createPathRef("other");
+    const symlink = createPath("other");
     symlink.createSymlinkToSync(file, { kind: "absolute" });
     assertEquals(
       (await symlink.realPath()).toString(),
@@ -350,7 +350,7 @@ Deno.test("realpath", async () => {
 
 Deno.test("mkdir", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("dir");
+    const path = createPath("dir");
     await path.mkdir();
     assert(path.isDirSync());
     path.removeSync();
@@ -372,7 +372,7 @@ Deno.test("mkdir", async () => {
 
 Deno.test("createSymlinkTo", async () => {
   await withTempDir(async () => {
-    const destFile = createPathRef("temp.txt").writeTextSync("");
+    const destFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
     await symlinkFile.createSymlinkTo(destFile, {
       kind: "absolute",
@@ -396,7 +396,7 @@ Deno.test("createSymlinkTo", async () => {
 
 Deno.test("createSymlinkToSync", async () => {
   await withTempDir(() => {
-    const destFile = createPathRef("temp.txt").writeTextSync("");
+    const destFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
 
     // path ref
@@ -435,7 +435,7 @@ Deno.test("createSymlinkToSync", async () => {
 
 Deno.test("readDir", async () => {
   await withTempDir(async () => {
-    const dir = createPathRef(".").resolve();
+    const dir = createPath(".").resolve();
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
 
@@ -468,7 +468,7 @@ Deno.test("readDir", async () => {
 
 Deno.test("expandGlob", async () => {
   await withTempDir(async () => {
-    const dir = createPathRef(".").resolve();
+    const dir = createPath(".").resolve();
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
     const subDir = dir.join("dir").join("subDir");
@@ -495,7 +495,7 @@ Deno.test("expandGlob", async () => {
 
 Deno.test("walk", async () => {
   await withTempDir(async () => {
-    const dir = createPathRef("rootDir").mkdirSync();
+    const dir = createPath("rootDir").mkdirSync();
     dir.join("file1").writeTextSync("");
     dir.join("file2").writeTextSync("");
     const subDir = dir.join("dir").join("subDir");
@@ -532,12 +532,12 @@ Deno.test("walk", async () => {
 
 Deno.test("readBytes", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.txt");
+    const file = createPath("file.txt");
     const bytes = new TextEncoder().encode("asdf");
     file.writeSync(bytes);
     assertEquals(file.readBytesSync(), bytes);
     assertEquals(await file.readBytes(), bytes);
-    const nonExistent = createPathRef("not-exists");
+    const nonExistent = createPath("not-exists");
     assertThrows(() => nonExistent.readBytesSync());
     await assertRejects(() => nonExistent.readBytes());
   });
@@ -545,12 +545,12 @@ Deno.test("readBytes", async () => {
 
 Deno.test("readMaybeBytes", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.txt");
+    const file = createPath("file.txt");
     const bytes = new TextEncoder().encode("asdf");
     await file.write(bytes);
     assertEquals(file.readMaybeBytesSync(), bytes);
     assertEquals(await file.readMaybeBytes(), bytes);
-    const nonExistent = createPathRef("not-exists");
+    const nonExistent = createPath("not-exists");
     assertEquals(await nonExistent.readMaybeText(), undefined);
     assertEquals(nonExistent.readMaybeTextSync(), undefined);
   });
@@ -558,11 +558,11 @@ Deno.test("readMaybeBytes", async () => {
 
 Deno.test("readText", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.txt");
+    const file = createPath("file.txt");
     file.writeTextSync("asdf");
     assertEquals(file.readMaybeTextSync(), "asdf");
     assertEquals(await file.readMaybeText(), "asdf");
-    const nonExistent = createPathRef("not-exists");
+    const nonExistent = createPath("not-exists");
     assertThrows(() => nonExistent.readTextSync());
     await assertRejects(() => nonExistent.readText());
   });
@@ -570,11 +570,11 @@ Deno.test("readText", async () => {
 
 Deno.test("readMaybeText", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.txt");
+    const file = createPath("file.txt");
     file.writeTextSync("asdf");
     assertEquals(file.readMaybeTextSync(), "asdf");
     assertEquals(await file.readMaybeText(), "asdf");
-    const nonExistent = createPathRef("not-exists");
+    const nonExistent = createPath("not-exists");
     assertEquals(await nonExistent.readMaybeText(), undefined);
     assertEquals(nonExistent.readMaybeTextSync(), undefined);
   });
@@ -582,7 +582,7 @@ Deno.test("readMaybeText", async () => {
 
 Deno.test("readJson", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.txt");
+    const file = createPath("file.txt");
     file.writeJsonSync({ test: 123 });
     let data = file.readJsonSync();
     assertEquals(data, { test: 123 });
@@ -593,13 +593,13 @@ Deno.test("readJson", async () => {
 
 Deno.test("readMaybeJson", async () => {
   await withTempDir(async () => {
-    const file = createPathRef("file.json");
+    const file = createPath("file.json");
     file.writeJsonSync({ test: 123 });
     let data = file.readMaybeJsonSync();
     assertEquals(data, { test: 123 });
     data = await file.readMaybeJson();
     assertEquals(data, { test: 123 });
-    const nonExistent = createPathRef("not-exists");
+    const nonExistent = createPath("not-exists");
     data = nonExistent.readMaybeJsonSync();
     assertEquals(data, undefined);
     data = await nonExistent.readMaybeJson();
@@ -644,7 +644,7 @@ Deno.test("write", async () => {
 
 Deno.test("writeJson", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.json");
+    const path = createPath("file.json");
     await path.writeJson({
       prop: "test",
     });
@@ -669,7 +669,7 @@ Deno.test("writeJson", async () => {
 
 Deno.test("writeJsonPretty", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.json");
+    const path = createPath("file.json");
     await path.writeJsonPretty({
       prop: "test",
     });
@@ -694,7 +694,7 @@ Deno.test("writeJsonPretty", async () => {
 
 Deno.test("create", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("text");
+    const path = createPath("file.txt").writeTextSync("text");
     let file = await path.create();
     file.writeTextSync("asdf");
     file.close();
@@ -712,7 +712,7 @@ Deno.test("create", async () => {
 
 Deno.test("createNew", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("text");
+    const path = createPath("file.txt").writeTextSync("text");
     await assertRejects(() => path.createNew());
     path.removeSync();
     let file = await path.createNew();
@@ -726,7 +726,7 @@ Deno.test("createNew", async () => {
 
 Deno.test("open", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("text");
+    const path = createPath("file.txt").writeTextSync("text");
     let file = await path.open({ write: true });
     await file.writeText("1");
     file.writeTextSync("2");
@@ -740,7 +740,7 @@ Deno.test("open", async () => {
 
 Deno.test("remove", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("text");
+    const path = createPath("file.txt").writeTextSync("text");
     assert(path.existsSync());
     assert(!path.removeSync().existsSync());
     path.writeTextSync("asdf");
@@ -812,7 +812,7 @@ Deno.test("ensureFile", async () => {
 
 Deno.test("copyFile", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("text");
+    const path = createPath("file.txt").writeTextSync("text");
     const newPath = await path.copyFile("other.txt");
     assert(path.existsSync());
     assert(newPath.existsSync());
@@ -825,15 +825,15 @@ Deno.test("copyFile", async () => {
 
 Deno.test("copyFileToDir", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt")
+    const path = createPath("file.txt")
       .writeTextSync("text");
-    const dir = createPathRef("dir").mkdirSync();
+    const dir = createPath("dir").mkdirSync();
     const newPath = await path.copyFileToDir(dir);
     assert(path.existsSync());
     assert(newPath.existsSync());
     assertEquals(dir.join("file.txt").toString(), newPath.toString());
     assertEquals(newPath.readTextSync(), "text");
-    const dir2 = createPathRef("dir2").mkdirSync();
+    const dir2 = createPath("dir2").mkdirSync();
     const newPath2 = path.copyFileToDirSync(dir2);
     assert(newPath2.existsSync());
     assertEquals(newPath2.readTextSync(), "text");
@@ -843,7 +843,7 @@ Deno.test("copyFileToDir", async () => {
 
 Deno.test("rename", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt").writeTextSync("");
+    const path = createPath("file.txt").writeTextSync("");
     const newPath = path.renameSync("other.txt");
     assert(!path.existsSync());
     assert(newPath.existsSync());
@@ -856,15 +856,15 @@ Deno.test("rename", async () => {
 
 Deno.test("renameToDir", async () => {
   await withTempDir(async () => {
-    const path = createPathRef("file.txt")
+    const path = createPath("file.txt")
       .writeTextSync("text");
-    const dir = createPathRef("dir").mkdirSync();
+    const dir = createPath("dir").mkdirSync();
     const newPath = await path.renameToDir(dir);
     assert(!path.existsSync());
     assert(newPath.existsSync());
     assertEquals(dir.join("file.txt").toString(), newPath.toString());
     assertEquals(newPath.readTextSync(), "text");
-    const dir2 = createPathRef("dir2").mkdirSync();
+    const dir2 = createPath("dir2").mkdirSync();
     const newPath2 = newPath.renameToDirSync(dir2);
     assert(!newPath.existsSync());
     assert(newPath2.existsSync());
@@ -886,7 +886,7 @@ Deno.test("renameToDir", async () => {
 Deno.test("pipeTo", async () => {
   await withTempDir(async () => {
     const largeText = "asdf".repeat(100_000);
-    const textFile = createPathRef("file.txt").writeTextSync(largeText);
+    const textFile = createPath("file.txt").writeTextSync(largeText);
     const otherFilePath = textFile.parentOrThrow().join("other.txt");
     const otherFile = otherFilePath.openSync({ write: true, create: true });
     await textFile.pipeTo(otherFile.writable);
@@ -895,23 +895,23 @@ Deno.test("pipeTo", async () => {
 });
 
 Deno.test("instanceof check", () => {
-  class OtherPathRef {
+  class OtherPath {
     // should match because of this
-    private static instanceofSymbol = Symbol.for("dax.PathRef");
+    private static instanceofSymbol = Symbol.for("dax.Path");
 
     static [Symbol.hasInstance](instance: any) {
-      return instance?.constructor?.instanceofSymbol === OtherPathRef.instanceofSymbol;
+      return instance?.constructor?.instanceofSymbol === OtherPath.instanceofSymbol;
     }
   }
 
-  assert(createPathRef("test") instanceof PathRef);
-  assert(!(new URL("https://example.com") instanceof PathRef));
-  assert(new OtherPathRef() instanceof PathRef);
-  assert(createPathRef("test") instanceof OtherPathRef);
+  assert(createPath("test") instanceof Path);
+  assert(!(new URL("https://example.com") instanceof Path));
+  assert(new OtherPath() instanceof Path);
+  assert(createPath("test") instanceof OtherPath);
 });
 
 Deno.test("toFileUrl", () => {
-  const path = createPathRef(import.meta.url);
+  const path = createPath(import.meta.url);
   assertEquals(path.toString(), stdPath.fromFileUrl(import.meta.url));
   assertEquals(path.toFileUrl(), new URL(import.meta.url));
 });

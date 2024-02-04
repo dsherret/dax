@@ -189,7 +189,7 @@ await $`echo 1 && (echo 2 > ${buffer}) && echo 3`; // 1\n3\n
 console.log(buffer); // Uint8Array(2) [ 50, 10 ] (2\n)
 ```
 
-Supported objects: `Uint8Array`, `PathRef`, `WritableStream`, function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
+Supported objects: `Uint8Array`, `Path`, `WritableStream`, function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
 
 Or input redirects:
 
@@ -208,7 +208,7 @@ const request = $.request("https://plugins.dprint.dev/info.json")
 const bytes = await $`sleep 5 && gzip < ${request}`.bytes();
 ```
 
-Supported objects: `string`, `Uint8Array`, `PathRef`, `RequestBuilder`, `ReadableStream`, function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
+Supported objects: `string`, `Uint8Array`, `Path`, `RequestBuilder`, `ReadableStream`, function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
 
 ### Providing stdin
 
@@ -573,10 +573,10 @@ pb.with(() => {
 
 ## Path API
 
-The path API offers an immutable [`PathRef`](https://deno.land/x/dax/src/path.ts?s=PathRef) class, which is a similar concept to Rust's `PathBuf` struct.
+The path API offers an immutable [`Path`](https://deno.land/x/dax/src/path.ts?s=Path) class, which is a similar concept to Rust's `PathBuf` struct.
 
 ```ts
-// create a `PathRef`
+// create a `Path`
 let srcDir = $.path("src");
 // get information about the path
 srcDir.isDirSync(); // false
@@ -610,7 +610,7 @@ const srcDir = $.path("src").resolve();
 await $`echo ${srcDir}`;
 ```
 
-`PathRef`s can be created in the following ways:
+`Path`s can be created in the following ways:
 
 ```ts
 const pathRelative = $.path("./relative");
@@ -620,7 +620,7 @@ const pathStringFileUrl = $.path("file:///tmp"); // converts to /tmp
 const pathImportMeta = $.path(import.meta); // the path for the current module
 ```
 
-There are a lot of helper methods here, so check the [documentation on PathRef](https://deno.land/x/dax/src/path.ts?s=PathRef) for more details.
+There are a lot of helper methods here, so check the [documentation on Path](https://deno.land/x/dax/src/path.ts?s=Path) for more details.
 
 ## Helper functions
 

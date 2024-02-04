@@ -2,7 +2,7 @@ import { formatMillis, symbols } from "./common.ts";
 import { TimeoutError } from "./common.ts";
 import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import { ProgressBar } from "./console/mod.ts";
-import { PathRef } from "./path.ts";
+import { Path } from "./path.ts";
 
 interface RequestBuilderState {
   noThrow: boolean | number[];
@@ -342,7 +342,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
    *
    * @returns The path reference of the downloaded file.
    */
-  async pipeToPath(options?: Deno.WriteFileOptions): Promise<PathRef>;
+  async pipeToPath(options?: Deno.WriteFileOptions): Promise<Path>;
   /**
    * Pipes the response body to a file.
    *
@@ -352,11 +352,11 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
    * @returns The path reference of the downloaded file.
    */
   async pipeToPath(
-    path?: string | URL | PathRef | undefined,
+    path?: string | URL | Path | undefined,
     options?: Deno.WriteFileOptions,
-  ): Promise<PathRef>;
+  ): Promise<Path>;
   async pipeToPath(
-    filePathOrOptions?: string | URL | PathRef | Deno.WriteFileOptions,
+    filePathOrOptions?: string | URL | Path | Deno.WriteFileOptions,
     maybeOptions?: Deno.WriteFileOptions,
   ) {
     // Do not derive from the response url because that could cause the server
@@ -597,7 +597,7 @@ export class RequestResponse {
    *
    * @returns The path reference of the downloaded file
    */
-  async pipeToPath(options?: Deno.WriteFileOptions): Promise<PathRef>;
+  async pipeToPath(options?: Deno.WriteFileOptions): Promise<Path>;
   /**
    * Pipes the response body to a file.
    *
@@ -610,11 +610,11 @@ export class RequestResponse {
    * @returns The path reference of the downloaded file
    */
   async pipeToPath(
-    path?: string | URL | PathRef | undefined,
+    path?: string | URL | Path | undefined,
     options?: Deno.WriteFileOptions,
-  ): Promise<PathRef>;
+  ): Promise<Path>;
   async pipeToPath(
-    filePathOrOptions?: string | URL | PathRef | Deno.WriteFileOptions,
+    filePathOrOptions?: string | URL | Path | Deno.WriteFileOptions,
     maybeOptions?: Deno.WriteFileOptions,
   ) {
     // resolve the file path using the original url because it would be a security issue
@@ -763,16 +763,16 @@ export async function makeRequest(state: RequestBuilderState) {
 }
 
 function resolvePipeToPathParams(
-  pathOrOptions: string | URL | PathRef | Deno.WriteFileOptions | undefined,
+  pathOrOptions: string | URL | Path | Deno.WriteFileOptions | undefined,
   maybeOptions: Deno.WriteFileOptions | undefined,
   originalUrl: string | URL | undefined,
 ) {
-  let filePath: PathRef | undefined;
+  let filePath: Path | undefined;
   let options: Deno.WriteFileOptions | undefined;
   if (typeof pathOrOptions === "string" || pathOrOptions instanceof URL) {
-    filePath = new PathRef(pathOrOptions).resolve();
+    filePath = new Path(pathOrOptions).resolve();
     options = maybeOptions;
-  } else if (pathOrOptions instanceof PathRef) {
+  } else if (pathOrOptions instanceof Path) {
     filePath = pathOrOptions.resolve();
     options = maybeOptions;
   } else if (typeof pathOrOptions === "object") {
@@ -781,7 +781,7 @@ function resolvePipeToPathParams(
     options = maybeOptions;
   }
   if (filePath === undefined) {
-    filePath = new PathRef(getFileNameFromUrlOrThrow(originalUrl));
+    filePath = new Path(getFileNameFromUrlOrThrow(originalUrl));
   } else if (filePath.isDirSync()) {
     filePath = filePath.join(getFileNameFromUrlOrThrow(originalUrl));
   }

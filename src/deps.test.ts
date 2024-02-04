@@ -1,4 +1,4 @@
-import { createPathRef, PathRef } from "./path.ts";
+import { createPath, Path } from "./path.ts";
 
 export {
   assert,
@@ -16,16 +16,16 @@ export { isNode } from "https://deno.land/x/which_runtime@0.2.0/mod.ts";
  * Creates a temporary directory, changes the cwd to this directory,
  * then cleans up and restores the cwd when complete.
  */
-export async function withTempDir(action: (path: PathRef) => Promise<void> | void) {
+export async function withTempDir(action: (path: Path) => Promise<void> | void) {
   await using dirPath = usingTempDir();
-  await action(createPathRef(dirPath).resolve());
+  await action(createPath(dirPath).resolve());
 }
 
-export function usingTempDir(): PathRef & AsyncDisposable {
+export function usingTempDir(): Path & AsyncDisposable {
   const originalDirPath = Deno.cwd();
   const dirPath = Deno.makeTempDirSync();
   Deno.chdir(dirPath);
-  const pathRef = createPathRef(dirPath).resolve();
+  const pathRef = createPath(dirPath).resolve();
   (pathRef as any)[Symbol.asyncDispose] = async () => {
     try {
       await Deno.remove(dirPath, { recursive: true });
@@ -34,5 +34,5 @@ export function usingTempDir(): PathRef & AsyncDisposable {
     }
     Deno.chdir(originalDirPath);
   };
-  return pathRef as PathRef & AsyncDisposable;
+  return pathRef as Path & AsyncDisposable;
 }
