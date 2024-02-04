@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertRejects, assertThrows, withTempDir } from "./deps.test.ts";
 import { createPathRef, PathRef } from "./path.ts";
 import { path as stdPath } from "./deps.ts";
+import { isNode } from "../npm/script/src/deps.test.js";
 
 Deno.test("create from path ref", () => {
   const path = createPathRef("src");
@@ -330,6 +331,11 @@ Deno.test("realpath", async () => {
     file.writeTextSync("");
     // need to do realPathSync for GH actions CI
     file = file.realPathSync();
+    // for the comparison, node doesn't canonicalize
+    // RUNNER~1 to runneradmin for some reason
+    if (isNode && Deno.build.os === "windows") {
+      file = createPathRef(file.toString().replace("\\RUNNER~1\\", "\\runneradmin\\"));
+    }
     const symlink = createPathRef("other");
     symlink.createSymlinkToSync(file, { kind: "absolute" });
     assertEquals(
