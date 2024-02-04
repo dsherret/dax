@@ -28,7 +28,7 @@ import $ from "https://deno.land/x/dax/mod.ts";
 // run a command
 await $`echo 5`; // outputs: 5
 
-// outputting 1 to stdout and running a sub process
+// outputting to stdout and running a sub process
 await $`echo 1 && deno run main.ts`;
 
 // parallel
