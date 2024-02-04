@@ -4,6 +4,8 @@ import {
 } from "https://raw.githubusercontent.com/denoland/dnt/2537df1c38851088bf1f504ae89dd7f037219f8b/mod.ts";
 import $ from "../mod.ts";
 
+$.cd($.path(import.meta).parentOrThrow().parentOrThrow());
+
 await emptyDir("./npm");
 
 await build({
@@ -80,6 +82,7 @@ await build({
       url: "https://github.com/dsherret/dax/issues",
     },
     dependencies: {
+      "@deno/shim-deno": "~0.19.0",
       "undici-types": "^5.26",
     },
     devDependencies: {
@@ -109,3 +112,39 @@ for (const entry of npmPath.join("esm").walkSync({ exts: ["js"] })) {
 // move the bundle to the script folder
 npmPath.join("bundle.cjs").renameSync(npmPath.join("script/mod.js"));
 npmPath.join("bundle.mjs").renameSync(npmPath.join("esm/mod.js"));
+
+// basic mjs test
+{
+  const tempFile = $.path("temp_file.mjs");
+  tempFile.writeText(
+    `import $ from "./npm/esm/mod.js";
+
+await $\`echo 1\`;
+`,
+  );
+  try {
+    // just ensure it doesn't throw
+    await $`node ${tempFile}`.quiet();
+  } finally {
+    tempFile.removeSync();
+  }
+}
+
+// basic cjs test
+{
+  const tempFile = $.path("temp_file.cjs");
+  tempFile.writeText(
+    `const $ = require("./npm/script/mod.js").$;
+
+$\`echo 1\`.then(() => {
+console.log("DONE");
+});
+`,
+  );
+  try {
+    // just ensure it doesn't throw
+    await $`node ${tempFile}`.quiet();
+  } finally {
+    tempFile.removeSync();
+  }
+}
