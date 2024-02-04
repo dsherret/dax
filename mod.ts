@@ -437,17 +437,17 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * Sets the logger used for info logging.
    * @default console.error
    */
-  setInfoLogger(logger: (args: any[]) => void): void;
+  setInfoLogger(logger: (...args: any[]) => void): void;
   /**
    * Sets the logger used for warn logging.
    * @default console.error
    */
-  setWarnLogger(logger: (args: any[]) => void): void;
+  setWarnLogger(logger: (...args: any[]) => void): void;
   /**
    * Sets the logger used for error logging.
    * @default console.error
    */
-  setErrorLogger(logger: (args: any[]) => void): void;
+  setErrorLogger(logger: (...args: any[]) => void): void;
   /**
    * Mutates the internal command builder to print the command text by
    * default before executing commands instead of needing to build a
@@ -739,18 +739,20 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
           state.infoLogger.getValue()(...data);
         }, opts);
       },
-      setInfoLogger(logger: (args: any[]) => void) {
+      setInfoLogger(logger: (...args: any[]) => void) {
         state.infoLogger.setValue(logger);
       },
-      setWarnLogger(logger: (args: any[]) => void) {
+      setWarnLogger(logger: (...args: any[]) => void) {
         state.warnLogger.setValue(logger);
       },
-      setErrorLogger(logger: (args: any[]) => void) {
+      setErrorLogger(logger: (...args: any[]) => void) {
         state.errorLogger.setValue(logger);
 
         // also update the logger used for the print command
         const commandBuilder = state.commandBuilder.getValue();
-        commandBuilder.setPrintCommandLogger(logger);
+        commandBuilder.setPrintCommandLogger(
+          (cmd) => logger(colors.white(">"), colors.blue(cmd)),
+        );
         state.commandBuilder.setValue(commandBuilder);
       },
       setPrintCommand(value: boolean) {

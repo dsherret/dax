@@ -142,8 +142,10 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     commands: { ...builtInCommands },
     exportEnv: false,
     printCommand: false,
-    // deno-lint-ignore no-console
-    printCommandLogger: new LoggerTreeBox(console.error),
+    printCommandLogger: new LoggerTreeBox(
+      // deno-lint-ignore no-console
+      (cmd) => console.error(colors.white(">"), colors.blue(cmd)),
+    ),
     timeout: undefined,
     signal: undefined,
   };
@@ -681,7 +683,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   }
 
   if (state.printCommand) {
-    state.printCommandLogger.getValue()(colors.white(">"), colors.blue(state.command.text));
+    state.printCommandLogger.getValue()(state.command.text);
   }
 
   const disposables: Disposable[] = [];
