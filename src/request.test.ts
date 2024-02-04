@@ -4,7 +4,6 @@ import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 import $ from "../mod.ts";
 import { TimeoutError } from "./common.ts";
-import { assert } from "./deps.test.ts";
 
 async function withServer(action: (serverUrl: URL) => Promise<void>) {
   const server = await startServer({
