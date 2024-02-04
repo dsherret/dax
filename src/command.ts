@@ -54,8 +54,14 @@ interface ShellPipeWriterKindWithOptions {
   options?: PipeOptions;
 }
 
+/** Command that should be executed before running the main command. */
+interface PreCommand {
+  builder: CommandBuilder;
+  escape: ((arg: string) => string) | undefined;
+}
+
 interface CommandBuilderStateCommand {
-  text: string;
+  textItems: [string, ...Array<PreCommand | string>];
   fds: StreamFds | undefined;
 }
 
@@ -103,7 +109,7 @@ const builtInCommands = {
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
 /** @internal */
-export const setCommandTextAndFdsSymbol: unique symbol = Symbol();
+export const setCommandTextStateSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -241,7 +247,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
         command = command.map(escapeArg).join(" ");
       }
       state.command = {
-        text: command,
+        textItems: [command],
         fds: undefined,
       };
     });
@@ -583,12 +589,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [setCommandTextAndFdsSymbol](text: string, fds: StreamFds | undefined) {
+  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand) {
     return this.#newWithState((state) => {
-      state.command = {
-        text,
-        fds,
-      };
+      state.command = textState;
     });
   }
 }
@@ -682,8 +685,12 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     throw new Error("A command must be set before it can be spawned.");
   }
 
-  if (state.printCommand) {
-    state.printCommandLogger.getValue()(state.command.text);
+  if (
+    state.printCommand &&
+    // only print if all text items are resolved
+    state.command.textItems.length === 1
+  ) {
+    state.printCommandLogger.getValue()(state.command.textItems[0]);
   }
 
   const disposables: Disposable[] = [];
@@ -723,11 +730,21 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
     state.stderr.kind,
     stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
   );
-  const { text: commandText, fds } = state.command;
+  const { fds, textItems } = state.command;
   const signal = killSignalController.signal;
 
   return new CommandChild(async (resolve, reject) => {
     try {
+      let commandText: string;
+      if (textItems.length > 1) {
+        commandText = await resolveCommandTextItems(textItems);
+        if (state.printCommand) {
+          // we have the command text now, so print it out
+          state.printCommandLogger.getValue()(commandText);
+        }
+      } else {
+        commandText = textItems[0];
+      }
       const list = parseCommand(commandText);
       const stdin = await takeStdin();
       let code = await spawn(list, {
@@ -959,6 +976,19 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       buffer.setError(error);
     }
   }
+}
+
+async function resolveCommandTextItems(commandTextItems: [string, ...Array<PreCommand | string>]) {
+  const results = await Promise.all(commandTextItems.map((c) => {
+    if (typeof c === "string") {
+      return Promise.resolve(c);
+    } else {
+      return c.builder.text().then((text) => {
+        return c.escape?.(text) ?? text;
+      });
+    }
+  }));
+  return results.join("");
 }
 
 /** Result of running a command. */
@@ -1240,10 +1270,11 @@ function templateInner(
   strings: TemplateStringsArray,
   exprs: any[],
   escape: ((arg: string) => string) | undefined,
-) {
+): CommandBuilderStateCommand {
   let nextStreamFd = 3;
   let text = "";
   let streams: StreamFds | undefined;
+  let textItems: [string, ...Array<string | PreCommand>] | undefined;
   const exprsCount = exprs.length;
   for (let i = 0; i < Math.max(strings.length, exprs.length); i++) {
     if (strings.length > i) {
@@ -1367,6 +1398,17 @@ function templateInner(
           } else {
             throw new Error("Unsupported object provided to output redirect.");
           }
+        } else if (expr instanceof CommandBuilder) {
+          if (textItems == null) {
+            textItems = [text];
+          } else {
+            textItems.push(text);
+          }
+          text = "";
+          textItems.push({
+            builder: expr,
+            escape,
+          });
         } else {
           text += templateLiteralExprToString(expr, escape);
         }
@@ -1378,9 +1420,14 @@ function templateInner(
       }
     }
   }
+  if (textItems == null) {
+    textItems = [text];
+  } else {
+    textItems.push(text);
+  }
   return {
-    text,
-    streams,
+    textItems,
+    fds: streams,
   };
 
   function handleReadableStream(createStream: () => ReadableStream) {

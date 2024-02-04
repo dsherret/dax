@@ -2,7 +2,7 @@ import {
   CommandBuilder,
   escapeArg,
   getRegisteredCommandNamesSymbol,
-  setCommandTextAndFdsSymbol,
+  setCommandTextStateSymbol,
   template,
   templateRaw,
 } from "./src/command.ts";
@@ -632,8 +632,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
   };
   const result = Object.assign(
     (strings: TemplateStringsArray, ...exprs: any[]) => {
-      const { text, streams } = template(strings, exprs);
-      return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
+      const textState = template(strings, exprs);
+      return state.commandBuilder.getValue()[setCommandTextStateSymbol](textState);
     },
     helperObject,
     logDepthObj,
@@ -764,8 +764,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         return state.requestBuilder.url(url);
       },
       raw(strings: TemplateStringsArray, ...exprs: any[]) {
-        const { text, streams } = templateRaw(strings, exprs);
-        return state.commandBuilder.getValue()[setCommandTextAndFdsSymbol](text, streams);
+        const textState = templateRaw(strings, exprs);
+        return state.commandBuilder.getValue()[setCommandTextStateSymbol](textState);
       },
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);

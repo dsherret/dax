@@ -2108,10 +2108,30 @@ Deno.test("should support empty quoted string", async () => {
   assertEquals(output, " test ");
 });
 
-Deno.test("esnure deprecated PathRef export still works", () => {
+Deno.test("ensure deprecated PathRef export still works", () => {
   const path = new PathRef("hello");
   assert(path instanceof Path);
   assert(path instanceof PathRef);
+});
+
+Deno.test("providing command builder to another command as args", async () => {
+  {
+    // these will be executed in parallel
+    const cmd1 = $`echo 1`;
+    const cmd2 = $`echo 2`;
+    const cmd3 = $`echo 3`;
+    const output = await $`echo ${cmd1} ${cmd2} ${cmd3}`.text();
+    assertEquals(output, "1 2");
+  }
+  {
+    const cmd1 = $`echo 1`;
+    const cmd2 = $`exit 10`;
+    // it will still throw because the arguments are evaluated
+    const output = await $`echo ${cmd1} ${cmd2}`.noThrow();
+    assertEquals(output.stderr, "");
+    assertEquals(output.stdout, "");
+    assertEquals(output.code, 10);
+  }
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
