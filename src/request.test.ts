@@ -294,7 +294,7 @@ Deno.test("$.request", (t) => {
         caughtErr = err;
       }
       assertEquals(caughtErr!, new TimeoutError("Request timed out after 100 milliseconds."));
-      assert(caughtErr!.stack!.includes("request.test.ts"));
+      assert(caughtErr!.stack!.includes("request.test.ts")); // current file
     });
 
     step("ability to abort while waiting", async () => {
