@@ -103,7 +103,7 @@ const builtInCommands = {
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
 /** @internal */
-export const setCommandTextAndFdsSymbol: unique symbol = Symbol();
+export const setCommandTextStateSymbol: unique symbol = Symbol();
 
 /**
  * Underlying builder API for executing commands.
@@ -583,12 +583,9 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [setCommandTextAndFdsSymbol](text: string, fds: StreamFds | undefined) {
+  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand) {
     return this.#newWithState((state) => {
-      state.command = {
-        text,
-        fds,
-      };
+      state.command = textState;
     });
   }
 }
@@ -1240,7 +1237,7 @@ function templateInner(
   strings: TemplateStringsArray,
   exprs: any[],
   escape: ((arg: string) => string) | undefined,
-) {
+): CommandBuilderStateCommand {
   let nextStreamFd = 3;
   let text = "";
   let streams: StreamFds | undefined;
@@ -1380,7 +1377,7 @@ function templateInner(
   }
   return {
     text,
-    streams,
+    fds: streams,
   };
 
   function handleReadableStream(createStream: () => ReadableStream) {
@@ -1440,6 +1437,11 @@ function templateLiteralExprToString(expr: any, escape: ((arg: string) => string
   } else if (expr instanceof CommandResult) {
     // remove last newline
     result = expr.stdout.replace(/\r?\n$/, "");
+  } else if (expr instanceof CommandBuilder) {
+    throw new Error(
+      "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). " +
+        "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
+    );
   } else if (typeof expr === "object" && expr.toString === Object.prototype.toString) {
     throw new Error("Provided object does not override `toString()`.");
   } else {
