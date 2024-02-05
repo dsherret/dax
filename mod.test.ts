@@ -2108,10 +2108,22 @@ Deno.test("should support empty quoted string", async () => {
   assertEquals(output, " test ");
 });
 
-Deno.test("esnure deprecated PathRef export still works", () => {
+Deno.test("ensure deprecated PathRef export still works", () => {
   const path = new PathRef("hello");
   assert(path instanceof Path);
   assert(path instanceof PathRef);
+});
+
+Deno.test("nice error message when not awaiting a CommandBuilder", async () => {
+  await assertRejects(
+    async () => {
+      const cmd = $`echo 1`;
+      return await $`echo ${cmd}`;
+    },
+    Error,
+    "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). " +
+      "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
+  );
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
