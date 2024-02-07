@@ -37,6 +37,7 @@ import { StreamFds } from "./shell.ts";
 import { symbols } from "./common.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
+type StreamKind = "stdout" | "stderr" | "combined";
 
 class Deferred<T> {
   #create: () => T | Promise<T>;
@@ -488,12 +489,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * await $`echo 1`.quiet("stderr");
    * ```
    */
-  quiet(kind: "stdout" | "stderr" | "both" = "both"): CommandBuilder {
+  quiet(kind: StreamKind | "both" = "combined"): CommandBuilder {
+    kind = kind === "both" ? "combined" : kind;
     return this.#newWithState((state) => {
-      if (kind === "both" || kind === "stdout") {
+      if (kind === "combined" || kind === "stdout") {
         state.stdout.kind = getQuietKind(state.stdout.kind);
       }
-      if (kind === "both" || kind === "stderr") {
+      if (kind === "combined" || kind === "stderr") {
         state.stderr.kind = getQuietKind(state.stderr.kind);
       }
     });
@@ -539,12 +541,14 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
-  async bytes(): Promise<Uint8Array> {
-    return (await this.quiet("stdout")).stdoutBytes;
+  async bytes(kind: StreamKind): Promise<Uint8Array> {
+    const command = kind === "combined" ? this.quiet(kind).captureCombined() : this.quiet(kind);
+    return (await command)[`${kind}Bytes`];
   }
 
   /**
-   * Sets stdout as quiet, spawns the command, and gets stdout as a string without the last newline.
+   * Sets the provided stream (stdout by default) as quiet, spawns the command, and gets the stream as a string without the last newline.
+   * Can be used to get stdout, stderr, or both.
    *
    * Shorthand for:
    *
@@ -552,18 +556,19 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdout.replace(/\r?\n$/, "");
    * ```
    */
-  async text(): Promise<string> {
-    return (await this.quiet("stdout")).stdout.replace(/\r?\n$/, "");
+  async text(kind: StreamKind = "stdout"): Promise<string> {
+    const command = kind === "combined" ? this.quiet(kind).captureCombined() : this.quiet(kind);
+    return (await command)[kind].replace(/\r?\n$/, "");
   }
 
   /** Gets the text as an array of lines. */
-  async lines(): Promise<string[]> {
-    const text = await this.text();
+  async lines(kind: StreamKind = "stdout"): Promise<string[]> {
+    const text = await this.text(kind);
     return text.split(/\r?\n/g);
   }
 
   /**
-   * Sets stdout as quiet, spawns the command, and gets stdout as JSON.
+   * Sets stream (stdout by default) as quiet, spawns the command, and gets stream as JSON.
    *
    * Shorthand for:
    *
@@ -571,8 +576,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdoutJson;
    * ```
    */
-  async json<TResult = any>(): Promise<TResult> {
-    return (await this.quiet("stdout")).stdoutJson;
+  async json<TResult = any>(kind: Exclude<StreamKind, "combined"> = "stdout"): Promise<TResult> {
+    return (await this.quiet(kind))[`${kind}Json`];
   }
 
   /** @internal */
