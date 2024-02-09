@@ -25,17 +25,17 @@ jobs:
         uses: denoland/setup-deno@v1
 
       - uses: dprint/check@v2.1
-        if: runner.os == 'Linux'
+        if: runner.os == 'ubuntu-latest'
 
       - name: lint
-        if: runner.os == 'Linux'
+        if: runner.os == 'ubuntu-latest'
         run: deno lint
 
       - name: test
         run: deno test -A
 
       - name: Get tag version
-        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'ubuntu-latest'
         id: get_tag_version
         run: echo TAG_VERSION=${GITHUB_REF/refs\/tags\//} >> $GITHUB_OUTPUT
       - uses: actions/setup-node@v3
@@ -45,7 +45,7 @@ jobs:
       - name: npm build
         run: deno run -A ./scripts/build_npm.ts ${{steps.get_tag_version.outputs.TAG_VERSION}}
       - name: npm publish
-        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'
+        if: startsWith(github.ref, 'refs/tags/') && runner.os == 'ubuntu-latest'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: cd npm && npm publish
