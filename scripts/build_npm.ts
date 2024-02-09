@@ -1,7 +1,7 @@
 import {
   build,
   emptyDir,
-} from "https://raw.githubusercontent.com/denoland/dnt/2537df1c38851088bf1f504ae89dd7f037219f8b/mod.ts";
+} from "https://raw.githubusercontent.com/denoland/dnt/2a144787a696cdb6bf3488358edf5f76bd296767/mod.ts";
 import $ from "../mod.ts";
 
 $.cd($.path(import.meta).parentOrThrow().parentOrThrow());
@@ -63,6 +63,8 @@ await build({
     }],
   },
   compilerOptions: {
+    stripInternal: false,
+    skipLibCheck: false,
     target: "ES2022",
   },
   mappings: {
