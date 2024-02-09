@@ -1,14 +1,15 @@
 # dax
 
 [![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
+[![NPM Version](https://img.shields.io/npm/v/dax-sh.svg?style=flat)](http://www.npmjs.com/package/dax-sh)
 
 <img src="src/assets/logo.svg" height="150px" alt="dax logo">
 
-Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
+Cross-platform shell tools for Deno and Node.js inspired by [zx](https://github.com/google/zx).
 
 ## Differences with zx
 
-1. Cross platform shell.
+1. Cross-platform shell.
    - Makes more code work on Windows.
    - Allows exporting the shell's environment to the current process.
    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
@@ -38,6 +39,8 @@ await Promise.all([
   $`sleep 3 ; echo 3`,
 ]);
 ```
+
+Note: Above instructions are for Deno. For Node.js, install via `npm install --save-dev dax-sh` then import via `import $ from "dax-sh";`.
 
 ### Getting output
 
@@ -105,12 +108,18 @@ Piping to a `WritableStream`:
 
 ```ts
 await $`echo 1`.stdout(Deno.stderr.writable, { preventClose: true });
+// or with a redirect
+await $`echo 1 > ${someWritableStream}`;
 ```
 
 To a file path:
 
 ```ts
 await $`echo 1`.stdout($.path("data.txt"));
+// or
+await $`echo 1 > data.txt`;
+// or
+await $`echo 1 > ${$.path("data.txt")}`;
 ```
 
 To a file:
@@ -118,6 +127,8 @@ To a file:
 ```ts
 using file = $.path("data.txt").openSync({ write: true, create: true });
 await $`echo 1`.stdout(file);
+// or
+await $`echo 1 > ${file}`;
 ```
 
 From one command to another:
@@ -128,7 +139,7 @@ const output = await $`echo foo && echo bar`
   .text();
 
 // or using a pipe sequence
-const output = await $`echo foo && echo bar | grep foo`
+const output = await $`(echo foo && echo bar) | grep foo`
   .text();
 ```
 
@@ -181,7 +192,7 @@ console.log(finalText); // 1
 
 #### JavaScript objects to redirects
 
-You can also provide JavaScript objects to shell output redirects:
+You can provide JavaScript objects to shell output redirects:
 
 ```ts
 const buffer = new Uint8Array(2);
@@ -189,7 +200,7 @@ await $`echo 1 && (echo 2 > ${buffer}) && echo 3`; // 1\n3\n
 console.log(buffer); // Uint8Array(2) [ 50, 10 ] (2\n)
 ```
 
-Supported objects: `Uint8Array`, `Path`, `WritableStream`, function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
+Supported objects: `Uint8Array`, `Path`, `WritableStream`, any function that returns a `WritableStream`, any object that implements `[$.symbols.writable](): WritableStream`
 
 Or input redirects:
 
@@ -208,7 +219,7 @@ const request = $.request("https://plugins.dprint.dev/info.json")
 const bytes = await $`sleep 5 && gzip < ${request}`.bytes();
 ```
 
-Supported objects: `string`, `Uint8Array`, `Path`, `RequestBuilder`, `ReadableStream`, function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
+Supported objects: `string`, `Uint8Array`, `Path`, `RequestBuilder`, `ReadableStream`, any function that returns a `ReadableStream`, any object that implements `[$.symbols.readable](): ReadableStream`
 
 ### Providing stdin
 
@@ -220,6 +231,12 @@ await $`command`.stdin(someReaderOrReadableStream);
 await $`command`.stdin($.path("data.json"));
 await $`command`.stdin($.request("https://plugins.dprint.dev/info.json"));
 await $`command`.stdinText("some value");
+```
+
+Or using a redirect:
+
+```ts
+await $`command < ${$.path("data.json")}`;
 ```
 
 ### Streaming API
@@ -312,10 +329,8 @@ Instead of awaiting the template literal, you can get a command child by calling
 ```ts
 const child = $`echo 1 && sleep 100 && echo 2`.spawn();
 
-// kill the child after 1s
-await $.sleep("1s");
+await doSomeOtherWork();
 child.kill(); // defaults to "SIGTERM"
-
 await child; // Error: Aborted with exit code: 124
 ```
 
@@ -747,7 +762,7 @@ const downloadPath = await $.request(url)
 
 ## Shell
 
-The shell is cross platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).
+The shell is cross-platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).
 
 Sequential lists:
 
@@ -815,7 +830,7 @@ const result = await $`echo $TEST`.env("TEST", "123").text();
 console.log(result); // 123
 ```
 
-### Custom cross platform shell commands
+### Custom cross-platform shell commands
 
 Currently implemented (though not every option is supported):
 
@@ -841,9 +856,9 @@ Currently implemented (though not every option is supported):
 
 You can also register your own commands with the shell parser (see below).
 
-Note that these cross platform commands can be bypassed by running them through `sh`: `sh -c <command>` (ex. `sh -c cp source destination`). Obviously doing this won't work on Windows though.
+Note that these cross-platform commands can be bypassed by running them through `sh`: `sh -c <command>` (ex. `sh -c cp source destination`). Obviously doing this won't work on Windows though.
 
-### Cross platform shebang support
+### Cross-platform shebang support
 
 Users on unix-based platforms often write a script like so:
 
