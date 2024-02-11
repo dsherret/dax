@@ -81,7 +81,7 @@ const result = await $`deno eval 'console.log(1); console.error(2);'`
 console.log(result.code); // 0
 console.log(result.stdoutBytes); // Uint8Array(2) [ 49, 10 ]
 console.log(result.stdout); // 1\n
-console.log(result.stderr); // 5\n
+console.log(result.stderr); // 2\n
 const output = await $`echo '{ "test": 5 }'`.stdout("piped");
 console.log(output.stdoutJson);
 ```
