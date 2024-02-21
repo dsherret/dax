@@ -1905,10 +1905,15 @@ Deno.test("cd", () => {
 });
 
 Deno.test("cat", async () => {
-  await withTempDir(async () => {
+  await withTempDir(async (tempDir) => {
     await Deno.writeTextFile("hello", "hello world");
     assertEquals(
       await $`cat hello`.text(),
+      "hello world",
+    );
+    assertEquals(
+      // absolute path
+      await $`cat ${tempDir.join("hello")}`.text(),
       "hello world",
     );
     await Deno.writeTextFile("hello2", "hello world2");
