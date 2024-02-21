@@ -1,8 +1,7 @@
 import { CommandContext } from "../command_handler.ts";
 import { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { path as pathUtils } from "../deps.ts";
-import { errorToString } from "../common.ts";
+import { errorToString, resolvePath } from "../common.ts";
 
 interface CatFlags {
   paths: string[];
@@ -46,7 +45,7 @@ async function executeCat(context: CommandContext) {
     } else {
       let file;
       try {
-        file = await Deno.open(pathUtils.join(context.cwd, path), { read: true });
+        file = await Deno.open(resolvePath(context.cwd, path), { read: true });
         while (!context.signal.aborted) {
           // NOTE: rust supports cancellation here
           const size = file.readSync(buf);
