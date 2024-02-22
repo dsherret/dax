@@ -583,7 +583,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand) {
+  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand): CommandBuilder {
     return this.#newWithState((state) => {
       state.command = textState;
     });

@@ -1,4 +1,6 @@
 {
+  "name": "@david/dax",
+  "version": "0.39.1",
   "lock": false,
   "tasks": {
     "test": "deno test -A",
@@ -20,5 +22,6 @@
   "exclude": [
     "npm/",
     "target/"
-  ]
+  ],
+  "exports": "./mod.ts"
 }
