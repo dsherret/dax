@@ -733,7 +733,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         stderr,
         env: buildEnv(state.env),
         commands: state.commands,
-        cwd: state.cwd ?? Deno.cwd(),
+        cwd: state.cwd ?? getCwd(),
         exportEnv: state.exportEnv,
         signal,
         fds,
@@ -1082,6 +1082,17 @@ function buildEnv(env: Record<string, string | undefined>) {
     }
   }
   return result;
+}
+
+function getCwd(): string {
+  const readPermissions = Deno.permissions.querySync({
+    name: "read",
+    path: ".",
+  });
+  if (readPermissions.state == "denied") {
+    return "";
+  }
+  return Deno.cwd();
 }
 
 export function escapeArg(arg: string) {
