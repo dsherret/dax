@@ -2131,6 +2131,49 @@ Deno.test("nice error message when not awaiting a CommandBuilder", async () => {
   );
 });
 
+Deno.test("which uses same as $.which", async () => {
+  {
+    const whichFnOutput = await $.which("deno");
+    const whichShellOutput = await $`which deno`.text();
+    if (Deno.build.os === "windows") {
+      // windows is case insensitive
+      assertEquals(whichFnOutput?.toLowerCase(), whichShellOutput.toLowerCase());
+    } else {
+      assertEquals(whichFnOutput, whichShellOutput);
+    }
+  }
+  // arg not found
+  {
+    const whichShellOutput = await $`which non-existent-command-that-not-exists`
+      .noThrow()
+      .stderr("piped")
+      .stdout("piped");
+    assertEquals(whichShellOutput.stderr, "");
+    assertEquals(whichShellOutput.stdout, "");
+    assertEquals(whichShellOutput.code, 1);
+  }
+  // invalid args
+  {
+    const whichShellOutput = await $`which deno test`
+      .noThrow()
+      .stderr("piped")
+      .stdout("piped");
+    assertEquals(whichShellOutput.stderr, "which: unsupported too many arguments\n");
+    assertEquals(whichShellOutput.stdout, "");
+    assertEquals(whichShellOutput.code, 2);
+  }
+  // invalid arg kind
+  {
+    const whichShellOutput = await $`which -h`
+      .noThrow()
+      .stderr("piped")
+      .stdout("piped");
+    assertEquals(whichShellOutput.stderr, "which: unsupported flag: -h\n");
+    assertEquals(whichShellOutput.stdout, "");
+    assertEquals(whichShellOutput.code, 2);
+  }
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));

@@ -35,6 +35,7 @@ import { Path } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
 import { StreamFds } from "./shell.ts";
 import { symbols } from "./common.ts";
+import { whichCommand } from "./commands/which.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 
@@ -98,6 +99,7 @@ const builtInCommands = {
   pwd: pwdCommand,
   touch: touchCommand,
   unset: unsetCommand,
+  which: whichCommand,
 };
 
 /** @internal */

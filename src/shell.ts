@@ -1139,14 +1139,7 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
     };
   }
 
-  const realEnvironment = new DenoWhichRealEnvironment();
-  const commandPath = await which(commandName, {
-    os: Deno.build.os,
-    stat: realEnvironment.stat,
-    env(key) {
-      return context.getVar(key);
-    },
-  });
+  const commandPath = await whichFromContext(commandName, context);
   if (commandPath == null) {
     throw new Error(`Command not found: ${commandName}`);
   }
@@ -1154,6 +1147,20 @@ async function resolveCommand(commandName: string, context: Context): Promise<Re
     kind: "path",
     path: commandPath,
   };
+}
+
+const realEnvironment = new DenoWhichRealEnvironment();
+
+export async function whichFromContext(commandName: string, context: {
+  getVar(key: string): string | undefined;
+}) {
+  return await which(commandName, {
+    os: Deno.build.os,
+    stat: realEnvironment.stat,
+    env(key) {
+      return context.getVar(key);
+    },
+  });
 }
 
 async function executePipeSequence(sequence: PipeSequence, context: Context): Promise<ExecuteResult> {
