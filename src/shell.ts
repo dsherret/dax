@@ -906,19 +906,40 @@ function checkMapCwdNotExistsError(cwd: string, err: unknown) {
   }
 }
 
-async function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
+function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
   // look for a registered command first
-  const command = context.getCommand(commandArgs[0]);
+  const commandName = commandArgs.shift()!;
+  const command = context.getCommand(commandName);
   if (command != null) {
-    return command(context.asCommandContext(commandArgs.slice(1)));
+    return Promise.resolve(command(context.asCommandContext(commandArgs)));
   }
 
   // fall back to trying to resolve the command on the fs
-  const resolvedCommand = await resolveCommand(commandArgs[0], context);
+  const unresolvedCommand: UnresolvedCommand = {
+    name: commandName,
+    baseDir: context.getCwd(),
+  };
+  return executeUnresolvedCommand(unresolvedCommand, commandArgs, context);
+}
+
+async function executeUnresolvedCommand(
+  unresolvedCommand: UnresolvedCommand,
+  commandArgs: string[],
+  context: Context,
+): Promise<ExecuteResult> {
+  const resolvedCommand = await resolveCommand(unresolvedCommand, context);
   if (resolvedCommand.kind === "shebang") {
-    return executeCommandArgs([...resolvedCommand.args, resolvedCommand.path, ...commandArgs.slice(1)], context);
+    return executeUnresolvedCommand(resolvedCommand.command, [...resolvedCommand.args, ...commandArgs], context);
   }
   const _assertIsPath: "path" = resolvedCommand.kind;
+  return executeCommandAtPath(resolvedCommand.path, commandArgs, context);
+}
+
+async function executeCommandAtPath(
+  commandPath: string,
+  commandArgs: string[],
+  context: Context,
+): Promise<ExecuteResult> {
   const pipeStringVals = {
     stdin: getStdioStringValue(context.stdin),
     stdout: getStdioStringValue(context.stdout.kind),
@@ -927,8 +948,8 @@ async function executeCommandArgs(commandArgs: string[], context: Context): Prom
   let p: SpawnedChildProcess;
   const cwd = context.getCwd();
   try {
-    p = spawnCommand(resolvedCommand.path, {
-      args: commandArgs.slice(1),
+    p = spawnCommand(commandPath, {
+      args: commandArgs,
       cwd,
       env: context.getEnvVars(),
       clearEnv: true,
@@ -1101,47 +1122,58 @@ interface ResolvedPathCommand {
 
 interface ResolvedShebangCommand {
   kind: "shebang";
-  path: string;
+  command: UnresolvedCommand;
   args: string[];
 }
 
-async function resolveCommand(commandName: string, context: Context): Promise<ResolvedCommand> {
-  if (commandName.includes("/") || commandName.includes("\\")) {
-    if (!path.isAbsolute(commandName)) {
-      commandName = path.resolve(context.getCwd(), commandName);
-    }
+interface UnresolvedCommand {
+  name: string;
+  baseDir: string;
+}
+
+async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Context): Promise<ResolvedCommand> {
+  if (unresolvedCommand.name.includes("/")) {
+    const commandPath = path.isAbsolute(unresolvedCommand.name)
+      ? unresolvedCommand.name
+      : path.resolve(unresolvedCommand.baseDir, unresolvedCommand.name);
     // only bother checking for a shebang when the path has a slash
     // in it because for global commands someone on Windows likely
     // won't have a script with a shebang in it on Windows
-    const result = await getExecutableShebangFromPath(commandName);
+    const result = await getExecutableShebangFromPath(commandPath);
     if (result === false) {
-      throw new Error(`Command not found: ${commandName}`);
+      throw new Error(`Command not found: ${unresolvedCommand.name}`);
     } else if (result != null) {
+      const args = await parseShebangArgs(result, context);
+      const name = args.shift()!;
+      args.push(commandPath);
       return {
         kind: "shebang",
-        path: commandName,
-        args: await parseShebangArgs(result, context),
+        command: {
+          name,
+          baseDir: path.dirname(commandPath),
+        },
+        args,
       };
     } else {
       const _assertUndefined: undefined = result;
       return {
         kind: "path",
-        path: commandName,
+        path: commandPath,
       };
     }
   }
 
   // always use the current executable for "deno"
-  if (commandName.toUpperCase() === "DENO") {
+  if (unresolvedCommand.name.toUpperCase() === "DENO") {
     return {
       kind: "path",
       path: Deno.execPath(),
     };
   }
 
-  const commandPath = await whichFromContext(commandName, context);
+  const commandPath = await whichFromContext(unresolvedCommand.name, context);
   if (commandPath == null) {
-    throw new Error(`Command not found: ${commandName}`);
+    throw new Error(`Command not found: ${unresolvedCommand.name}`);
   }
   return {
     kind: "path",

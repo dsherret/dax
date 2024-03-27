@@ -1461,6 +1461,25 @@ Deno.test("shebang support", async (t) => {
       assertEquals(output, "Hello");
     });
 
+    step("relative sub dir", async () => {
+      dir.join("echo_stdin2.ts").writeTextSync(
+        [
+          "#!/usr/bin/env -S deno run --allow-run",
+          "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
+        ].join("\n"),
+      );
+      dir.join("sub/sub.ts").writeTextSync(
+        [
+          "#!/usr/bin/env ../echo_stdin2.ts",
+          "console.log('Hello')",
+        ].join("\n"),
+      );
+      const output = await $`./sub/sub.ts`
+        .cwd(dir)
+        .text();
+      assertEquals(output, "Hello");
+    });
+
     await Promise.all(steps);
   });
 });
