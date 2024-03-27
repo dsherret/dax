@@ -1,7 +1,7 @@
 # dax
 
 [![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
-[![NPM Version](https://img.shields.io/npm/v/dax-sh.svg?style=flat)](http://www.npmjs.com/package/dax-sh)
+[![npm Version](https://img.shields.io/npm/v/dax-sh.svg?style=flat)](http://www.npmjs.com/package/dax-sh)
 
 <img src="src/assets/logo.svg" height="150px" alt="dax logo">
 
@@ -852,6 +852,7 @@ Currently implemented (though not every option is supported):
 - [`unset`](https://man7.org/linux/man-pages/man1/unset.1p.html) - Unsets an environment variable.
 - [`cat`](https://man7.org/linux/man-pages/man1/cat.1.html) - Concatenate files and print on the standard output
 - [`printenv`](https://man7.org/linux/man-pages/man1/printenv.1.html) - Print all or part of environment
+- `which` - Resolves the path to an executable (`-a` flag is not supported at this time)
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
