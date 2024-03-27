@@ -1163,14 +1163,6 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
     }
   }
 
-  // always use the current executable for "deno"
-  if (unresolvedCommand.name.toUpperCase() === "DENO") {
-    return {
-      kind: "path",
-      path: Deno.execPath(),
-    };
-  }
-
   const commandPath = await whichFromContext(unresolvedCommand.name, context);
   if (commandPath == null) {
     throw new Error(`Command not found: ${unresolvedCommand.name}`);
@@ -1186,6 +1178,10 @@ const realEnvironment = new DenoWhichRealEnvironment();
 export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
+  // always use the current executable for "deno"
+  if (name.toUpperCase() === "DENO") {
+    return Deno.execPath();
+  }
   return await which(commandName, {
     os: Deno.build.os,
     stat: realEnvironment.stat,
