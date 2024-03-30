@@ -928,6 +928,10 @@ async function executeUnresolvedCommand(
   context: Context,
 ): Promise<ExecuteResult> {
   const resolvedCommand = await resolveCommand(unresolvedCommand, context);
+  if (resolvedCommand === false) {
+    context.stderr.writeLine(`dax: ${unresolvedCommand.name}: command not found`);
+    return { code: 127 };
+  }
   if (resolvedCommand.kind === "shebang") {
     return executeUnresolvedCommand(resolvedCommand.command, [...resolvedCommand.args, ...commandArgs], context);
   }
@@ -1113,7 +1117,7 @@ function pipeCommandPipeReaderToWriterSync(
   }
 }
 
-type ResolvedCommand = ResolvedPathCommand | ResolvedShebangCommand;
+type ResolvedCommand = ResolvedPathCommand | ResolvedShebangCommand | false;
 
 interface ResolvedPathCommand {
   kind: "path";
@@ -1141,7 +1145,7 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
     // won't have a script with a shebang in it on Windows
     const result = await getExecutableShebangFromPath(commandPath);
     if (result === false) {
-      throw new Error(`Command not found: ${unresolvedCommand.name}`);
+      return false;
     } else if (result != null) {
       const args = await parseShebangArgs(result, context);
       const name = args.shift()!;
@@ -1180,7 +1184,7 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
     },
   });
   if (commandPath == null) {
-    throw new Error(`Command not found: ${unresolvedCommand.name}`);
+    return false;
   }
   return {
     kind: "path",

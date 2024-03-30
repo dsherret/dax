@@ -192,6 +192,12 @@ Deno.test("should throw when exit code is non-zero", async () => {
   );
 });
 
+Deno.test("should error in the shell when the command can't be found", async () => {
+  const output = await $`nonexistentcommanddaxtest`.noThrow().stderr("piped");
+  assertEquals(output.code, 127);
+  assertEquals(output.stderr, "dax: nonexistentcommanddaxtest: command not found\n");
+});
+
 Deno.test("throws when providing an object that doesn't override toString", async () => {
   {
     const obj1 = {};
@@ -490,11 +496,9 @@ Deno.test("should not allow invalid command names", () => {
 
 Deno.test("should unregister commands", async () => {
   const builder = new CommandBuilder().unregisterCommand("export").noThrow();
-  await assertRejects(
-    async () => await builder.command("export somewhere"),
-    Error,
-    "Command not found: export",
-  );
+  const output = await builder.command("export somewhere").stderr("piped");
+  assertEquals(output.code, 127);
+  assertEquals(output.stderr, "dax: export: command not found\n");
 });
 
 Deno.test("sleep command", async () => {
@@ -1438,7 +1442,7 @@ Deno.test("shebang support", async (t) => {
             .text();
         },
         Error,
-        "Command not found: deno run",
+        "Exited with code: 127",
       );
     });
 
