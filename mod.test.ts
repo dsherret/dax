@@ -218,7 +218,7 @@ Deno.test("throws when providing an object that doesn't override toString", asyn
   }
   class Test {
     toString() {
-      return 1;
+      return "1";
     }
   }
   {
@@ -2215,6 +2215,17 @@ Deno.test("which uses same as $.which", async () => {
     assertEquals(whichShellOutput.stdout, "");
     assertEquals(whichShellOutput.code, 2);
   }
+});
+
+Deno.test("expect error undefined", async () => {
+  await assertRejects(async () => {
+    // @ts-expect-error undefined not assignable
+    await $`echo ${undefined}`;
+  });
+  await assertRejects(async () => {
+    // @ts-expect-error null not assignable
+    await $`echo ${null}`;
+  });
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
