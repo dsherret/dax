@@ -2222,6 +2222,10 @@ Deno.test("expect error undefined", async () => {
     // @ts-expect-error undefined not assignable
     await $`echo ${undefined}`;
   });
+  await assertRejects(async () => {
+    // @ts-expect-error null not assignable
+    await $`echo ${null}`;
+  });
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
