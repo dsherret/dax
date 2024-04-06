@@ -15,7 +15,8 @@ import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import type { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
+import * as colors from "@std/fmt/colors";
+import { Buffer, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,

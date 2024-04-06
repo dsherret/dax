@@ -1,31 +1,23 @@
-import {
-  emptyDir,
-  emptyDirSync,
-  ensureDir,
-  ensureDirSync,
-  ensureFile,
-  ensureFileSync,
-  expandGlob,
-  expandGlobSync,
-  path as stdPath,
-  walk,
-  walkSync,
-  writeAll,
-  writeAllSync,
-} from "./deps.ts";
+import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+
+import { emptyDir, emptyDirSync } from "@std/fs/empty-dir";
+import { ensureDir, ensureDirSync } from "@std/fs/ensure-dir";
+import { ensureFile, ensureFileSync } from "@std/fs/ensure-file";
+import { expandGlob, expandGlobSync } from "@std/fs/expand-glob";
+import { walk, walkSync } from "@std/fs/walk";
 import { symbols } from "./common.ts";
 
 /**
  * `ExpandGlobOptions` from https://deno.land/std/fs/expand_glob.ts
  * @internal
  */
-type DenoStdExpandGlobOptions = import("./deps.ts").ExpandGlobOptions;
+type DenoStdExpandGlobOptions = import("@std/fs/expand-glob").ExpandGlobOptions;
 export type ExpandGlobOptions = DenoStdExpandGlobOptions;
 /**
  * `WalkOptions` from https://deno.land/std/fs/walk.ts
  * @internal
  */
-type DenoStdWalkOptions = import("./deps.ts").WalkOptions;
+type DenoStdWalkOptions = import("@std/fs/walk").WalkOptions;
 export type WalkOptions = DenoStdWalkOptions;
 
 const PERIOD_CHAR_CODE = ".".charCodeAt(0);
@@ -470,7 +462,7 @@ export class Path {
     }
   }
 
-  #stdWalkEntryToDax(entry: import("./deps.ts").WalkEntry): WalkEntry {
+  #stdWalkEntryToDax(entry: import("@std/fs/walk").WalkEntry): WalkEntry {
     return {
       ...entry,
       path: new Path(entry.path),

@@ -21,7 +21,8 @@ import {
   usingTempDir,
   withTempDir,
 } from "./src/deps.test.ts";
-import { Buffer, colors, path } from "./src/deps.ts";
+import * as colors from "@std/fmt/colors";
+import { Buffer, path } from "./src/deps.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
 
 // Deno will not be a tty because it captures the pipes, but Node

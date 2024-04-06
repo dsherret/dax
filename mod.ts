@@ -33,7 +33,8 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import { colors, outdent, which, whichSync } from "./src/deps.ts";
+import * as colors from "@std/fmt/colors";
+import { outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPath, Path } from "./src/path.ts";
@@ -44,7 +45,9 @@ export { TimeoutError } from "./src/common.ts";
 export { FsFileWrapper, Path } from "./src/path.ts";
 /** @deprecated Import `Path` instead. */
 const PathRef = Path;
-export type { PathRef };
+// bug in deno: https://github.com/denoland/deno_lint/pull/1262
+// deno-lint-ignore verbatim-module-syntax
+export { PathRef };
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export {
   CommandBuilder,

@@ -1,6 +1,8 @@
-import { assert, assertEquals, assertRejects, assertThrows, isNode, withTempDir } from "./deps.test.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
+import { isNode } from "which_runtime";
+import { withTempDir } from "./deps.test.ts";
 import { createPath, Path } from "./path.ts";
-import { path as stdPath } from "./deps.ts";
+import * as stdPath from "@std/path";
 
 Deno.test("create from path ref", () => {
   const path = createPath("src");
@@ -110,7 +112,7 @@ Deno.test("components", () => {
       assert(!component.includes("/"));
       assert(!component.includes("\\"));
     }
-    let expectedLength = srcDir.toString().split(stdPath.SEP).length;
+    let expectedLength = srcDir.toString().split(stdPath.SEPARATOR).length;
     if (Deno.build.os !== "windows") {
       expectedLength--; // for leading slash
     }

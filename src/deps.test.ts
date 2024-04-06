@@ -1,8 +1,8 @@
 import { createPath, type Path } from "./path.ts";
 
 export { assert, assertEquals, assertMatch, assertRejects, assertStringIncludes, assertThrows } from "@std/assert";
-export { toWritableStream } from "@std/io/to_writable_stream";
-export { toReadableStream } from "@std/io/to_readable_stream";
+export { toWritableStream } from "@std/io/to-writable-stream";
+export { toReadableStream } from "@std/io/to-readable-stream";
 export { isNode } from "which_runtime";
 
 /**

@@ -1,4 +1,4 @@
-import { colors } from "../../deps.ts";
+import * as colors from "@std/fmt/colors";
 import { type ConsoleSize, isOutputTty, safeConsoleSize, type TextItem } from "../utils.ts";
 import { humanDownloadSize } from "./format.ts";
 import { addProgressBar, forceRender, removeProgressBar, type RenderIntervalProgressBar } from "./interval.ts";

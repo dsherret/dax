@@ -1,7 +1,8 @@
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
 import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
-import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
+import { existsSync } from "@std/fs/exists";
+import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
   NullPipeReader,
@@ -897,7 +898,7 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
 }
 
 function checkMapCwdNotExistsError(cwd: string, err: unknown) {
-  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
+  if ((err as any).code === "ENOENT" && !existsSync(cwd)) {
     throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
       cause: err,
     });
