@@ -1,6 +1,6 @@
+import { exists } from "@std/fs/exists";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath, safeLstat } from "../common.ts";
-import { exists } from "@std/fs/exists";
 import type { ExecuteResult } from "../result.ts";
 
 export async function testCommand(context: CommandContext): Promise<ExecuteResult> {

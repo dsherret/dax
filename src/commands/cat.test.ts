@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "../deps.test.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 import { parseCatArgs } from "./cat.ts";
 
 Deno.test("test cat parse args", () => {

@@ -1,5 +1,6 @@
+import { BufReader } from "@std/io/buf-reader";
+import * as path from "@std/path";
 import { logger } from "./console/mod.ts";
-import { BufReader, path } from "./deps.ts";
 import type { Reader } from "./pipes.ts";
 
 interface Symbols {

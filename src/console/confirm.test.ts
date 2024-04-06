@@ -1,5 +1,5 @@
+import { assertEquals } from "@std/assert";
 import { innerConfirm } from "./confirm.ts";
-import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 

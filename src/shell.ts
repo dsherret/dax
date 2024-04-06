@@ -1,8 +1,9 @@
+import { existsSync } from "@std/fs/exists";
+import * as path from "@std/path";
+import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
 import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
-import { existsSync } from "@std/fs/exists";
-import { DenoWhichRealEnvironment, path, which } from "./deps.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
   NullPipeReader,

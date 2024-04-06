@@ -1,5 +1,7 @@
-import { path as stdPath, writeAll, writeAllSync } from "./deps.ts";
+import { writeAll, writeAllSync } from "@std/io/write-all";
+import * as stdPath from "@std/path";
 
+import { copy, copySync } from "@std/fs/copy";
 import { emptyDir, emptyDirSync } from "@std/fs/empty-dir";
 import { ensureDir, ensureDirSync } from "@std/fs/ensure-dir";
 import { ensureFile, ensureFileSync } from "@std/fs/ensure-file";
@@ -1035,7 +1037,7 @@ export class Path {
    */
   async copy(destinationPath: string | URL | Path, options?: { overwrite?: boolean }): Promise<Path> {
     const pathRef = ensurePath(destinationPath);
-    await fs.copy(this.#path, pathRef.#path, options);
+    await copy(this.#path, pathRef.#path, options);
     return pathRef;
   }
 
@@ -1044,7 +1046,7 @@ export class Path {
    */
   copySync(destinationPath: string | URL | Path, options?: { overwrite?: boolean }): Path {
     const pathRef = ensurePath(destinationPath);
-    fs.copySync(this.#path, pathRef.#path, options);
+    copySync(this.#path, pathRef.#path, options);
     return pathRef;
   }
 

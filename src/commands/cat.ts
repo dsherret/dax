@@ -1,7 +1,7 @@
 import type { CommandContext } from "../command_handler.ts";
+import { errorToString, resolvePath } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { errorToString, resolvePath } from "../common.ts";
 
 interface CatFlags {
   paths: string[];

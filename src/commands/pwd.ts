@@ -1,6 +1,6 @@
+import * as path from "@std/path";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import { path } from "../deps.ts";
 import type { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 

@@ -1,9 +1,12 @@
-import { Buffer, path } from "./deps.ts";
-import { assert, assertEquals, assertRejects, isNode, toWritableStream } from "./deps.test.ts";
-import { RequestBuilder } from "./request.ts";
-import { startServer } from "./test/server.deno.ts";
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import { Buffer } from "@std/io/buffer";
+import { toWritableStream } from "@std/io/to-writable-stream";
+import * as path from "@std/path";
+import { isNode } from "which_runtime";
 import $ from "../mod.ts";
 import { TimeoutError } from "./common.ts";
+import { RequestBuilder } from "./request.ts";
+import { startServer } from "./test/server.deno.ts";
 
 async function withServer(action: (serverUrl: URL) => Promise<void>) {
   const server = await startServer({

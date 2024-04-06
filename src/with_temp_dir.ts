@@ -1,10 +1,5 @@
 import { createPath, type Path } from "./path.ts";
 
-export { assert, assertEquals, assertMatch, assertRejects, assertStringIncludes, assertThrows } from "@std/assert";
-export { toWritableStream } from "@std/io/to-writable-stream";
-export { toReadableStream } from "@std/io/to-readable-stream";
-export { isNode } from "which_runtime";
-
 /**
  * Creates a temporary directory, changes the cwd to this directory,
  * then cleans up and restores the cwd when complete.

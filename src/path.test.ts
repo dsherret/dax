@@ -1,8 +1,8 @@
 import { assert, assertEquals, assertRejects, assertThrows } from "@std/assert";
-import { isNode } from "which_runtime";
-import { withTempDir } from "./deps.test.ts";
-import { createPath, Path } from "./path.ts";
 import * as stdPath from "@std/path";
+import { isNode } from "which_runtime";
+import { createPath, Path } from "./path.ts";
+import { withTempDir } from "./with_temp_dir.ts";
 
 Deno.test("create from path ref", () => {
   const path = createPath("src");

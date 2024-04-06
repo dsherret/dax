@@ -1,3 +1,5 @@
+import * as colors from "@std/fmt/colors";
+import { which, whichSync } from "which";
 import {
   CommandBuilder,
   escapeArg,
@@ -6,6 +8,7 @@ import {
   template,
   templateRaw,
 } from "./src/command.ts";
+import type { TemplateExpr } from "./src/command.ts";
 import {
   Box,
   type Delay,
@@ -33,12 +36,10 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import * as colors from "@std/fmt/colors";
-import { outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
-import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPath, Path } from "./src/path.ts";
-import type { TemplateExpr } from "./src/command.ts";
+import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
+import { outdent } from "./src/vendor/outdent.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { TimeoutError } from "./src/common.ts";
@@ -48,7 +49,6 @@ const PathRef = Path;
 // bug in deno: https://github.com/denoland/deno_lint/pull/1262
 // deno-lint-ignore verbatim-module-syntax
 export { PathRef };
-export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export {
   CommandBuilder,
   CommandChild,
@@ -59,7 +59,6 @@ export {
   type TemplateExpr,
 } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
-export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export type {
   ConfirmOptions,
   MultiSelectOption,
@@ -70,6 +69,8 @@ export type {
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
+export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
+export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export { RequestBuilder, RequestResponse } from "./src/request.ts";
 // these are used when registering commands
 export type {
@@ -138,17 +139,17 @@ export interface $Template {
  * `outdent` from the https://deno.land/x/outdent module.
  * @internal
  */
-type Outdent = typeof import("./src/deps.ts").outdent;
+type Outdent = typeof outdent;
 /**
  * `which` from the https://deno.land/x/which module.
  * @internal
  */
-type Which = typeof import("./src/deps.ts").which;
+type Which = typeof import("which").which;
 /**
  * `whichSync` from the https://deno.land/x/which module.
  * @internal
  */
-type WhichSync = typeof import("./src/deps.ts").whichSync;
+type WhichSync = typeof import("which").whichSync;
 
 /** Collection of built-in properties that come with a `$`. */
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {

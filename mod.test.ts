@@ -1,4 +1,11 @@
-import { readAll, readerFromStreamReader } from "./src/deps.ts";
+import { assert, assertEquals, assertMatch, assertRejects, assertStringIncludes, assertThrows } from "@std/assert";
+import * as colors from "@std/fmt/colors";
+import { Buffer } from "@std/io/buffer";
+import { readAll } from "@std/io/read-all";
+import { toWritableStream } from "@std/io/to-writable-stream";
+import * as path from "@std/path";
+import { readerFromStreamReader } from "@std/streams/reader-from-stream-reader";
+import { isNode } from "which_runtime";
 import $, {
   build$,
   CommandBuilder,
@@ -9,21 +16,8 @@ import $, {
   Path,
   PathRef,
 } from "./mod.ts";
-import {
-  assert,
-  assertEquals,
-  assertMatch,
-  assertRejects,
-  assertStringIncludes,
-  assertThrows,
-  isNode,
-  toWritableStream,
-  usingTempDir,
-  withTempDir,
-} from "./src/deps.test.ts";
-import * as colors from "@std/fmt/colors";
-import { Buffer, path } from "./src/deps.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
+import { usingTempDir, withTempDir } from "./src/with_temp_dir.ts";
 
 // Deno will not be a tty because it captures the pipes, but Node
 // will be, so manually say that we're not a tty for testing so

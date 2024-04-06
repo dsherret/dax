@@ -1,5 +1,5 @@
-import { assertEquals } from "./deps.test.ts";
-import { Buffer } from "./deps.ts";
+import { assertEquals } from "@std/assert";
+import { Buffer } from "@std/io/buffer";
 import { InheritStaticTextBypassWriter } from "./pipes.ts";
 
 Deno.test("should line buffer the inherit static text bypass writer", () => {
