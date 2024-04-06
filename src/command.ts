@@ -1232,17 +1232,40 @@ export function getSignalAbortCode(signal: Deno.Signal) {
   }
 }
 
-export function template(strings: TemplateStringsArray, exprs: any[]) {
+export function template(strings: TemplateStringsArray, exprs: TemplateExpr[]) {
   return templateInner(strings, exprs, escapeArg);
 }
 
-export function templateRaw(strings: TemplateStringsArray, exprs: any[]) {
+export function templateRaw(strings: TemplateStringsArray, exprs: TemplateExpr[]) {
   return templateInner(strings, exprs, undefined);
 }
 
+export type TemplateExpr =
+  | string
+  | number
+  | boolean
+  | Path
+  | Uint8Array
+  | CommandResult
+  | { toString(): string }
+  | (string | number | boolean | Path | { toString(): string })[]
+  | ReadableStream<Uint8Array>
+  | {
+    // type is unfortuantely not that great
+    [readable: symbol]: () => ReadableStream<Uint8Array>;
+  }
+  | (() => ReadableStream<Uint8Array>)
+  // for input redirects only
+  | {
+    // type is unfortuantely not that great
+    [writable: symbol]: () => WritableStream<Uint8Array>;
+  }
+  | WritableStream<Uint8Array>
+  | (() => WritableStream<Uint8Array>);
+
 function templateInner(
   strings: TemplateStringsArray,
-  exprs: any[],
+  exprs: TemplateExpr[],
   escape: ((arg: string) => string) | undefined,
 ): CommandBuilderStateCommand {
   let nextStreamFd = 3;
@@ -1271,9 +1294,9 @@ function templateInner(
             );
           } else if (expr instanceof ReadableStream) {
             handleReadableStream(() => expr);
-          } else if (expr?.[symbols.readable]) {
+          } else if ((expr as any)?.[symbols.readable]) {
             handleReadableStream(() => {
-              const stream = expr[symbols.readable]?.();
+              const stream = (expr as any)[symbols.readable]?.();
               if (!(stream instanceof ReadableStream)) {
                 throw new Error(
                   "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
@@ -1338,9 +1361,9 @@ function templateInner(
                 },
               });
             });
-          } else if (expr?.[symbols.writable]) {
+          } else if ((expr as any)?.[symbols.writable]) {
             handleWritableStream(() => {
-              const stream = expr[symbols.writable]?.();
+              const stream = (expr as any)[symbols.writable]?.();
               if (!(stream instanceof WritableStream)) {
                 throw new Error(
                   `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
@@ -1435,7 +1458,7 @@ function detectInputOrOutputRedirect(text: string) {
   }
 }
 
-function templateLiteralExprToString(expr: any, escape: ((arg: string) => string) | undefined): string {
+function templateLiteralExprToString(expr: TemplateExpr, escape: ((arg: string) => string) | undefined): string {
   let result: string;
   if (typeof expr === "string") {
     result = expr;

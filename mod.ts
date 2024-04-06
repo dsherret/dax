@@ -37,6 +37,7 @@ import { colors, outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPath, Path } from "./src/path.ts";
+import { TemplateExpr } from "./src/command.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { TimeoutError } from "./src/common.ts";
@@ -52,6 +53,7 @@ export {
   KillSignal,
   KillSignalController,
   type KillSignalListener,
+  type TemplateExpr,
 } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
 export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
@@ -126,7 +128,7 @@ export type $Type<TExtras extends ExtrasObject = {}> =
 
 /** String literal template. */
 export interface $Template {
-  (strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
+  (strings: TemplateStringsArray, ...exprs: TemplateExpr[]): CommandBuilder;
 }
 
 /**
@@ -499,7 +501,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * await $`command ${exprs}`;
    * ```
    */
-  raw(strings: TemplateStringsArray, ...exprs: any[]): CommandBuilder;
+  raw(strings: TemplateStringsArray, ...exprs: TemplateExpr[]): CommandBuilder;
   /**
    * Does the provided action until it succeeds (does not throw)
    * or the specified number of retries (`count`) is hit.
@@ -631,7 +633,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
     },
   };
   const result = Object.assign(
-    (strings: TemplateStringsArray, ...exprs: any[]) => {
+    (strings: TemplateStringsArray, ...exprs: TemplateExpr[]) => {
       const textState = template(strings, exprs);
       return state.commandBuilder.getValue()[setCommandTextStateSymbol](textState);
     },
