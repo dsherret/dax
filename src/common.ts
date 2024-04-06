@@ -1,8 +1,8 @@
 import { logger } from "./console/mod.ts";
 import { BufReader, path } from "./deps.ts";
-import { Reader } from "./pipes.ts";
+import type { Reader } from "./pipes.ts";
 
-export const symbols = {
+interface Symbols {
   /** Use this symbol to enable the provided object to be written to in
    * an output redirect within a template literal expression.
    *
@@ -17,7 +17,7 @@ export const symbols = {
    * await $`echo 1 > ${myObj}`;
    * ```
    */
-  writable: Symbol.for("dax.writableStream"),
+  readonly writable: symbol;
   /** Use this symbol to enable the provided object to be read from in
    * an input redirect within a template literal expression.
    *
@@ -32,6 +32,11 @@ export const symbols = {
    * await $`gzip < ${myObj}`;
    * ```
    */
+  readonly readable: symbol;
+}
+
+export const symbols: Symbols = {
+  writable: Symbol.for("dax.writableStream"),
   readable: Symbol.for("dax.readableStream"),
 };
 
@@ -41,7 +46,7 @@ export class TimeoutError extends Error {
     super(message);
   }
 
-  get name() {
+  get name(): string {
     return "TimeoutError";
   }
 }

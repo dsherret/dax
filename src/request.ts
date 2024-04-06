@@ -1,7 +1,7 @@
 import { formatMillis, symbols } from "./common.ts";
 import { TimeoutError } from "./common.ts";
-import { Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
-import { ProgressBar } from "./console/mod.ts";
+import { type Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
+import type { ProgressBar } from "./console/mod.ts";
 import { Path } from "./path.ts";
 
 interface RequestBuilderState {

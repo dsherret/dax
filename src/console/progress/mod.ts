@@ -1,7 +1,7 @@
 import { colors } from "../../deps.ts";
-import { ConsoleSize, isOutputTty, safeConsoleSize, TextItem } from "../utils.ts";
+import { type ConsoleSize, isOutputTty, safeConsoleSize, type TextItem } from "../utils.ts";
 import { humanDownloadSize } from "./format.ts";
-import { addProgressBar, forceRender, removeProgressBar, RenderIntervalProgressBar } from "./interval.ts";
+import { addProgressBar, forceRender, removeProgressBar, type RenderIntervalProgressBar } from "./interval.ts";
 
 export { isShowingProgressBars } from "./interval.ts";
 

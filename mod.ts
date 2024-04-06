@@ -8,8 +8,8 @@ import {
 } from "./src/command.ts";
 import {
   Box,
-  Delay,
-  DelayIterator,
+  type Delay,
+  type DelayIterator,
   delayToIterator,
   delayToMs,
   formatMillis,
@@ -19,32 +19,32 @@ import {
 } from "./src/common.ts";
 import {
   confirm,
-  ConfirmOptions,
+  type ConfirmOptions,
   maybeConfirm,
   maybeMultiSelect,
   maybePrompt,
   maybeSelect,
   multiSelect,
-  MultiSelectOptions,
+  type MultiSelectOptions,
   ProgressBar,
-  ProgressOptions,
+  type ProgressOptions,
   prompt,
-  PromptOptions,
+  type PromptOptions,
   select,
-  SelectOptions,
+  type SelectOptions,
 } from "./src/console/mod.ts";
 import { colors, outdent, which, whichSync } from "./src/deps.ts";
 import { wasmInstance } from "./src/lib/mod.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { createPath, Path } from "./src/path.ts";
-import { TemplateExpr } from "./src/command.ts";
+import type { TemplateExpr } from "./src/command.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { TimeoutError } from "./src/common.ts";
 export { FsFileWrapper, Path } from "./src/path.ts";
 /** @deprecated Import `Path` instead. */
 const PathRef = Path;
-export { PathRef };
+export type { PathRef };
 export type { ExpandGlobOptions, PathSymlinkOptions, SymlinkOptions, WalkEntry, WalkOptions } from "./src/path.ts";
 export {
   CommandBuilder,

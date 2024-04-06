@@ -1,6 +1,6 @@
-import { CommandContext } from "../command_handler.ts";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import { ExecuteResult } from "../result.ts";
+import type { ExecuteResult } from "../result.ts";
 
 export function exitCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   try {

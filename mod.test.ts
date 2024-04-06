@@ -2,8 +2,8 @@ import { readAll, readerFromStreamReader } from "./src/deps.ts";
 import $, {
   build$,
   CommandBuilder,
-  CommandContext,
-  CommandHandler,
+  type CommandContext,
+  type CommandHandler,
   KillSignal,
   KillSignalController,
   Path,

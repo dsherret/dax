@@ -1,6 +1,6 @@
-import { ExecuteResult } from "./result.ts";
+import type { ExecuteResult } from "./result.ts";
 import type { KillSignal } from "./command.ts";
-import { Reader } from "./pipes.ts";
+import type { Reader } from "./pipes.ts";
 
 /** Used to read from stdin. */
 export type CommandPipeReader = "inherit" | "null" | Reader;

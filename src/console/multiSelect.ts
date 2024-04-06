@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, type SelectionOptions, type TextItem } from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {

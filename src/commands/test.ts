@@ -1,7 +1,7 @@
-import { CommandContext } from "../command_handler.ts";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import { fs } from "../deps.ts";
-import { ExecuteResult } from "../result.ts";
+import type { ExecuteResult } from "../result.ts";
 
 export async function testCommand(context: CommandContext): Promise<ExecuteResult> {
   try {

@@ -163,7 +163,7 @@ function createInstance(options: Options): Outdent {
   return fullOutdent;
 }
 
-const defaultOutdent = createInstance({
+const defaultOutdent: Outdent = createInstance({
   trimLeadingNewline: true,
   trimTrailingNewline: true,
 });
@@ -189,6 +189,7 @@ export interface Outdent {
   //  */
   // pass(strings: TemplateStringsArray, ...values: Array<any>): [TemplateStringsArray, ...Array<any>];
 }
+
 export interface Options {
   trimLeadingNewline?: boolean;
   trimTrailingNewline?: boolean;

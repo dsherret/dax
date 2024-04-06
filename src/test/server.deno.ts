@@ -1,4 +1,4 @@
-import { Server, StartServerHandler } from "./server.common.ts";
+import type { Server, StartServerHandler } from "./server.common.ts";
 
 export const startServer: StartServerHandler = (options) => {
   return new Promise<Server>((resolve, _reject) => {

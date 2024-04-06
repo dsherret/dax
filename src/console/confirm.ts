@@ -1,5 +1,5 @@
 import { colors } from "../deps.ts";
-import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, type SelectionOptions, type TextItem } from "./utils.ts";
 
 /** Options for showing confirming a yes or no question. */
 export interface ConfirmOptions {

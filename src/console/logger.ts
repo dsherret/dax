@@ -1,4 +1,4 @@
-import { ConsoleSize, isOutputTty, safeConsoleSize, staticText, TextItem } from "./utils.ts";
+import { type ConsoleSize, isOutputTty, safeConsoleSize, staticText, type TextItem } from "./utils.ts";
 
 export enum LoggerRefreshItemKind {
   ProgressBars,
@@ -49,4 +49,5 @@ const logger = {
   logAboveStaticText,
 };
 
+// deno-lint-ignore verbatim-module-syntax -- Bug https://github.com/denoland/deno_lint/pull/1262
 export { logger };

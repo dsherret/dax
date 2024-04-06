@@ -1,5 +1,5 @@
-import { CommandContext } from "../command_handler.ts";
-import { EnvChange, ExecuteResult } from "../result.ts";
+import type { CommandContext } from "../command_handler.ts";
+import type { EnvChange, ExecuteResult } from "../result.ts";
 
 export function exportCommand(context: CommandContext): ExecuteResult {
   const changes: EnvChange[] = [];

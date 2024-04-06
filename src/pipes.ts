@@ -1,4 +1,4 @@
-import { type FsFileWrapper, Path } from "./path.ts";
+import type { FsFileWrapper, Path } from "./path.ts";
 import { logger } from "./console/logger.ts";
 import { Buffer, writeAll, writeAllSync } from "./deps.ts";
 import type { RequestBuilder } from "./request.ts";

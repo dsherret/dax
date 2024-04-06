@@ -1,4 +1,4 @@
-import { CommandHandler } from "./command_handler.ts";
+import type { CommandHandler } from "./command_handler.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { printEnvCommand } from "./commands/printenv.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
@@ -14,7 +14,7 @@ import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
-import { Delay } from "./common.ts";
+import type { Delay } from "./common.ts";
 import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
 import {
   CapturingBufferWriter,
@@ -22,12 +22,12 @@ import {
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
-  Reader,
-  ShellPipeReaderKind,
+  type Reader,
+  type ShellPipeReaderKind,
   ShellPipeWriter,
-  ShellPipeWriterKind,
-  Writer,
-  WriterSync,
+  type ShellPipeWriterKind,
+  type Writer,
+  type WriterSync,
 } from "./pipes.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
@@ -590,7 +590,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand) {
+  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand): CommandBuilder {
     return this.#newWithState((state) => {
       state.command = textState;
     });
