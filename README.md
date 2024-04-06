@@ -1,6 +1,6 @@
 # dax
 
-[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/dax/mod.ts)
+[![JSR](https://jsr.io/badges/@david/dax)](https://jsr.io/@david/dax)
 [![npm Version](https://img.shields.io/npm/v/dax-sh.svg?style=flat)](http://www.npmjs.com/package/dax-sh)
 
 <img src="src/assets/logo.svg" height="150px" alt="dax logo">
