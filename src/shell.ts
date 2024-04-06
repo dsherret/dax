@@ -1179,7 +1179,7 @@ export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
   // always use the current executable for "deno"
-  if (name.toUpperCase() === "DENO") {
+  if (commandName.toUpperCase() === "DENO") {
     return Deno.execPath();
   }
   return await which(commandName, {
