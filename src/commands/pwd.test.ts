@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertThrows } from "../deps.test.ts";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import { parseArgs } from "./pwd.ts";
 
 Deno.test("pwd: parseArgs", () => {

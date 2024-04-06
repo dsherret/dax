@@ -20,11 +20,26 @@ Cross-platform shell tools for Deno and Node.js inspired by [zx](https://github.
 1. Good for application code in addition to use as a shell script replacement.
 1. Named after my cat.
 
+## Install
+
+Deno:
+
+```sh
+# or skip and import directly from `jsr:@david/dax@<version>`
+deno add @david/dax
+```
+
+Node:
+
+```sh
+npm install dax-sh
+```
+
 ## Executing commands
 
 ```ts
 #!/usr/bin/env -S deno run --allow-all
-import $ from "https://deno.land/x/dax/mod.ts";
+import $ from "@david/dax"; // "dax-sh" in Node
 
 // run a command
 await $`echo 5`; // outputs: 5
@@ -39,8 +54,6 @@ await Promise.all([
   $`sleep 3 ; echo 3`,
 ]);
 ```
-
-Note: Above instructions are for Deno. For Node.js, install via `npm install --save-dev dax-sh` then import via `import $ from "dax-sh";`.
 
 ### Getting output
 

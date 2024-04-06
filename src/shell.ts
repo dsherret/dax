@@ -1,21 +1,23 @@
-import { KillSignal } from "./command.ts";
-import { CommandContext, CommandHandler, type CommandPipeReader } from "./command_handler.ts";
-import { errorToString, getExecutableShebangFromPath, ShebangInfo } from "./common.ts";
-import { DenoWhichRealEnvironment, fs, path, which } from "./deps.ts";
+import { existsSync } from "@std/fs/exists";
+import * as path from "@std/path";
+import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
+import type { KillSignal } from "./command.ts";
+import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
+import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
 import { wasmInstance } from "./lib/mod.ts";
 import {
   NullPipeReader,
   NullPipeWriter,
   pipeReadableToWriterSync,
   PipeSequencePipe,
-  PipeWriter,
-  Reader,
-  ShellPipeReaderKind,
+  type PipeWriter,
+  type Reader,
+  type ShellPipeReaderKind,
   ShellPipeWriter,
-  ShellPipeWriterKind,
+  type ShellPipeWriterKind,
 } from "./pipes.ts";
-import { EnvChange, ExecuteResult, getAbortedResult } from "./result.ts";
-import { SpawnedChildProcess } from "./runtimes/process.common.ts";
+import { type EnvChange, type ExecuteResult, getAbortedResult } from "./result.ts";
+import type { SpawnedChildProcess } from "./runtimes/process.common.ts";
 import { spawnCommand } from "./runtimes/process.deno.ts";
 
 const neverAbortedSignal = new AbortController().signal;
@@ -897,7 +899,7 @@ async function executeSimpleCommand(command: SimpleCommand, parentContext: Conte
 }
 
 function checkMapCwdNotExistsError(cwd: string, err: unknown) {
-  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
+  if ((err as any).code === "ENOENT" && !existsSync(cwd)) {
     throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
       cause: err,
     });

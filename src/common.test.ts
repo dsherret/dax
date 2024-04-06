@@ -1,3 +1,6 @@
+import { assertEquals } from "@std/assert";
+import { Buffer } from "@std/io/buffer";
+import * as path from "@std/path";
 import {
   delayToIterator,
   delayToMs,
@@ -7,8 +10,6 @@ import {
   resolvePath,
   TreeBox,
 } from "./common.ts";
-import { assertEquals } from "./deps.test.ts";
-import { Buffer, path } from "./deps.ts";
 
 Deno.test("should get delay value", () => {
   assertEquals(delayToMs(10), 10);

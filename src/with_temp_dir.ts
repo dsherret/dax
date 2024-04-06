@@ -1,16 +1,4 @@
-import { createPath, Path } from "./path.ts";
-
-export {
-  assert,
-  assertEquals,
-  assertMatch,
-  assertRejects,
-  assertStringIncludes,
-  assertThrows,
-} from "https://deno.land/std@0.213.0/assert/mod.ts";
-export { toWritableStream } from "https://deno.land/std@0.213.0/io/to_writable_stream.ts";
-export { toReadableStream } from "https://deno.land/std@0.213.0/io/to_readable_stream.ts";
-export { isNode } from "https://deno.land/x/which_runtime@0.2.0/mod.ts";
+import { createPath, type Path } from "./path.ts";
 
 /**
  * Creates a temporary directory, changes the cwd to this directory,

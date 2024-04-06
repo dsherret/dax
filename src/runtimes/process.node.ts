@@ -1,7 +1,7 @@
 import * as cp from "node:child_process";
 import { Readable, Writable } from "node:stream";
-import { SpawnCommand } from "./process.common.ts";
 import { getSignalAbortCode } from "../command.ts";
+import type { SpawnCommand } from "./process.common.ts";
 
 function toNodeStdio(stdio: "inherit" | "null" | "piped") {
   switch (stdio) {

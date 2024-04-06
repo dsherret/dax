@@ -1,4 +1,4 @@
-import { CommandContext } from "../command_handler.ts";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 

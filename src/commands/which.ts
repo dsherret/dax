@@ -1,8 +1,8 @@
-import { CommandContext } from "../command_handler.ts";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import { ExecuteResult } from "../result.ts";
+import type { ExecuteResult } from "../result.ts";
 import { whichFromContext } from "../shell.ts";
-import { ArgKind, parseArgKinds } from "./args.ts";
+import { type ArgKind, parseArgKinds } from "./args.ts";
 
 export async function whichCommand(
   context: CommandContext,

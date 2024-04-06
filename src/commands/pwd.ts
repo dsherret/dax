@@ -1,7 +1,7 @@
-import { CommandContext } from "../command_handler.ts";
+import * as path from "@std/path";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import { path } from "../deps.ts";
-import { ExecuteResult } from "../result.ts";
+import type { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
 export function pwdCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {

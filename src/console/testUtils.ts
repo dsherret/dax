@@ -1,5 +1,5 @@
 import { wasmInstance } from "../lib/mod.ts";
-import { Keys, SelectionOptions } from "./utils.ts";
+import type { Keys, SelectionOptions } from "./utils.ts";
 
 export function createTester<TReturn>(
   renderer: Pick<SelectionOptions<TReturn | undefined>, "render" | "onKey">,

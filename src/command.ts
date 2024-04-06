@@ -1,41 +1,45 @@
-import { CommandHandler } from "./command_handler.ts";
+import * as colors from "@std/fmt/colors";
+import { Buffer } from "@std/io/buffer";
+import * as path from "@std/path";
+import { readerFromStreamReader } from "@std/streams/reader-from-stream-reader";
+import { writerFromStreamWriter } from "@std/streams/writer-from-stream-writer";
+import type { CommandHandler } from "./command_handler.ts";
+import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
-import { printEnvCommand } from "./commands/printenv.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
 import { echoCommand } from "./commands/echo.ts";
-import { catCommand } from "./commands/cat.ts";
 import { exitCommand } from "./commands/exit.ts";
 import { exportCommand } from "./commands/export.ts";
 import { mkdirCommand } from "./commands/mkdir.ts";
-import { rmCommand } from "./commands/rm.ts";
+import { printEnvCommand } from "./commands/printenv.ts";
 import { pwdCommand } from "./commands/pwd.ts";
+import { rmCommand } from "./commands/rm.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
+import { whichCommand } from "./commands/which.ts";
 import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
-import { Delay } from "./common.ts";
-import { Buffer, colors, path, readerFromStreamReader, writerFromStreamWriter } from "./deps.ts";
+import type { Delay } from "./common.ts";
+import { symbols } from "./common.ts";
+import { isShowingProgressBars } from "./console/progress/interval.ts";
+import { Path } from "./path.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,
   InheritStaticTextBypassWriter,
   NullPipeWriter,
   PipedBuffer,
-  Reader,
-  ShellPipeReaderKind,
+  type Reader,
+  type ShellPipeReaderKind,
   ShellPipeWriter,
-  ShellPipeWriterKind,
-  Writer,
-  WriterSync,
+  type ShellPipeWriterKind,
+  type Writer,
+  type WriterSync,
 } from "./pipes.ts";
-import { parseCommand, spawn } from "./shell.ts";
-import { isShowingProgressBars } from "./console/progress/interval.ts";
-import { Path } from "./path.ts";
 import { RequestBuilder } from "./request.ts";
+import { parseCommand, spawn } from "./shell.ts";
 import { StreamFds } from "./shell.ts";
-import { symbols } from "./common.ts";
-import { whichCommand } from "./commands/which.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 type StreamKind = "stdout" | "stderr" | "combined";
@@ -590,7 +594,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /** @internal */
-  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand) {
+  [setCommandTextStateSymbol](textState: CommandBuilderStateCommand): CommandBuilder {
     return this.#newWithState((state) => {
       state.command = textState;
     });

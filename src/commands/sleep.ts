@@ -1,6 +1,6 @@
-import { CommandContext } from "../command_handler.ts";
+import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import { ExecuteResult, getAbortedResult } from "../result.ts";
+import { type ExecuteResult, getAbortedResult } from "../result.ts";
 
 export async function sleepCommand(context: CommandContext): Promise<ExecuteResult> {
   try {

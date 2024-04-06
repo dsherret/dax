@@ -1,5 +1,5 @@
+import { assertEquals } from "@std/assert";
 import { innerPrompt } from "./prompt.ts";
-import { assertEquals } from "../deps.test.ts";
 import { createTester } from "./testUtils.ts";
 import { Keys } from "./utils.ts";
 

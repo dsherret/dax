@@ -1,5 +1,5 @@
-import { colors } from "../deps.ts";
-import { createSelection, Keys, resultOrExit, SelectionOptions, TextItem } from "./utils.ts";
+import * as colors from "@std/fmt/colors";
+import { createSelection, Keys, resultOrExit, type SelectionOptions, type TextItem } from "./utils.ts";
 
 /** Options for showing an input where the user enters a value. */
 export interface PromptOptions {

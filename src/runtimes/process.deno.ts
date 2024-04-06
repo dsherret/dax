@@ -1,4 +1,4 @@
-import { SpawnCommand } from "./process.common.ts";
+import type { SpawnCommand } from "./process.common.ts";
 
 export const spawnCommand: SpawnCommand = (path, options) => {
   const child = new Deno.Command(path, options).spawn();

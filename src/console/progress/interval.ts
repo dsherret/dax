@@ -1,5 +1,5 @@
 import { logger, LoggerRefreshItemKind } from "../logger.ts";
-import { ConsoleSize, isOutputTty, TextItem } from "../utils.ts";
+import { type ConsoleSize, isOutputTty, type TextItem } from "../utils.ts";
 
 export interface RenderIntervalProgressBar {
   render(size: ConsoleSize): TextItem[];
