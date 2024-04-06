@@ -276,7 +276,7 @@ Deno.test("stderrJson", async () => {
 });
 
 Deno.test("stderr text", async () => {
-  const result = await $`deno eval "console.error(1)"`.text("stderr");
+  const result = await $`deno eval "console.error(1)"`.env("NO_COLOR", "1").text("stderr");
   assertEquals(result, "1");
 });
 
@@ -1134,7 +1134,7 @@ Deno.test("command .lines()", async () => {
 });
 
 Deno.test("command .lines('stderr')", async () => {
-  const result = await $`deno eval "console.error(1); console.error(2)"`.lines("stderr");
+  const result = await $`deno eval "console.error(1); console.error(2)"`.env("NO_COLOR", "1").lines("stderr");
   assertEquals(result, ["1", "2"]);
 });
 

@@ -1,7 +1,4 @@
-import {
-  build,
-  emptyDir,
-} from "https://raw.githubusercontent.com/denoland/dnt/2a144787a696cdb6bf3488358edf5f76bd296767/mod.ts";
+import { build, emptyDir } from "@deno/dnt";
 import $ from "../mod.ts";
 
 $.cd($.path(import.meta).parentOrThrow().parentOrThrow());
@@ -11,6 +8,7 @@ await emptyDir("./npm");
 await build({
   entryPoints: ["./mod.ts"],
   outDir: "./npm",
+  importMap: "./deno.json",
   shims: {
     deno: true,
     custom: [{
@@ -104,10 +102,10 @@ await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=exter
 const npmPath = $.path("npm");
 
 // remove all the javascript files in the script folder
-for (const entry of npmPath.join("script").walkSync({ exts: ["js"] })) {
+for (const entry of npmPath.join("script").walkSync({ includeDirs: false, exts: ["js"] })) {
   entry.path.removeSync();
 }
-for (const entry of npmPath.join("esm").walkSync({ exts: ["js"] })) {
+for (const entry of npmPath.join("esm").walkSync({ includeDirs: false, exts: ["js"] })) {
   entry.path.removeSync();
 }
 
