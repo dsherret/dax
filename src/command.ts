@@ -1279,6 +1279,9 @@ function templateInner(
     if (exprs.length > i) {
       try {
         const expr = exprs[i];
+        if (expr == null) {
+          throw "Expression was null or undefined.";
+        }
         const inputOrOutputRedirect = detectInputOrOutputRedirect(text);
         if (inputOrOutputRedirect === "<") {
           if (expr instanceof Path) {
