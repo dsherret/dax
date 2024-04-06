@@ -7,6 +7,7 @@ import {
   ensureFileSync,
   expandGlob,
   expandGlobSync,
+  fs,
   path as stdPath,
   walk,
   walkSync,
@@ -1038,44 +1039,42 @@ export class Path {
     return this;
   }
 
-  /**
-   * Copies the file to the specified destination path.
+  /** Copies a file or directory to the provided destination.
    * @returns The destination file path.
    */
-  copyFile(destinationPath: string | URL | Path): Promise<Path> {
+  async copy(destinationPath: string | URL | Path, options?: { overwrite?: boolean }): Promise<Path> {
     const pathRef = ensurePath(destinationPath);
-    return Deno.copyFile(this.#path, pathRef.#path)
-      .then(() => pathRef);
+    await fs.copy(this.#path, pathRef.#path, options);
+    return pathRef;
   }
 
-  /**
-   * Copies the file to the destination path synchronously.
+  /** Copies a file or directory to the provided destination synchronously.
    * @returns The destination file path.
    */
-  copyFileSync(destinationPath: string | URL | Path): Path {
+  copySync(destinationPath: string | URL | Path, options?: { overwrite?: boolean }): Path {
     const pathRef = ensurePath(destinationPath);
-    Deno.copyFileSync(this.#path, pathRef.#path);
+    fs.copySync(this.#path, pathRef.#path, options);
     return pathRef;
   }
 
   /**
-   * Copies the file to the specified directory.
+   * Copies the file or directory to the specified directory.
    * @returns The destination file path.
    */
-  copyFileToDir(destinationDirPath: string | URL | Path): Promise<Path> {
+  copyToDir(destinationDirPath: string | URL | Path, options?: { overwrite?: boolean }): Promise<Path> {
     const destinationPath = ensurePath(destinationDirPath)
       .join(this.basename());
-    return this.copyFile(destinationPath);
+    return this.copy(destinationPath, options);
   }
 
   /**
-   * Copies the file to the specified directory synchronously.
+   * Copies the file or directory to the specified directory synchronously.
    * @returns The destination file path.
    */
-  copyFileToDirSync(destinationDirPath: string | URL | Path): Path {
+  copyToDirSync(destinationDirPath: string | URL | Path, options?: { overwrite?: boolean }): Path {
     const destinationPath = ensurePath(destinationDirPath)
       .join(this.basename());
-    return this.copyFileSync(destinationPath);
+    return this.copySync(destinationPath, options);
   }
 
   /**
