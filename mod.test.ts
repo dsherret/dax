@@ -192,6 +192,12 @@ Deno.test("should throw when exit code is non-zero", async () => {
   );
 });
 
+Deno.test("should error in the shell when the command can't be found", async () => {
+  const output = await $`nonexistentcommanddaxtest`.noThrow().stderr("piped");
+  assertEquals(output.code, 127);
+  assertEquals(output.stderr, "dax: nonexistentcommanddaxtest: command not found\n");
+});
+
 Deno.test("throws when providing an object that doesn't override toString", async () => {
   {
     const obj1 = {};
@@ -260,6 +266,11 @@ Deno.test("stdoutJson", async () => {
 
 Deno.test("CommandBuilder#json()", async () => {
   const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`.json();
+  assertEquals(output, { test: 5 });
+});
+
+Deno.test("CommandBuilder#json('stderr')", async () => {
+  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.json("stderr");
   assertEquals(output, { test: 5 });
 });
 
@@ -490,11 +501,9 @@ Deno.test("should not allow invalid command names", () => {
 
 Deno.test("should unregister commands", async () => {
   const builder = new CommandBuilder().unregisterCommand("export").noThrow();
-  await assertRejects(
-    async () => await builder.command("export somewhere"),
-    Error,
-    "Command not found: export",
-  );
+  const output = await builder.command("export somewhere").stderr("piped");
+  assertEquals(output.code, 127);
+  assertEquals(output.stderr, "dax: export: command not found\n");
 });
 
 Deno.test("sleep command", async () => {
@@ -1124,6 +1133,16 @@ Deno.test("command .lines()", async () => {
   assertEquals(result, ["1", "2"]);
 });
 
+Deno.test("command .lines('stderr')", async () => {
+  const result = await $`deno eval "console.error(1); console.error(2)"`.lines("stderr");
+  assertEquals(result, ["1", "2"]);
+});
+
+Deno.test("command .lines('combined')", async () => {
+  const result = await $`deno eval "console.log(1); console.error(2)"`.lines("combined");
+  assertEquals(result, ["1", "2"]);
+});
+
 Deno.test("piping in command", async () => {
   await withTempDir(async (tempDir) => {
     const result = await $`echo 1 | cat - > output.txt`.cwd(tempDir).text();
@@ -1438,7 +1457,7 @@ Deno.test("shebang support", async (t) => {
             .text();
         },
         Error,
-        "Command not found: deno run",
+        "Exited with code: 127",
       );
     });
 
