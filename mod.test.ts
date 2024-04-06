@@ -280,6 +280,11 @@ Deno.test("stderrJson", async () => {
   assertEquals(output.stderrJson === output.stderrJson, true); // should be memoized
 });
 
+Deno.test("stderr text", async () => {
+  const result = await $`deno eval "console.error(1)"`.text("stderr");
+  assertEquals(result, "1");
+});
+
 Deno.test("should handle interpolation", async () => {
   const output = await $`deno eval 'console.log(${5});'`.stdout("piped");
   assertEquals(output.code, 0);
