@@ -812,31 +812,45 @@ Deno.test("ensureFile", async () => {
   });
 });
 
-Deno.test("copyFile", async () => {
+Deno.test("copy", async () => {
+  // file
   await withTempDir(async () => {
     const path = createPath("file.txt").writeTextSync("text");
-    const newPath = await path.copyFile("other.txt");
+    const newPath = await path.copy("other.txt");
     assert(path.existsSync());
     assert(newPath.existsSync());
     assertEquals(newPath.readTextSync(), "text");
-    const newPath2 = path.copyFileSync("other2.txt");
+    const newPath2 = path.copySync("other2.txt");
     assert(newPath2.existsSync());
     assertEquals(newPath2.readTextSync(), "text");
   });
+  // directory
+  await withTempDir(async () => {
+    const dir = createPath("dir").mkdirSync();
+    dir.join("file.txt").writeTextSync("text");
+    const dir2 = createPath("dir2");
+    await dir.copy(dir2);
+    assertEquals(dir2.join("file.txt").readTextSync(), "text");
+    await assertRejects(() => dir.copy(dir2));
+    assertEquals(dir2.join("file.txt").readTextSync(), "text");
+    dir.join("file.txt").writeTextSync("text2");
+    await dir.copy(dir2, { overwrite: true });
+    assertEquals(dir2.join("file.txt").readTextSync(), "text2");
+  });
 });
 
-Deno.test("copyFileToDir", async () => {
+Deno.test("copyToDir", async () => {
   await withTempDir(async () => {
     const path = createPath("file.txt")
       .writeTextSync("text");
     const dir = createPath("dir").mkdirSync();
-    const newPath = await path.copyFileToDir(dir);
+    const newPath = await path.copyToDir(dir);
     assert(path.existsSync());
     assert(newPath.existsSync());
     assertEquals(dir.join("file.txt").toString(), newPath.toString());
     assertEquals(newPath.readTextSync(), "text");
     const dir2 = createPath("dir2").mkdirSync();
-    const newPath2 = path.copyFileToDirSync(dir2);
+    const newPath2 = path.copyToDirSync(dir2);
     assert(newPath2.existsSync());
     assertEquals(newPath2.readTextSync(), "text");
     assertEquals(newPath2.toString(), dir2.join("file.txt").toString());
