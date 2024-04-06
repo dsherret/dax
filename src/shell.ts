@@ -1167,22 +1167,7 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
     }
   }
 
-  // always use the current executable for "deno"
-  if (unresolvedCommand.name.toUpperCase() === "DENO") {
-    return {
-      kind: "path",
-      path: Deno.execPath(),
-    };
-  }
-
-  const realEnvironment = new DenoWhichRealEnvironment();
-  const commandPath = await which(unresolvedCommand.name, {
-    os: Deno.build.os,
-    stat: realEnvironment.stat,
-    env(key) {
-      return context.getVar(key);
-    },
-  });
+  const commandPath = await whichFromContext(unresolvedCommand.name, context);
   if (commandPath == null) {
     return false;
   }
@@ -1190,6 +1175,24 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
     kind: "path",
     path: commandPath,
   };
+}
+
+const realEnvironment = new DenoWhichRealEnvironment();
+
+export async function whichFromContext(commandName: string, context: {
+  getVar(key: string): string | undefined;
+}) {
+  // always use the current executable for "deno"
+  if (commandName.toUpperCase() === "DENO") {
+    return Deno.execPath();
+  }
+  return await which(commandName, {
+    os: Deno.build.os,
+    stat: realEnvironment.stat,
+    env(key) {
+      return context.getVar(key);
+    },
+  });
 }
 
 async function executePipeSequence(sequence: PipeSequence, context: Context): Promise<ExecuteResult> {
