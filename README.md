@@ -72,6 +72,13 @@ const result = await $`echo 1 && echo 2`.lines();
 console.log(result); // ["1", "2"]
 ```
 
+Get stderr's text:
+
+```ts
+const result = await $`deno eval "console.error(1)"`.text("stderr");
+console.log(result); // 1
+```
+
 Working with a lower level result that provides more details:
 
 ```ts
@@ -89,10 +96,10 @@ console.log(output.stdoutJson);
 Getting the combined output:
 
 ```ts
-const result = await $`deno eval 'console.log(1); console.error(2); console.log(3);'`
-  .captureCombined();
+const text = await $`deno eval 'console.log(1); console.error(2); console.log(3);'`
+  .text("combined");
 
-console.log(result.combined); // 1\n2\n3\n
+console.log(text); // 1\n2\n3\n
 ```
 
 ### Piping
