@@ -269,6 +269,11 @@ Deno.test("CommandBuilder#json()", async () => {
   assertEquals(output, { test: 5 });
 });
 
+Deno.test("CommandBuilder#json('stderr')", async () => {
+  const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.json("stderr");
+  assertEquals(output, { test: 5 });
+});
+
 Deno.test("stderrJson", async () => {
   const output = await $`deno eval "console.error(JSON.stringify({ test: 5 }));"`.stderr("piped");
   assertEquals(output.stderrJson, { test: 5 });
@@ -1125,6 +1130,16 @@ Deno.test("command args", async () => {
 
 Deno.test("command .lines()", async () => {
   const result = await $`echo 1 && echo 2`.lines();
+  assertEquals(result, ["1", "2"]);
+});
+
+Deno.test("command .lines('stderr')", async () => {
+  const result = await $`deno eval "console.error(1); console.error(2)"`.lines("stderr");
+  assertEquals(result, ["1", "2"]);
+});
+
+Deno.test("command .lines('combined')", async () => {
+  const result = await $`deno eval "console.log(1); console.error(2)"`.lines("combined");
   assertEquals(result, ["1", "2"]);
 });
 
