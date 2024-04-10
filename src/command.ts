@@ -1108,7 +1108,6 @@ function buildEnv(env: Record<string, string | undefined>, clearEnv: boolean) {
       result[key] = value;
     }
   }
-  console.log({ result });
   return result;
 }
 
