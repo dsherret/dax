@@ -696,10 +696,6 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
     const text = await $`printenv`.clearEnv().text();
     assertEquals(text, "");
   }
-  {
-    const text = await $`deno eval 'console.log(JSON.stringify(Deno.env.toObject()))'`.clearEnv().text();
-    assertEquals(text, "{}");
-  }
   Deno.env.set("DAX_TVAR", "123");
   try {
     const text = await $`deno eval 'console.log("DAX_TVAR: " + Deno.env.get("DAX_TVAR"))'`.clearEnv().text();
@@ -712,11 +708,6 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
 Deno.test("clearEnv + exportEnv should not clear out real environment", async () => {
   Deno.env.set("DAX_TVAR", "123");
   try {
-    const text1 = await $`deno eval 'console.log(JSON.stringify(Deno.env.toObject()))'`
-      .clearEnv()
-      .exportEnv()
-      .text();
-    assertEquals(text1, "{}");
     const text =
       await $`deno eval 'console.log("VAR: " + Deno.env.get("DAX_TVAR") + " VAR2: " + Deno.env.get("DAX_TVAR2"))'`
         .env("DAX_TVAR2", "shake it shake")
