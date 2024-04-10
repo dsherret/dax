@@ -237,6 +237,41 @@ class ShellEnv implements Env {
   }
 }
 
+/**
+ * Like {@link RealEnv} but any read actions will access values that were only set through it
+ * or return undefined.
+ */
+class RealEnvWriteOnly implements Env {
+  real = new RealEnv();
+  shell = new ShellEnv();
+
+  setCwd(cwd: string) {
+    this.real.setCwd(cwd);
+    this.shell.setCwd(cwd);
+  }
+
+  getCwd() {
+    return this.shell.getCwd();
+  }
+
+  setEnvVar(key: string, value: string | undefined) {
+    this.real.setEnvVar(key, value);
+    this.shell.setEnvVar(key, value);
+  }
+
+  getEnvVar(key: string) {
+    return this.shell.getEnvVar(key);
+  }
+
+  getEnvVars() {
+    return this.shell.getEnvVars();
+  }
+
+  clone(): Env {
+    return cloneEnv(this);
+  }
+}
+
 function initializeEnv(env: Env, opts: ShellEnvOpts) {
   env.setCwd(opts.cwd);
   for (const [key, value] of Object.entries(opts.env)) {
@@ -481,12 +516,13 @@ export interface SpawnOpts {
   commands: Record<string, CommandHandler>;
   cwd: string;
   exportEnv: boolean;
+  clearedEnv: boolean;
   signal: KillSignal;
   fds: StreamFds | undefined;
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
-  const env = opts.exportEnv ? new RealEnv() : new ShellEnv();
+  const env = opts.exportEnv ? opts.clearedEnv ? new RealEnvWriteOnly() : new RealEnv() : new ShellEnv();
   initializeEnv(env, opts);
   const context = new Context({
     env,
