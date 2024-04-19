@@ -152,6 +152,22 @@ Deno.test("should error setting stdout after getting combined output", () => {
   }
 });
 
+Deno.test("should get output as bytes", async () => {
+  {
+    const output = await $`echo 5 && deno eval 'console.error(1);'`.bytes();
+    assertEquals(new TextDecoder().decode(output), "5\n");
+  }
+  {
+    const output = await $`echo 5 && deno eval 'console.error(1);'`.bytes("combined");
+    assertEquals(new TextDecoder().decode(output), "5\n1\n");
+  }
+  {
+    const output = await $`echo 5 && deno eval 'console.error(1);'`.env("NOCOLOR", "1")
+      .bytes("stderr");
+    assertEquals(new TextDecoder().decode(output), "1\n");
+  }
+});
+
 Deno.test("should throw when exit code is non-zero", async () => {
   await assertRejects(
     async () => {
