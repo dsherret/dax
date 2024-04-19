@@ -47,7 +47,6 @@ export { FsFileWrapper, Path } from "./src/path.ts";
 /** @deprecated Import `Path` instead. */
 const PathRef = Path;
 // bug in deno: https://github.com/denoland/deno_lint/pull/1262
-// deno-lint-ignore verbatim-module-syntax
 export { PathRef };
 export {
   CommandBuilder,

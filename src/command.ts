@@ -549,7 +549,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    * const data = (await $`command`.quiet("stdout")).stdoutBytes;
    * ```
    */
-  async bytes(kind: StreamKind): Promise<Uint8Array> {
+  async bytes(kind: StreamKind = "stdout"): Promise<Uint8Array> {
     const command = kind === "combined" ? this.quiet(kind).captureCombined() : this.quiet(kind);
     return (await command)[`${kind}Bytes`];
   }

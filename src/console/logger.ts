@@ -49,5 +49,4 @@ const logger = {
   logAboveStaticText,
 };
 
-// deno-lint-ignore verbatim-module-syntax -- Bug https://github.com/denoland/deno_lint/pull/1262
 export { logger };
