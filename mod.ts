@@ -1,5 +1,5 @@
 import * as colors from "@std/fmt/colors";
-import { RealEnvironment, which, whichSync } from "which";
+import { which, whichSync } from "which";
 import {
   CommandBuilder,
   escapeArg,
