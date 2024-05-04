@@ -79,6 +79,7 @@ interface CommandBuilderState {
   env: Record<string, string | undefined>;
   commands: Record<string, CommandHandler>;
   cwd: string | undefined;
+  clearEnv: boolean;
   exportEnv: boolean;
   printCommand: boolean;
   printCommandLogger: LoggerTreeBox;
@@ -147,6 +148,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     env: {},
     cwd: undefined,
     commands: { ...builtInCommands },
+    clearEnv: false,
     exportEnv: false,
     printCommand: false,
     printCommandLogger: new LoggerTreeBox(
@@ -176,6 +178,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       env: { ...state.env },
       cwd: state.cwd,
       commands: { ...state.commands },
+      clearEnv: state.clearEnv,
       exportEnv: state.exportEnv,
       printCommand: state.printCommand,
       printCommandLogger: state.printCommandLogger.createChild(),
@@ -451,6 +454,18 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   exportEnv(value = true): CommandBuilder {
     return this.#newWithState((state) => {
       state.exportEnv = value;
+    });
+  }
+
+  /**
+   * Clear environmental variables from parent process.
+   *
+   * Doesn't guarantee that only `env` variables are present, as the OS may
+   * set environmental variables for processes.
+   */
+  clearEnv(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.clearEnv = value;
     });
   }
 
@@ -742,10 +757,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         stdin: stdin instanceof ReadableStream ? readerFromStreamReader(stdin.getReader()) : stdin,
         stdout,
         stderr,
-        env: buildEnv(state.env),
+        env: buildEnv(state.env, state.clearEnv),
         commands: state.commands,
         cwd: state.cwd ?? Deno.cwd(),
         exportEnv: state.exportEnv,
+        clearedEnv: state.clearEnv,
         signal,
         fds,
       });
@@ -1083,8 +1099,8 @@ export class CommandResult {
   }
 }
 
-function buildEnv(env: Record<string, string | undefined>) {
-  const result = Deno.env.toObject();
+function buildEnv(env: Record<string, string | undefined>, clearEnv: boolean) {
+  const result = clearEnv ? {} : Deno.env.toObject();
   for (const [key, value] of Object.entries(env)) {
     if (value == null) {
       delete result[key];
