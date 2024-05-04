@@ -612,7 +612,7 @@ pb.with(() => {
 
 ## Path API
 
-The path API offers an immutable [`Path`](https://deno.land/x/dax/src/path.ts?s=Path) class, which is a similar concept to Rust's `PathBuf` struct.
+The path API offers an immutable [`Path`](https://jsr.io/@david/dax/doc/~/Path) class, which is a similar concept to Rust's `PathBuf` struct.
 
 ```ts
 // create a `Path`
@@ -659,7 +659,7 @@ const pathStringFileUrl = $.path("file:///tmp"); // converts to /tmp
 const pathImportMeta = $.path(import.meta); // the path for the current module
 ```
 
-There are a lot of helper methods here, so check the [documentation on Path](https://deno.land/x/dax/src/path.ts?s=Path) for more details.
+There are a lot of helper methods here, so check the [documentation on Path](https://jsr.io/@david/dax/doc/~/Path) for more details.
 
 ## Helper functions
 
@@ -771,7 +771,7 @@ await $`deno run main.ts`.stdin(request);
 await $`sleep 5 && deno run main.ts < ${request}`;
 ```
 
-See the [documentation on `RequestBuilder`](https://deno.land/x/dax/src/request.ts?s=RequestBuilder) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
+See the [documentation on `RequestBuilder`](https://jsr.io/@david/dax/doc/~/RequestBuilder) for more details. It should be as flexible as `fetch`, but uses a builder API (ex. set headers via `.header(...)`).
 
 ### Showing progress
 
@@ -907,7 +907,7 @@ The builder APIs are what the library uses internally and they're useful for sce
 `CommandBuilder` can be used for building up commands similar to what the tagged template `$` does:
 
 ```ts
-import { CommandBuilder } from "https://deno.land/x/dax/mod.ts";
+import { CommandBuilder } from "@david/dax";
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
@@ -948,7 +948,7 @@ const result = await commandBuilder
 `RequestBuilder` can be used for building up requests similar to `$.request`:
 
 ```ts
-import { RequestBuilder } from "https://deno.land/x/dax/mod.ts";
+import { RequestBuilder } from "@david/dax";
 
 const requestBuilder = new RequestBuilder()
   .header("SOME_VALUE", "some value to send in a header");
@@ -964,7 +964,7 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
-import { build$, CommandBuilder, RequestBuilder } from "https://deno.land/x/dax/mod.ts";
+import { build$, CommandBuilder, RequestBuilder } from "@david/dax";
 
 // creates a $ object with the provided starting environment
 const $ = build$({
