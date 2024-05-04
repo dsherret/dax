@@ -65,7 +65,7 @@ Deno.test("isSymlink", async () => {
   await withTempDir(() => {
     const file = createPath("file.txt").writeTextSync("");
     const symlinkFile = createPath("test.txt");
-    symlinkFile.createSymlinkToSync(file, { kind: "absolute" });
+    symlinkFile.symlinkToSync(file, { kind: "absolute" });
     assert(symlinkFile.isSymlinkSync());
     assert(!file.isSymlinkSync());
   });
@@ -222,7 +222,7 @@ Deno.test("stat", async () => {
   await withTempDir(async () => {
     const tempFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = createPath("other.txt");
-    await symlinkFile.createSymlinkTo(tempFile, { kind: "absolute" });
+    await symlinkFile.symlinkTo(tempFile, { kind: "absolute" });
     const stat3 = await symlinkFile.stat();
     assertEquals(stat3!.isFile, true);
     assertEquals(stat3!.isSymlink, false);
@@ -238,7 +238,7 @@ Deno.test("statSync", async () => {
   await withTempDir(() => {
     const tempFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = createPath("other.txt");
-    symlinkFile.createSymlinkToSync(tempFile, { kind: "absolute" });
+    symlinkFile.symlinkToSync(tempFile, { kind: "absolute" });
     const stat3 = symlinkFile.statSync();
     assertEquals(stat3!.isFile, true);
     assertEquals(stat3!.isSymlink, false);
@@ -255,7 +255,7 @@ Deno.test("lstat", async () => {
     const symlinkFile = createPath("temp.txt");
     const otherFile = createPath("other.txt").writeTextSync("");
     // path ref
-    await symlinkFile.createSymlinkTo(otherFile, { kind: "absolute" });
+    await symlinkFile.symlinkTo(otherFile, { kind: "absolute" });
     const stat3 = await symlinkFile.lstat();
     assertEquals(stat3!.isSymlink, true);
   });
@@ -270,7 +270,7 @@ Deno.test("lstatSync", async () => {
   await withTempDir(() => {
     const symlinkFile = createPath("temp.txt");
     const otherFile = createPath("other.txt").writeTextSync("");
-    symlinkFile.createSymlinkToSync(otherFile, { kind: "absolute" });
+    symlinkFile.symlinkToSync(otherFile, { kind: "absolute" });
     assertEquals(symlinkFile.lstatSync()!.isSymlink, true);
   });
 });
@@ -338,7 +338,7 @@ Deno.test("realpath", async () => {
       file = createPath(file.toString().replace("\\RUNNER~1\\", "\\runneradmin\\"));
     }
     const symlink = createPath("other");
-    symlink.createSymlinkToSync(file, { kind: "absolute" });
+    symlink.symlinkToSync(file, { kind: "absolute" });
     assertEquals(
       (await symlink.realPath()).toString(),
       file.toString(),
@@ -372,11 +372,11 @@ Deno.test("mkdir", async () => {
   });
 });
 
-Deno.test("createSymlinkTo", async () => {
+Deno.test("symlinkTo", async () => {
   await withTempDir(async () => {
     const destFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
-    await symlinkFile.createSymlinkTo(destFile, {
+    await symlinkFile.symlinkTo(destFile, {
       kind: "absolute",
     });
     const stat = await symlinkFile.stat();
@@ -388,7 +388,7 @@ Deno.test("createSymlinkTo", async () => {
     await assertRejects(
       async () => {
         // @ts-expect-error should require an options bag
-        await symlinkFile.createSymlinkTo(destFile);
+        await symlinkFile.symlinkTo(destFile);
       },
       Error,
       "Please specify if this symlink is absolute or relative. Otherwise provide the target text.",
@@ -396,13 +396,13 @@ Deno.test("createSymlinkTo", async () => {
   });
 });
 
-Deno.test("createSymlinkToSync", async () => {
+Deno.test("symlinkToSync", async () => {
   await withTempDir(() => {
     const destFile = createPath("temp.txt").writeTextSync("");
     const symlinkFile = destFile.parentOrThrow().join("other.txt");
 
     // path ref
-    symlinkFile.createSymlinkToSync(destFile, { kind: "absolute" });
+    symlinkFile.symlinkToSync(destFile, { kind: "absolute" });
     const stat = symlinkFile.statSync();
     assertEquals(stat!.isFile, true);
     assertEquals(stat!.isSymlink, false);
@@ -410,24 +410,24 @@ Deno.test("createSymlinkToSync", async () => {
 
     // path ref absolute
     symlinkFile.removeSync();
-    symlinkFile.createSymlinkToSync(destFile, { kind: "absolute" });
+    symlinkFile.symlinkToSync(destFile, { kind: "absolute" });
     assertEquals(symlinkFile.statSync()!.isFile, true);
 
     // path ref relative
     symlinkFile.removeSync();
-    symlinkFile.createSymlinkToSync(destFile, { kind: "relative" });
+    symlinkFile.symlinkToSync(destFile, { kind: "relative" });
     assertEquals(symlinkFile.statSync()!.isFile, true);
 
     // relative text
     symlinkFile.removeSync();
-    symlinkFile.createSymlinkToSync("temp.txt");
+    symlinkFile.symlinkToSync("temp.txt");
     assertEquals(symlinkFile.statSync()!.isFile, true);
 
     // invalid
     assertThrows(
       () => {
         // @ts-expect-error should require an options bag
-        symlinkFile.createSymlinkToSync(destFile);
+        symlinkFile.symlinkToSync(destFile);
       },
       Error,
       "Please specify if this symlink is absolute or relative. Otherwise provide the target text.",
