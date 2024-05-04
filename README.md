@@ -191,6 +191,10 @@ If you do not want to escape arguments in a template literal, you can opt out co
 ```ts
 const args = "arg1   arg2   arg3";
 await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
+
+// or escape a specific argument while using $.raw
+const args2 = "arg1  arg2";
+await $.raw`echo ${$.escape(args2)} ${args2}`; // executes as: echo "arg1  arg2" arg1  arg2
 ```
 
 Providing stdout of one command to another is possible as follows:
