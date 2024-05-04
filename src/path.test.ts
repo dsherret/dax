@@ -435,6 +435,30 @@ Deno.test("symlinkToSync", async () => {
   });
 });
 
+Deno.test("linkTo", async () => {
+  await withTempDir(async () => {
+    const destFile = createPath("temp.txt").writeTextSync("data");
+
+    // async
+    {
+      const hardlinkFile = destFile.parentOrThrow().join("other.txt");
+      await hardlinkFile.linkTo(destFile);
+      const stat = hardlinkFile.statSync();
+      assertEquals(stat!.isFile, true);
+      assertEquals(stat!.isSymlink, false);
+      assert(!hardlinkFile.isSymlinkSync());
+      assertEquals(hardlinkFile.readTextSync(), "data");
+    }
+
+    // sync
+    {
+      const hardlinkFile = destFile.parentOrThrow().join("sync.txt");
+      hardlinkFile.linkToSync(destFile);
+      assertEquals(hardlinkFile.readTextSync(), "data");
+    }
+  });
+});
+
 Deno.test("readDir", async () => {
   await withTempDir(async () => {
     const dir = createPath(".").resolve();
