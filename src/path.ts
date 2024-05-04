@@ -496,18 +496,18 @@ export class Path {
   /**
    * Creates a symlink to the provided target path.
    */
-  async createSymlinkTo(
+  async symlinkTo(
     targetPath: URL | Path,
     opts: Partial<Deno.SymlinkOptions> & PathSymlinkOptions,
   ): Promise<void>;
   /**
    * Creates a symlink at the provided path with the provided target text.
    */
-  async createSymlinkTo(
+  async symlinkTo(
     target: string,
     opts?: SymlinkOptions,
   ): Promise<void>;
-  async createSymlinkTo(
+  async symlinkTo(
     target: string | URL | Path,
     opts?: SymlinkOptions,
   ): Promise<void> {
@@ -517,18 +517,18 @@ export class Path {
   /**
    * Synchronously creates a symlink to the provided target path.
    */
-  createSymlinkToSync(
+  symlinkToSync(
     targetPath: URL | Path,
     opts: Partial<Deno.SymlinkOptions> & PathSymlinkOptions,
   ): void;
   /**
    * Synchronously creates a symlink at the provided path with the provided target text.
    */
-  createSymlinkToSync(
+  symlinkToSync(
     target: string,
     opts?: SymlinkOptions,
   ): void;
-  createSymlinkToSync(target: string | URL | Path, opts?: SymlinkOptions): void {
+  symlinkToSync(target: string | URL | Path, opts?: SymlinkOptions): void {
     createSymlinkSync(this.#resolveCreateSymlinkOpts(target, opts));
   }
 
