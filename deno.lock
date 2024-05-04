@@ -3,7 +3,7 @@
   "packages": {
     "specifiers": {
       "jsr:@david/which-runtime@0.2": "jsr:@david/which-runtime@0.2.0",
-      "jsr:@david/which@0.3": "jsr:@david/which@0.3.0",
+      "jsr:@david/which@^0.4.1": "jsr:@david/which@0.4.1",
       "jsr:@deno/cache-dir@^0.8.0": "jsr:@deno/cache-dir@0.8.0",
       "jsr:@deno/dnt@^0.41.1": "jsr:@deno/dnt@0.41.1",
       "jsr:@std/assert@^0.218.2": "jsr:@std/assert@0.218.2",
@@ -29,8 +29,8 @@
       "@david/which-runtime@0.2.0": {
         "integrity": "69c59142babcff447efff6a6460316131b702ce1713f9f5ddbbb909136d6d7cd"
       },
-      "@david/which@0.3.0": {
-        "integrity": "6bdb62c40ac90edcf328e854fa8103a8db21e7c326089cbe3c3a1cf7887d3204"
+      "@david/which@0.4.1": {
+        "integrity": "896a682b111f92ab866cc70c5b4afab2f5899d2f9bde31ed00203b9c250f225e"
       },
       "@deno/cache-dir@0.8.0": {
         "integrity": "e87e80a404958f6350d903e6238b72afb92468378b0b32111f7a1e4916ac7fe7",
@@ -385,7 +385,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@david/which-runtime@0.2",
-      "jsr:@david/which@0.3",
+      "jsr:@david/which@^0.4.1",
       "jsr:@deno/dnt@^0.41.1",
       "jsr:@std/assert@^0.221.0",
       "jsr:@std/fmt@^0.221.0",

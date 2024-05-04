@@ -13,9 +13,8 @@
     "lineWidth": 120
   },
   "excludes": [
-    "**/node_modules",
-    "**/*-lock.json",
-    "**/target",
+    "target",
+    "npm",
     "**/*.generated.js"
   ],
   "plugins": [

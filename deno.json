@@ -39,7 +39,7 @@
     "@std/io": "jsr:@std/io@0.221.0",
     "@std/path": "jsr:@std/path@0.221.0",
     "@std/streams": "jsr:@std/streams@0.221.0",
-    "which": "jsr:@david/which@0.3",
+    "which": "jsr:@david/which@^0.4.1",
     "which_runtime": "jsr:@david/which-runtime@0.2"
   }
 }

@@ -40,6 +40,7 @@ import { wasmInstance } from "./src/lib/mod.ts";
 import { createPath, Path } from "./src/path.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { outdent } from "./src/vendor/outdent.ts";
+import { denoWhichRealEnv } from "./src/shell.ts";
 
 export type { Delay, DelayIterator } from "./src/common.ts";
 export { TimeoutError } from "./src/common.ts";
@@ -510,7 +511,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * or the specified number of retries (`count`) is hit.
    */
   withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn>;
-  /** Re-export of `deno_which` for getting the path to an executable. */
+  /** Re-export of `jsr:@david/which` for getting the path to an executable. */
   which: Which;
   /** Similar to `which`, but synchronously. */
   whichSync: WhichSync;
@@ -601,14 +602,14 @@ const helperObject = {
     if (commandName.toUpperCase() === "DENO") {
       return Promise.resolve(Deno.execPath());
     } else {
-      return which(commandName);
+      return which(commandName, denoWhichRealEnv);
     }
   },
   whichSync(commandName: string) {
     if (commandName.toUpperCase() === "DENO") {
       return Deno.execPath();
     } else {
-      return whichSync(commandName);
+      return whichSync(commandName, denoWhichRealEnv);
     }
   },
 };

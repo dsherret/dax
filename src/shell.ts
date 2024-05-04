@@ -1215,7 +1215,15 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
   };
 }
 
-const realEnvironment = new DenoWhichRealEnvironment();
+class WhichEnv extends DenoWhichRealEnvironment {
+  requestPermission(folderPath: string) {
+    Deno.permissions.requestSync({
+      name: "read",
+      path: folderPath,
+    });
+  }
+}
+export const denoWhichRealEnv = new WhichEnv();
 
 export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
@@ -1226,10 +1234,11 @@ export async function whichFromContext(commandName: string, context: {
   }
   return await which(commandName, {
     os: Deno.build.os,
-    stat: realEnvironment.stat,
+    stat: denoWhichRealEnv.stat,
     env(key) {
       return context.getVar(key);
     },
+    requestPermission: denoWhichRealEnv.requestPermission,
   });
 }
 
