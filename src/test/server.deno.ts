@@ -5,7 +5,7 @@ export const startServer: StartServerHandler = (options) => {
     const server = Deno.serve({
       hostname: "localhost",
       onListen(details) {
-        const url = new URL(`http://${details.hostname}:${details.port}/`);
+        const url = new URL(`http://localhost:${details.port}/`);
         resolve({
           rootUrl: url,
           shutdown: () => server.shutdown(),
