@@ -571,6 +571,26 @@ export class Path {
     }
   }
 
+  /**
+   * Creates a hardlink to the provided target path.
+   */
+  async linkTo(
+    targetPath: string | URL | Path,
+  ): Promise<void> {
+    const targetPathRef = ensurePath(targetPath).resolve();
+    await Deno.link(targetPathRef.toString(), this.resolve().toString());
+  }
+
+  /**
+   * Synchronously creates a hardlink to the provided target path.
+   */
+  linkToSync(
+    targetPath: string | URL | Path,
+  ): void {
+    const targetPathRef = ensurePath(targetPath).resolve();
+    Deno.linkSync(targetPathRef.toString(), this.resolve().toString());
+  }
+
   /** Reads the entries in the directory. */
   async *readDir(): AsyncIterable<WalkEntry> {
     const dir = this.resolve();
