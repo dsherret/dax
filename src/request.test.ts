@@ -45,22 +45,20 @@ async function withServer(action: (serverUrl: URL) => Promise<void>) {
         return new Response(
           new ReadableStream({
             start(controller) {
-              return new Promise<void>((resolve, reject) => {
+              return new Promise<void>((resolve, _reject) => {
                 if (signal.aborted || abortController.signal.aborted) {
                   return;
                 }
-                const timeoutId = setTimeout(() => {
+                const abortListener = () => {
+                  clearTimeout(timeoutId);
                   controller.close();
                   resolve();
-                }, ms);
-                signal.addEventListener("abort", () => {
-                  clearTimeout(timeoutId);
-                  reject(new Error("Client aborted."));
-                });
-                abortController.signal.addEventListener("abort", () => {
-                  clearTimeout(timeoutId);
-                  reject(new Error("Client aborted."));
-                });
+                  signal.removeEventListener("abort", abortListener);
+                  abortController.signal.removeEventListener("abort", abortListener);
+                };
+                const timeoutId = setTimeout(abortListener, ms);
+                signal.addEventListener("abort", abortListener);
+                abortController.signal.addEventListener("abort", abortListener);
               });
             },
             cancel(reason) {
