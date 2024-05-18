@@ -1177,7 +1177,7 @@ interface CreateSymlinkOpts {
   fromPath: Path;
   targetPath: Path;
   text: string;
-  type: "file" | "dir" | undefined;
+  type: "file" | "dir" | "junction" | undefined;
 }
 
 function createSymlinkSync(opts: CreateSymlinkOpts) {
