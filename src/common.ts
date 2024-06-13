@@ -265,22 +265,6 @@ export interface ShebangInfo {
   command: string;
 }
 
-// TODO(iuioiua): This shouldn't be necessary, but it is.
-// See https://github.com/denoland/deno/issues/13142
-class TextDecoderStream extends TransformStream<Uint8Array, string> {
-  constructor() {
-    const decoder = new TextDecoder();
-    super({
-      transform(chunk, controller) {
-        controller.enqueue(decoder.decode(chunk));
-      },
-      flush(controller) {
-        controller.enqueue(decoder.decode());
-      },
-    });
-  }
-}
-
 export async function getExecutableShebang(readable: ReadableStream<Uint8Array>): Promise<ShebangInfo | undefined> {
   const text = "#!/usr/bin/env ";
   const reader = await readable
@@ -288,7 +272,7 @@ export async function getExecutableShebang(readable: ReadableStream<Uint8Array>)
     .pipeThrough(new TextLineStream())
     .getReader();
   const { value } = await reader.read();
-  reader.releaseLock();
+  await reader.cancel();
   if (value === undefined || !value.startsWith(text)) {
     return undefined;
   }
