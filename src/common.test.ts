@@ -1,5 +1,4 @@
 import { assertEquals } from "@std/assert";
-import { Buffer } from "@std/io/buffer";
 import * as path from "@std/path";
 import {
   delayToIterator,
@@ -108,9 +107,8 @@ Deno.test("gets file name from url", () => {
 
 Deno.test("gets the executable shebang when it exists", async () => {
   function get(input: string) {
-    const data = new TextEncoder().encode(input);
-    const buffer = new Buffer(data);
-    return getExecutableShebang(buffer);
+    const stream = ReadableStream.from(input).pipeThrough(new TextEncoderStream());
+    return getExecutableShebang(stream);
   }
 
   assertEquals(
