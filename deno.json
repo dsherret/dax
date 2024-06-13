@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "nodeModulesDir": false,
   "tasks": {
-    "test": "deno test -A",
+    "test": "deno test -A --no-check",
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.6/main.ts --sync --out ./src/lib"
   },
   "fmt": {

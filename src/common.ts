@@ -271,12 +271,12 @@ export async function getExecutableShebang(readable: ReadableStream<Uint8Array>)
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new TextLineStream())
     .getReader();
-  const { value, done } = await reader.read();
+  const { value } = await reader.read();
   reader.releaseLock();
-  if (done || value == null || value !== text) {
+  if (value === undefined || !value?.startsWith(text)) {
     return undefined;
   }
-  const result = value.trim();
+  const result = value?.replace(text, "").trim();
   const dashS = "-S ";
   if (result.startsWith(dashS)) {
     return {
