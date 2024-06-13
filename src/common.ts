@@ -273,7 +273,7 @@ export async function getExecutableShebang(readable: ReadableStream<Uint8Array>)
     .getReader();
   const { value } = await reader.read();
   reader.releaseLock();
-  if (value === undefined || !value?.startsWith(text)) {
+  if (value === undefined || !value.startsWith(text)) {
     return undefined;
   }
   const result = value?.replace(text, "").trim();
