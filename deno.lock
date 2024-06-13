@@ -22,6 +22,7 @@
       "jsr:@std/path@^0.221.0": "jsr:@std/path@0.221.0",
       "jsr:@std/streams@0.221.0": "jsr:@std/streams@0.221.0",
       "npm:@ts-morph/bootstrap@0.22": "npm:@ts-morph/bootstrap@0.22.0",
+      "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:code-block-writer@^13.0.1": "npm:code-block-writer@13.0.1",
       "npm:esbuild@0.20.0": "npm:esbuild@0.20.0"
     },
@@ -239,6 +240,10 @@
           "mkdirp": "mkdirp@3.0.1",
           "path-browserify": "path-browserify@1.0.1"
         }
+      },
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
+        "dependencies": {}
       },
       "balanced-match@1.0.2": {
         "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",

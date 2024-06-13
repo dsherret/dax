@@ -1,7 +1,6 @@
-import { BufReader } from "@std/io/buf-reader";
+import { TextLineStream } from "@std/streams/text-line-stream";
 import * as path from "@std/path";
 import { logger } from "./console/mod.ts";
-import type { Reader } from "./pipes.ts";
 
 interface Symbols {
   /** Use this symbol to enable the provided object to be written to in
@@ -245,7 +244,7 @@ export async function getExecutableShebangFromPath(path: string) {
   try {
     const file = await Deno.open(path, { read: true });
     try {
-      return await getExecutableShebang(file);
+      return await getExecutableShebang(file.readable);
     } finally {
       try {
         file.close();
@@ -266,20 +265,18 @@ export interface ShebangInfo {
   command: string;
 }
 
-const decoder = new TextDecoder();
-export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo | undefined> {
+export async function getExecutableShebang(readable: ReadableStream<Uint8Array>): Promise<ShebangInfo | undefined> {
   const text = "#!/usr/bin/env ";
-  const buffer = new Uint8Array(text.length);
-  const bytesReadCount = await reader.read(buffer);
-  if (bytesReadCount !== text.length || decoder.decode(buffer) !== text) {
+  const reader = await readable
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new TextLineStream())
+    .getReader();
+  const { value, done } = await reader.read();
+  reader.releaseLock();
+  if (done || value == null || value !== text) {
     return undefined;
   }
-  const bufReader = new BufReader(reader);
-  const line = await bufReader.readLine();
-  if (line == null) {
-    return undefined;
-  }
-  const result = decoder.decode(line.line).trim();
+  const result = value.trim();
   const dashS = "-S ";
   if (result.startsWith(dashS)) {
     return {
