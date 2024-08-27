@@ -1,8 +1,8 @@
+import { Path } from "@david/path";
 import { formatMillis, symbols } from "./common.ts";
 import { TimeoutError } from "./common.ts";
 import { type Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
 import type { ProgressBar } from "./console/mod.ts";
-import { Path } from "./path.ts";
 
 interface RequestBuilderState {
   noThrow: boolean | number[];

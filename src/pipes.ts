@@ -1,9 +1,9 @@
+import type { FsFileWrapper, Path } from "@david/path";
 import { Buffer } from "@std/io/buffer";
 import { writeAll, writeAllSync } from "@std/io/write-all";
 import type { CommandBuilder, KillSignal } from "./command.ts";
 import { abortSignalToPromise } from "./common.ts";
 import { logger } from "./console/logger.ts";
-import type { FsFileWrapper, Path } from "./path.ts";
 import type { RequestBuilder } from "./request.ts";
 
 const encoder = new TextEncoder();

@@ -148,8 +148,16 @@ Deno.test("$.request", (t) => {
         .showProgress()
         .pipeThrough(new TextDecoderStream());
       const reader = readable.getReader();
-      const result = await reader.read();
-      assertEquals(result.value, "text".repeat(1000));
+      let result = "";
+      let done = false;
+      while (!done) {
+        const chunkResult = await reader.read();
+        done = chunkResult.done;
+        if (chunkResult.value) {
+          result += chunkResult.value;
+        }
+      }
+      assertEquals(result, "text".repeat(1000));
     });
 
     step("pipeToPath", async () => {

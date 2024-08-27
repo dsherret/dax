@@ -612,7 +612,7 @@ pb.with(() => {
 
 ## Path API
 
-The path API offers an immutable [`Path`](https://jsr.io/@david/dax/doc/~/Path) class, which is a similar concept to Rust's `PathBuf` struct.
+The path API offers an immutable [`Path`](https://jsr.io/@david/path/doc/~/Path) class via [`jsr:@david/path`](https://jsr.io/@david/path), which is a similar concept to Rust's `PathBuf` struct.
 
 ```ts
 // create a `Path`
@@ -659,7 +659,7 @@ const pathStringFileUrl = $.path("file:///tmp"); // converts to /tmp
 const pathImportMeta = $.path(import.meta); // the path for the current module
 ```
 
-There are a lot of helper methods here, so check the [documentation on Path](https://jsr.io/@david/dax/doc/~/Path) for more details.
+There are a lot of helper methods here, so check the [documentation on Path](https://jsr.io/@david/path/doc/~/Path) for more details.
 
 ## Helper functions
 

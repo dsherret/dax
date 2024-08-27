@@ -1,7 +1,8 @@
 import { build, emptyDir } from "@deno/dnt";
+import { walkSync } from "@std/fs/walk";
 import $ from "../mod.ts";
 
-$.cd($.path(import.meta).parentOrThrow().parentOrThrow());
+$.cd($.path(import.meta.url).parentOrThrow().parentOrThrow());
 
 await emptyDir("./npm");
 
@@ -20,6 +21,10 @@ await build({
         "WritableStream",
         "TextDecoderStream",
         "TransformStream",
+        {
+          name: "StreamPipeOptions",
+          typeOnly: true,
+        },
         {
           name: "ReadableStreamDefaultReader",
           typeOnly: true,
@@ -60,9 +65,13 @@ await build({
       }],
     }],
   },
+  filterDiagnostic(diagnostic) {
+    return !diagnostic.file?.fileName.includes("@david/path/0.2.0/mod.ts") ?? true;
+  },
   compilerOptions: {
     stripInternal: false,
     skipLibCheck: false,
+    lib: ["ESNext"],
     target: "ES2022",
   },
   mappings: {
@@ -86,7 +95,7 @@ await build({
       "undici-types": "^5.26",
     },
     devDependencies: {
-      "@types/node": "^20.11.9",
+      "@types/node": "^22.5.0",
     },
   },
   postBuild() {
@@ -102,11 +111,11 @@ await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=exter
 const npmPath = $.path("npm");
 
 // remove all the javascript files in the script folder
-for (const entry of npmPath.join("script").walkSync({ includeDirs: false, exts: ["js"] })) {
-  entry.path.removeSync();
+for (const entry of walkSync(npmPath.join("script").toString(), { includeDirs: false, exts: ["js"] })) {
+  $.path(entry.path).removeSync();
 }
-for (const entry of npmPath.join("esm").walkSync({ includeDirs: false, exts: ["js"] })) {
-  entry.path.removeSync();
+for (const entry of walkSync(npmPath.join("esm").toString(), { includeDirs: false, exts: ["js"] })) {
+  $.path(entry.path).removeSync();
 }
 
 // move the bundle to the script folder
