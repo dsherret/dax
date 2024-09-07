@@ -298,7 +298,7 @@ Deno.test("$.request", (t) => {
       let caughtErr: TimeoutError | undefined;
       try {
         await response.text();
-      } catch (err) {
+      } catch (err: any) {
         caughtErr = err;
       }
       if (isNode) {
