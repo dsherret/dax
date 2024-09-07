@@ -57,7 +57,7 @@ class Deferred<T> {
 
 interface ShellPipeWriterKindWithOptions {
   kind: ShellPipeWriterKind;
-  options?: PipeOptions;
+  options?: StreamPipeOptions;
 }
 
 interface CommandBuilderStateCommand {
@@ -348,8 +348,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind): CommandBuilder;
-  stdout(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
-  stdout(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
+  stdout(kind: WritableStream<Uint8Array>, options?: StreamPipeOptions): CommandBuilder;
+  stdout(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
@@ -369,8 +369,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind): CommandBuilder;
-  stderr(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
-  stderr(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
+  stderr(kind: WritableStream<Uint8Array>, options?: StreamPipeOptions): CommandBuilder;
+  stderr(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
