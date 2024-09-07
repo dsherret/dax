@@ -26,7 +26,8 @@ jobs:
 
       - name: Install deno
         uses: denoland/setup-deno@v1
-        version: canary
+        with:
+          deno-version: canary
 
       - uses: dprint/check@v2.1
         if: runner.os == 'Linux'
