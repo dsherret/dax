@@ -329,7 +329,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
   }
 
   /** Pipes the response body to the provided writable stream. */
-  async pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
+  async pipeTo(dest: WritableStream<Uint8Array>, options?: StreamPipeOptions): Promise<void> {
     const response = await this.fetch();
     return await response.pipeTo(dest, options);
   }
@@ -582,7 +582,7 @@ export class RequestResponse {
   }
 
   /** Pipes the response body to the provided writable stream. */
-  pipeTo(dest: WritableStream<Uint8Array>, options?: PipeOptions): Promise<void> {
+  pipeTo(dest: WritableStream<Uint8Array>, options?: StreamPipeOptions): Promise<void> {
     return this.#withReturnHandling(() => this.readable.pipeTo(dest, options));
   }
 
