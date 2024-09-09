@@ -62,7 +62,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install deno
-          uses: denoland/setup-deno@v1
-          version: canary
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: canary
       - name: Publish to JSR on tag
         run: deno run -A jsr:@david/publish-on-tag@0.1.3
