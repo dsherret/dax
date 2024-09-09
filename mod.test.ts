@@ -2271,6 +2271,11 @@ Deno.test("expect error undefined", async () => {
   });
 });
 
+Deno.test("resolve command by path", async () => {
+  const version = await $`${Deno.execPath()} --version`.text();
+  assert(typeof version === "string");
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));

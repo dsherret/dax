@@ -1174,7 +1174,7 @@ interface UnresolvedCommand {
 }
 
 async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Context): Promise<ResolvedCommand> {
-  if (unresolvedCommand.name.includes("/")) {
+  if (unresolvedCommand.name.includes("/") || Deno.build.os === "windows" && unresolvedCommand.name.includes("\\")) {
     const commandPath = path.isAbsolute(unresolvedCommand.name)
       ? unresolvedCommand.name
       : path.resolve(unresolvedCommand.baseDir, unresolvedCommand.name);
