@@ -1,5 +1,6 @@
 {
   "name": "@david/dax",
+  "version": "0.0.0",
   "nodeModulesDir": false,
   "tasks": {
     "test": "deno test -A",
