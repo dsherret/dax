@@ -1,7 +1,7 @@
 {
   "name": "@david/dax",
   "version": "0.0.0",
-  "nodeModulesDir": false,
+  "nodeModulesDir": "none",
   "tasks": {
     "test": "deno test -A",
     "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.6/main.ts --sync --out ./src/lib"
