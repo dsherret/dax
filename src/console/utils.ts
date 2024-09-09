@@ -79,11 +79,9 @@ function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
     return pipe.isTerminal();
   } else if (
     pipe.rid != null &&
-    // deno-lint-ignore no-deprecated-deno-api
-    typeof Deno.isatty === "function"
+    typeof (Deno as any).isatty === "function"
   ) {
-    // deno-lint-ignore no-deprecated-deno-api
-    return Deno.isatty(pipe.rid);
+    return (Deno as any).isatty(pipe.rid);
   } else {
     throw new Error("Unsupported pipe.");
   }
