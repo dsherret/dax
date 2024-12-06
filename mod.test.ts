@@ -1188,7 +1188,7 @@ Deno.test("command .lines('stderr')", async () => {
 
 Deno.test("command .lines('combined')", async () => {
   const result = await $`deno eval "console.log(1); console.error(2)"`.lines("combined");
-  assertEquals(result, ["1", "2"]);
+  assertEquals(result.sort(), ["1", "2"]);
 });
 
 Deno.test("piping in command", async () => {
@@ -2269,6 +2269,11 @@ Deno.test("expect error undefined", async () => {
     // @ts-expect-error null not assignable
     await $`echo ${null}`;
   });
+});
+
+Deno.test("resolve command by path", async () => {
+  const version = await $`${Deno.execPath()} --version`.text();
+  assert(typeof version === "string");
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {

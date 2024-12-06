@@ -1,3 +1,4 @@
+import { FsFileWrapper, Path } from "@david/path";
 import * as colors from "@std/fmt/colors";
 import { Buffer } from "@std/io/buffer";
 import * as path from "@std/path";
@@ -23,7 +24,6 @@ import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import type { Delay } from "./common.ts";
 import { symbols } from "./common.ts";
 import { isShowingProgressBars } from "./console/progress/interval.ts";
-import { Path } from "./path.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,
@@ -57,7 +57,7 @@ class Deferred<T> {
 
 interface ShellPipeWriterKindWithOptions {
   kind: ShellPipeWriterKind;
-  options?: PipeOptions;
+  options?: StreamPipeOptions;
 }
 
 interface CommandBuilderStateCommand {
@@ -348,8 +348,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Set the stdout kind. */
   stdout(kind: ShellPipeWriterKind): CommandBuilder;
-  stdout(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
-  stdout(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
+  stdout(kind: WritableStream<Uint8Array>, options?: StreamPipeOptions): CommandBuilder;
+  stdout(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
@@ -369,8 +369,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /** Set the stderr kind. */
   stderr(kind: ShellPipeWriterKind): CommandBuilder;
-  stderr(kind: WritableStream<Uint8Array>, options?: PipeOptions): CommandBuilder;
-  stderr(kind: ShellPipeWriterKind, options?: PipeOptions): CommandBuilder {
+  stderr(kind: WritableStream<Uint8Array>, options?: StreamPipeOptions): CommandBuilder;
+  stderr(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
         throw new Error(
@@ -1328,6 +1328,8 @@ function templateInner(
               }
               return stream;
             });
+          } else if (expr instanceof FsFileWrapper) {
+            handleReadableStream(() => expr.readable);
           } else if (expr instanceof Uint8Array) {
             handleReadableStream(() => {
               return new ReadableStream({
@@ -1384,6 +1386,8 @@ function templateInner(
                 },
               });
             });
+          } else if (expr instanceof FsFileWrapper) {
+            handleWritableStream(() => expr.writable);
           } else if ((expr as any)?.[symbols.writable]) {
             handleWritableStream(() => {
               const stream = (expr as any)[symbols.writable]?.();
