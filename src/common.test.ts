@@ -107,7 +107,12 @@ Deno.test("gets file name from url", () => {
 
 Deno.test("gets the executable shebang when it exists", async () => {
   function get(input: string) {
-    const stream = ReadableStream.from(input).pipeThrough(new TextEncoderStream());
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(input));
+        controller.close();
+      },
+    });
     return getExecutableShebang(stream);
   }
 
