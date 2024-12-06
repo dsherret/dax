@@ -47,7 +47,7 @@ export class TimeoutError extends Error {
     super(message);
   }
 
-  get name(): string {
+  override get name(): string {
     return "TimeoutError";
   }
 }
@@ -205,7 +205,7 @@ export class TreeBox<T> {
 
 /** A special kind of tree box that handles logging with static text. */
 export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
-  getValue(): (...args: any[]) => void {
+  override getValue(): (...args: any[]) => void {
     const innerValue = super.getValue();
     return (...args: any[]) => {
       return logger.logAboveStaticText(() => {
