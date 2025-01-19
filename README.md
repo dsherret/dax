@@ -26,7 +26,7 @@ Deno:
 
 ```sh
 # or skip and import directly from `jsr:@david/dax@<version>`
-deno add @david/dax
+deno add jsr:@david/dax
 ```
 
 Node:
