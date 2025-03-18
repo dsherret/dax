@@ -4,7 +4,6 @@ import { toWritableStream } from "@std/io/to-writable-stream";
 import * as path from "@std/path";
 import { isNode } from "which_runtime";
 import $ from "../mod.ts";
-import { TimeoutError } from "./common.ts";
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 
@@ -295,7 +294,7 @@ Deno.test("$.request", (t) => {
         .timeout(200) // so high because CI was slow
         .showProgress();
       const response = await request.fetch();
-      let caughtErr: TimeoutError | undefined;
+      let caughtErr: Error | undefined;
       try {
         await response.text();
       } catch (err: any) {
