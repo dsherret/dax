@@ -2,8 +2,7 @@ import { FsFileWrapper, Path } from "@david/path";
 import * as colors from "@std/fmt/colors";
 import { Buffer } from "@std/io/buffer";
 import * as path from "@std/path";
-import { readerFromStreamReader } from "@std/streams/reader-from-stream-reader";
-import { writerFromStreamWriter } from "@std/streams/writer-from-stream-writer";
+import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import type { CommandHandler } from "./command_handler.ts";
 import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
@@ -1505,4 +1504,16 @@ function templateLiteralExprToString(expr: TemplateExpr, escape: ((arg: string) 
     result = `${expr}`;
   }
   return escape ? escape(result) : result;
+}
+
+function writerFromStreamWriter(
+  streamWriter: WritableStreamDefaultWriter<Uint8Array>,
+): Writer {
+  return {
+    async write(p: Uint8Array): Promise<number> {
+      await streamWriter.ready;
+      await streamWriter.write(p);
+      return p.length;
+    },
+  };
 }

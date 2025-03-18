@@ -4,7 +4,7 @@ import { Buffer } from "@std/io/buffer";
 import { readAll } from "@std/io/read-all";
 import { toWritableStream } from "@std/io/to-writable-stream";
 import * as path from "@std/path";
-import { readerFromStreamReader } from "@std/streams/reader-from-stream-reader";
+import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import { isNode } from "which_runtime";
 import $, {
   build$,
