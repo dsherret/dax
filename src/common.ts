@@ -1,4 +1,3 @@
-import { BufReader } from "@std/io/buf-reader";
 import * as path from "@std/path";
 import { logger } from "./console/mod.ts";
 import type { Reader } from "./pipes.ts";
@@ -274,24 +273,55 @@ export async function getExecutableShebang(reader: Reader): Promise<ShebangInfo 
   if (bytesReadCount !== text.length || decoder.decode(buffer) !== text) {
     return undefined;
   }
-  const bufReader = new BufReader(reader);
-  const line = await bufReader.readLine();
-  if (line == null) {
+  const line = (await readFirstLine(reader)).trim();
+  if (line.length === 0) {
     return undefined;
   }
-  const result = decoder.decode(line.line).trim();
   const dashS = "-S ";
-  if (result.startsWith(dashS)) {
+  if (line.startsWith(dashS)) {
     return {
       stringSplit: true,
-      command: result.slice(dashS.length),
+      command: line.slice(dashS.length),
     };
   } else {
     return {
       stringSplit: false,
-      command: result,
+      command: line,
     };
   }
+}
+
+async function readFirstLine(reader: Reader) {
+  const chunkSize = 1024;
+  const chunkBuffer = new Uint8Array(chunkSize);
+  const collectedChunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  while (true) {
+    const bytesRead = await reader.read(chunkBuffer);
+    if (bytesRead == null || bytesRead === 0) {
+      break;
+    }
+    const currentChunk = chunkBuffer.subarray(0, bytesRead);
+    const newlineIndex = currentChunk.indexOf(0x0A);
+
+    if (newlineIndex !== -1) {
+      collectedChunks.push(currentChunk.subarray(0, newlineIndex));
+      totalLength += newlineIndex;
+      break;
+    } else {
+      collectedChunks.push(currentChunk);
+      totalLength += bytesRead;
+    }
+  }
+
+  const finalBytes = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of collectedChunks) {
+    finalBytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return new TextDecoder().decode(finalBytes);
 }
 
 export function abortSignalToPromise(signal: AbortSignal) {
