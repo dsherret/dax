@@ -1,8 +1,6 @@
 import { assertEquals } from "@std/assert";
-import { wasmInstance } from "../../lib/mod.ts";
+import { static_text_render_once, strip_ansi_codes } from "../../lib/rs_lib.js";
 import { renderProgressBar } from "./mod.ts";
-
-const { strip_ansi_codes, static_text_render_once } = wasmInstance;
 
 Deno.test("should render when no length", () => {
   assertEquals(

@@ -3,7 +3,7 @@
   "nodeModulesDir": "none",
   "tasks": {
     "test": "deno test -A",
-    "wasmbuild": "deno run -A https://deno.land/x/wasmbuild@0.15.6/main.ts --sync --out ./src/lib"
+    "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.19.1 --out ./src/lib"
   },
   "fmt": {
     "proseWrap": "preserve",
