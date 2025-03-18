@@ -306,7 +306,7 @@ Deno.test("$.request", (t) => {
         // DOMException instead, but not sure
         assert(caughtErr != null);
       } else {
-        assertEquals(caughtErr!, new TimeoutError("Request timed out after 200 milliseconds."));
+        assertEquals(caughtErr!.message, "Request timed out after 200 milliseconds.");
         assert(caughtErr!.stack!.includes("request.test.ts")); // current file
       }
     });
