@@ -36,7 +36,7 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import { wasmInstance } from "./src/lib/mod.ts";
+import { strip_ansi_codes } from "./src/lib/rs_lib.js";
 
 import { Path } from "@david/path";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
@@ -594,7 +594,7 @@ const helperObject = {
   cd,
   escapeArg,
   stripAnsi(text: string) {
-    return wasmInstance.strip_ansi_codes(text);
+    return strip_ansi_codes(text);
   },
   dedent: outdent,
   sleep,

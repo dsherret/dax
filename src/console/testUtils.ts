@@ -1,10 +1,9 @@
-import { wasmInstance } from "../lib/mod.ts";
+import { static_text_render_once, strip_ansi_codes } from "../lib/rs_lib.js";
 import type { Keys, SelectionOptions } from "./utils.ts";
 
 export function createTester<TReturn>(
   renderer: Pick<SelectionOptions<TReturn | undefined>, "render" | "onKey">,
 ) {
-  const { static_text_render_once, strip_ansi_codes } = wasmInstance;
   return {
     onKey(key: string | Keys) {
       return renderer.onKey(key);
