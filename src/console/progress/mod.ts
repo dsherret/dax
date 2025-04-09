@@ -198,6 +198,12 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     if (state.message != null) {
       text += ` ${state.message}`;
     }
+    if (state.currentPos > 0) {
+      const currentPosText = state.kind === "bytes"
+        ? humanDownloadSize(state.currentPos)
+        : state.currentPos.toString();
+      text += ` (${currentPosText}/?)`
+    }
     return [text];
   } else {
     let firstLine = "";
@@ -214,7 +220,7 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     const currentPosText = state.kind === "bytes"
       ? humanDownloadSize(state.currentPos, state.length)
       : state.currentPos.toString();
-    const lengthText = state.kind === "bytes" ? humanDownloadSize(state.length, state.length) : state.length.toString();
+    const lengthText = state.kind === "bytes" ? humanDownloadSize(state.length) : state.length.toString();
     const maxWidth = size == null ? 75 : Math.max(10, Math.min(75, size.columns - 5));
     const sameLineTextWidth = 6 + (lengthText.length * 2) + state.length.toString().length * 2;
     const totalBars = Math.max(1, maxWidth - sameLineTextWidth);
