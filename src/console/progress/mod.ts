@@ -199,10 +199,8 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
       text += ` ${state.message}`;
     }
     if (state.currentPos > 0) {
-      const currentPosText = state.kind === "bytes"
-        ? humanDownloadSize(state.currentPos)
-        : state.currentPos.toString();
-      text += ` (${currentPosText}/?)`
+      const currentPosText = state.kind === "bytes" ? humanDownloadSize(state.currentPos) : state.currentPos.toString();
+      text += ` (${currentPosText}/?)`;
     }
     return [text];
   } else {
