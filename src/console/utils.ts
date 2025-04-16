@@ -15,10 +15,14 @@ export enum Keys {
 }
 
 export async function* readKeys() {
+  return yield* innerReadKeys(Deno.stdin);
+}
+
+export async function* innerReadKeys(reader: { read(p: Uint8Array): Promise<number | null> }) {
   const { strip_ansi_codes } = wasmInstance;
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await Deno.stdin.read(buf);
+    const byteCount = await reader.read(buf);
     if (byteCount == null) {
       break;
     }
