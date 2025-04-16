@@ -2,7 +2,6 @@ import { wasmInstance } from "../lib/mod.ts";
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 export enum Keys {
   Up,
@@ -18,8 +17,12 @@ export async function* readKeys() {
   return yield* innerReadKeys(Deno.stdin);
 }
 
-export async function* innerReadKeys(reader: { read(p: Uint8Array): Promise<number | null> }) {
+export async function* innerReadKeys(reader: Pick<typeof Deno.stdin, "read">) {
   const { strip_ansi_codes } = wasmInstance;
+
+  // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
+  const decoder = new TextDecoder();
+
   while (true) {
     const buf = new Uint8Array(8);
     const byteCount = await reader.read(buf);
@@ -57,7 +60,9 @@ export async function* innerReadKeys(reader: { read(p: Uint8Array): Promise<numb
         continue;
       }
     }
-    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0)));
+    // stream: true preserves the remaining bytes that the decoder did not interpret as characters.
+    // This is important because we want to handle multibyte characters correctly.
+    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0), { stream: true }));
     if (text.length > 0) {
       yield text;
     }

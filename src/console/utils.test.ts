@@ -73,3 +73,25 @@ Deno.test("should handle text", async () => {
   reader.write(new TextEncoder().encode("world"));
   assertEquals((await gen.next()).value, "world");
 });
+
+Deno.test("should handle multibyte characters", async () => {
+  const reader = createReader();
+  const gen = innerReadKeys(reader);
+
+  // Write multibyte characters (e.g., emoji, non-Latin characters)
+  // | Character | Unicode | Bytes             |
+  // | --------- | ------- | ----------------- |
+  // | ✅        | U+2705  | [ 226, 156, 133 ] |
+  // | ✨        | U+2728  | [ 226, 156, 168 ] |
+  // | ❗        | U+2757  | [ 226, 157, 151 ] |
+  // | ❓        | U+2753  | [ 226, 157, 147 ] |
+  // This sequence is enough to test for 8 byte size of buffer.
+  reader.write(new TextEncoder().encode("✅✨❗❓"));
+
+  let result = "";
+  for await (const value of gen) {
+    result += value;
+  }
+
+  assertEquals(result, "✅✨❗❓");
+});
