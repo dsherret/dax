@@ -959,11 +959,12 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
-import { build$, CommandBuilder, RequestBuilder } from "@david/dax";
+import { build$, CommandBuilder, createExecutableCommand, RequestBuilder } from "@david/dax";
 
 // creates a $ object with the provided starting environment
 const $ = build$({
   commandBuilder: new CommandBuilder()
+    .registerCommand("deno", createExecutableCommand(Deno.execPath()))
     .cwd("./subDir")
     .env("HTTPS_PROXY", "some_value"),
   requestBuilder: new RequestBuilder()
