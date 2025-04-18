@@ -612,18 +612,10 @@ const helperObject = {
   dedent: outdent,
   sleep,
   which(commandName: string) {
-    if (commandName.toUpperCase() === "DENO") {
-      return Promise.resolve(Deno.execPath());
-    } else {
-      return which(commandName, denoWhichRealEnv);
-    }
+    return which(commandName, denoWhichRealEnv);
   },
   whichSync(commandName: string) {
-    if (commandName.toUpperCase() === "DENO") {
-      return Deno.execPath();
-    } else {
-      return whichSync(commandName, denoWhichRealEnv);
-    }
+    return whichSync(commandName, denoWhichRealEnv);
   },
 };
 

@@ -50,7 +50,11 @@ async function withServer(action: (serverUrl: URL) => Promise<void>) {
                 }
                 const abortListener = () => {
                   clearTimeout(timeoutId);
-                  controller.close();
+                  try {
+                    controller.close();
+                  } catch {
+                    // ignore
+                  }
                   resolve();
                   signal.removeEventListener("abort", abortListener);
                   abortController.signal.removeEventListener("abort", abortListener);
