@@ -88,7 +88,7 @@ interface CommandBuilderState {
 }
 
 const textDecoder = new TextDecoder();
-let builtInCommands: Record<string, CommandHandler> = {
+const builtInCommands: Record<string, CommandHandler> = {
   cd: cdCommand,
   printenv: printEnvCommand,
   echo: echoCommand,
@@ -106,16 +106,6 @@ let builtInCommands: Record<string, CommandHandler> = {
   unset: unsetCommand,
   which: whichCommand,
 };
-
-// dnt-shim-ignore
-// deno-lint-ignore no-explicit-any
-const isDeno = (globalThis as any).Deno?.version?.deno != null;
-if (isDeno && !((globalThis as any).Deno?.build?.standalone)) {
-  builtInCommands = {
-    ...builtInCommands,
-    deno: createExecutableCommand(Deno.execPath()),
-  };
-}
 
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();

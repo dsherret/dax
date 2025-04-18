@@ -1078,6 +1078,10 @@ export const denoWhichRealEnv = new WhichEnv();
 export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
+  // always use the current executable for "deno"
+  if (commandName.toUpperCase() === "DENO") {
+    return Deno.execPath();
+  }
   return await which(commandName, {
     os: Deno.build.os,
     stat: denoWhichRealEnv.stat,
