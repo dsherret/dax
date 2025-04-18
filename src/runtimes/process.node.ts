@@ -1,4 +1,5 @@
 import * as cp from "node:child_process";
+import * as os from "node:os";
 import { Readable, Writable } from "node:stream";
 import { getSignalAbortCode } from "../command.ts";
 import type { SpawnCommand } from "./process.common.ts";
@@ -16,16 +17,23 @@ function toNodeStdio(stdio: "inherit" | "null" | "piped") {
 
 export const spawnCommand: SpawnCommand = (path, options) => {
   let receivedSignal: Deno.Signal | undefined;
-  const child = cp.spawn(path, options.args, {
-    cwd: options.cwd,
-    // todo: clearEnv on node?
-    env: options.env,
-    stdio: [
-      toNodeStdio(options.stdin),
-      toNodeStdio(options.stdout),
-      toNodeStdio(options.stderr),
-    ],
-  });
+  // launching bat or cmd files in Node.js will error, so launch
+  // via cmd.exe instead https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
+  const isWindowsBatch = os.platform() === "win32" && /\.(cmd|bat)$/i.test(path);
+  const child = cp.spawn(
+    isWindowsBatch ? "cmd.exe" : path,
+    isWindowsBatch ? ["/d", "/s", "/c", path, ...options.args] : options.args,
+    {
+      cwd: options.cwd,
+      // todo: clearEnv on node?
+      env: options.env,
+      stdio: [
+        toNodeStdio(options.stdin),
+        toNodeStdio(options.stdout),
+        toNodeStdio(options.stderr),
+      ],
+    },
+  );
   const exitResolvers = Promise.withResolvers<number>();
   child.on("exit", (code) => {
     if (code == null && receivedSignal != null) {

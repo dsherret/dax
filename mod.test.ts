@@ -2288,6 +2288,14 @@ Deno.test("resolve command by path", async () => {
   assert(typeof version === "string");
 });
 
+Deno.test("windows cmd file", { ignore: Deno.build.os !== "windows" }, async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("script.cmd").writeTextSync("@echo off\ndeno %*\n");
+    const result = await $`./script.cmd eval "console.log(1); console.log(2)"`.lines("combined");
+    assertEquals(result, ["1", "2"]);
+  });
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));

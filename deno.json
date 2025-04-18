@@ -2,6 +2,7 @@
   "name": "@david/dax",
   "nodeModulesDir": "none",
   "tasks": {
+    "dnt": "deno run -A ./scripts/build_npm.ts",
     "test": "deno test -A",
     "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.19.2 --inline --out ./src/lib"
   },
