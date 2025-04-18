@@ -2,7 +2,7 @@ import { build, emptyDir } from "@deno/dnt";
 import { walkSync } from "@std/fs/walk";
 import $ from "../mod.ts";
 
-$.cd($.path(import.meta.url).parentOrThrow().parentOrThrow());
+Deno.chdir($.path(import.meta.url).parentOrThrow().parentOrThrow().toString());
 
 await emptyDir("./npm");
 
@@ -66,7 +66,7 @@ await build({
     }],
   },
   filterDiagnostic(diagnostic) {
-    return !diagnostic.file?.fileName.includes("@david/path/0.2.0/mod.ts") ?? true;
+    return !diagnostic.file?.fileName.includes("@david/path/0.2.0/mod.ts");
   },
   compilerOptions: {
     stripInternal: false,
