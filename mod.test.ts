@@ -339,6 +339,11 @@ Deno.test("raw should handle command result", async () => {
   assertEquals(text, `[ "1", "2", "3" ]`);
 });
 
+Deno.test("rawArg should handle arguments", async () => {
+  const text = await $`echo ${$.rawArg("1   2   3")}`.text();
+  assertEquals(text, `1 2 3`);
+});
+
 Deno.test("command builder should build", async () => {
   const commandBuilder = new CommandBuilder()
     .env("TEST", "123");
