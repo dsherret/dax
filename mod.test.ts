@@ -59,6 +59,14 @@ Deno.test("should capture stdout when inherited and piped", async () => {
   assertEquals(output.stdout, "5\n");
 });
 
+Deno.test("allows leading and trailing whitespace", async () => {
+  const output = await $`
+  echo 5
+`.stdout("piped");
+  assertEquals(output.code, 0);
+  assertEquals(output.stdout, "5\n");
+});
+
 Deno.test("should not get stdout when set to writer", async () => {
   const buffer = new Buffer();
   const output = await $`echo 5`.stdout(buffer);
