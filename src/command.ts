@@ -87,8 +87,7 @@ interface CommandBuilderState {
 }
 
 const textDecoder = new TextDecoder();
-
-const builtInCommands = {
+const builtInCommands: Record<string, CommandHandler> = {
   cd: cdCommand,
   printenv: printEnvCommand,
   echo: echoCommand,

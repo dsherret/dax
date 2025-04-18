@@ -85,6 +85,7 @@ export type {
   SetShellVarChange,
   UnsetVarChange,
 } from "./src/result.ts";
+export { createExecutableCommand } from "./src/commands/executable.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
