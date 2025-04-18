@@ -66,7 +66,7 @@ export interface SimpleCommand {
 
 export type Word = WordPart[];
 
-export type WordPart = Text | Variable | StringPartCommand | Quoted;
+export type WordPart = Text | Variable | StringPartCommand | Quoted | Tilde;
 
 export interface Text {
   kind: "text";
@@ -86,6 +86,10 @@ export interface StringPartCommand {
 export interface Quoted {
   kind: "quoted";
   value: WordPart[];
+}
+
+export interface Tilde {
+  kind: "tilde";
 }
 
 export interface Subshell extends SequentialList {
@@ -408,7 +412,7 @@ export class Context {
     return this.#env.getCwd();
   }
 
-  getVar(key: string) {
+  getVar(key: string): string | undefined {
     if (Deno.build.os === "windows") {
       key = key.toUpperCase();
     }
@@ -1361,8 +1365,16 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         hasQuoted = true;
         continue;
       }
+      case "tilde": {
+        const envVarName = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
+        const homeDirEnv = context.getVar(envVarName);
+        if (homeDirEnv == null) {
+          throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set.).`);
+        }
+        currentText += homeDirEnv;
+        break;
+      }
       case "command":
-      default:
         throw new Error(`Not implemented: ${stringPart.kind}`);
     }
 

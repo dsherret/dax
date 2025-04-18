@@ -828,6 +828,12 @@ Deno.test("should handle the PWD variable", async () => {
   }
 });
 
+Deno.test("tilde expansion", async () => {
+  const name = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
+  const text = await $`echo ~/home`.env(name, "/var").text();
+  assertEquals(text, `/var/home`);
+});
+
 Deno.test("timeout", async () => {
   const command = $`deno eval 'await new Promise(resolve => setTimeout(resolve, 10_000));'`
     .timeout(200);
