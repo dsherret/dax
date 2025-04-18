@@ -1,4 +1,9 @@
-import { wasmInstance } from "../lib/mod.ts";
+import {
+  static_text_clear_text,
+  static_text_render_once,
+  static_text_render_text,
+  strip_ansi_codes,
+} from "../lib/rs_lib.js";
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 const encoder = new TextEncoder();
@@ -18,8 +23,6 @@ export async function* readKeys() {
 }
 
 export async function* innerReadKeys(reader: Pick<typeof Deno.stdin, "read">) {
-  const { strip_ansi_codes } = wasmInstance;
-
   // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
   const decoder = new TextDecoder();
 
@@ -191,21 +194,21 @@ export const staticText = {
     }
 
     const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = wasmInstance.static_text_render_text(items, columns, rows);
+    const newText = static_text_render_text(items, columns, rows);
     if (newText != null) {
       Deno.stderr.writeSync(encoder.encode(newText));
     }
   },
   outputItems(items: TextItem[], size?: ConsoleSize) {
     const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = wasmInstance.static_text_render_once(items, columns, rows);
+    const newText = static_text_render_once(items, columns, rows);
     if (newText != null) {
       Deno.stderr.writeSync(encoder.encode(newText + "\n"));
     }
   },
   clear(size?: ConsoleSize) {
     const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = wasmInstance.static_text_clear_text(columns, rows);
+    const newText = static_text_clear_text(columns, rows);
     if (newText != null) {
       Deno.stderr.writeSync(encoder.encode(newText));
     }

@@ -26,7 +26,7 @@ Deno.test("should render", () => {
       "> [ ] Option 1",
       "  [ ] Option 2",
       "  [x] Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(tester.onKey(Keys.Down), undefined);
@@ -37,7 +37,7 @@ Deno.test("should render", () => {
       "  [ ] Option 1",
       "> [ ] Option 2",
       "  [x] Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(tester.onKey(Keys.Space), undefined);
@@ -48,7 +48,7 @@ Deno.test("should render", () => {
       "  [ ] Option 1",
       "> [x] Option 2",
       "  [x] Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(tester.onKey(Keys.Down), undefined);
@@ -60,7 +60,7 @@ Deno.test("should render", () => {
       "> [ ] Option 1",
       "  [x] Option 2",
       "  [x] Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
   assertEquals(tester.onKey(Keys.Up), undefined);
   assertEquals(
@@ -70,7 +70,7 @@ Deno.test("should render", () => {
       "  [ ] Option 1",
       "  [x] Option 2",
       "> [x] Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
   assertEquals(tester.onKey(Keys.Enter), [1, 2]);
   assertEquals(
@@ -79,7 +79,7 @@ Deno.test("should render", () => {
       "Some question?",
       " - Option 2",
       " - Option 3",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 });
 
@@ -94,6 +94,6 @@ Deno.test("should render when nothing selected", () => {
     [
       "Some question?",
       " <None>",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 });

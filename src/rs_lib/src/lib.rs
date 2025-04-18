@@ -5,7 +5,6 @@ use std::sync::Mutex;
 use console_static_text::ConsoleSize;
 use console_static_text::ConsoleStaticText;
 use console_static_text::TextItem;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
@@ -38,12 +37,13 @@ impl WasmTextItem {
   }
 }
 
-static STATIC_TEXT: Lazy<Arc<Mutex<ConsoleStaticText>>> = Lazy::new(|| {
-  Arc::new(Mutex::new(ConsoleStaticText::new(|| ConsoleSize {
-    cols: None,
-    rows: None,
-  })))
-});
+static STATIC_TEXT: std::sync::LazyLock<Arc<Mutex<ConsoleStaticText>>> =
+  std::sync::LazyLock::new(|| {
+    Arc::new(Mutex::new(ConsoleStaticText::new(|| ConsoleSize {
+      cols: None,
+      rows: None,
+    })))
+  });
 
 #[wasm_bindgen]
 pub fn static_text_render_text(

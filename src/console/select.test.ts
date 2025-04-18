@@ -18,7 +18,7 @@ Deno.test("should render", () => {
       "Some question?",
       "> Option 1",
       "  Option 2",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(tester.onKey(Keys.Down), undefined);
@@ -28,7 +28,7 @@ Deno.test("should render", () => {
       "Some question?",
       "  Option 1",
       "> Option 2",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(tester.onKey(Keys.Down), undefined);
@@ -38,7 +38,7 @@ Deno.test("should render", () => {
       "Some question?",
       "> Option 1",
       "  Option 2",
-    ].join("\n"),
+    ].join("\r\n"),
   );
   assertEquals(tester.onKey(Keys.Up), undefined);
   assertEquals(
@@ -47,7 +47,7 @@ Deno.test("should render", () => {
       "Some question?",
       "  Option 1",
       "> Option 2",
-    ].join("\n"),
+    ].join("\r\n"),
   );
   assertEquals(tester.onKey(Keys.Enter), 1);
   assertEquals(
@@ -55,6 +55,6 @@ Deno.test("should render", () => {
     [
       "Some question?",
       " - Option 2",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 });

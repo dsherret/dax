@@ -4,7 +4,7 @@ import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
 import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
-import { wasmInstance } from "./lib/mod.ts";
+import * as wasmInstance from "./lib/rs_lib.js";
 import {
   NullPipeReader,
   NullPipeWriter,
