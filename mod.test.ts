@@ -18,6 +18,7 @@ import $, {
 } from "./mod.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
 import { usingTempDir, withTempDir } from "./src/with_temp_dir.ts";
+import { createExecutableCommand } from "./src/commands/executable.ts";
 
 // Deno will not be a tty because it captures the pipes, but Node
 // will be, so manually say that we're not a tty for testing so
@@ -727,7 +728,9 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
   }
   Deno.env.set("DAX_TVAR", "123");
   try {
-    const text = await $`deno eval --no-config 'console.log("DAX_TVAR: " + Deno.env.get("DAX_TVAR"))'`.clearEnv()
+    const text = await $`deno eval --no-config 'console.log("DAX_TVAR: " + Deno.env.get("DAX_TVAR"))'`
+      .clearEnv()
+      .registerCommand("deno", createExecutableCommand(Deno.execPath()))
       .text();
     assertEquals(text, "DAX_TVAR: undefined");
   } finally {
@@ -742,6 +745,7 @@ Deno.test("clearEnv + exportEnv should not clear out real environment", async ()
       await $`deno eval --no-config 'console.log("VAR: " + Deno.env.get("DAX_TVAR") + " VAR2: " + Deno.env.get("DAX_TVAR2"))'`
         .env("DAX_TVAR2", "shake it shake")
         .clearEnv()
+        .registerCommand("deno", createExecutableCommand(Deno.execPath()))
         .exportEnv()
         .text();
     assertEquals(text, "VAR: undefined VAR2: shake it shake");
