@@ -1,5 +1,5 @@
 import type { KillSignal } from "./command.ts";
-import type { Reader } from "./pipes.ts";
+import type { Reader, ShellPipeWriterKind } from "./pipes.ts";
 import type { ExecuteResult } from "./result.ts";
 
 /** Used to read from stdin. */
@@ -7,7 +7,9 @@ export type CommandPipeReader = "inherit" | "null" | Reader;
 
 /** Used to write to stdout or stderr. */
 export interface CommandPipeWriter {
+  kind: ShellPipeWriterKind;
   write(p: Uint8Array): Promise<number> | number;
+  writeAll(p: Uint8Array): Promise<void> | void;
   writeText(text: string): Promise<void> | void;
   writeLine(text: string): Promise<void> | void;
 }

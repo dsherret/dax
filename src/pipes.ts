@@ -6,6 +6,7 @@ import { abortSignalToPromise } from "./common.ts";
 import { logger } from "./console/logger.ts";
 import type { RequestBuilder } from "./request.ts";
 import type { Closer, Reader, ReaderSync, Writer, WriterSync } from "@std/io/types";
+import type { CommandPipeWriter } from "./command_handler.ts";
 export type { Closer, Reader, ReaderSync, Writer, WriterSync };
 
 const encoder = new TextEncoder();
@@ -291,7 +292,7 @@ export async function pipeReaderToWritable(
 
 export async function pipeReadableToWriterSync(
   readable: ReadableStream<Uint8Array>,
-  writer: ShellPipeWriter,
+  writer: ShellPipeWriter | CommandPipeWriter,
   signal: AbortSignal | KillSignal,
 ) {
   const reader = readable.getReader();

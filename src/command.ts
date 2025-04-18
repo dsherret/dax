@@ -39,6 +39,7 @@ import {
 import { RequestBuilder } from "./request.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { StreamFds } from "./shell.ts";
+import { createExecutableCommand } from "./commands/executable.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 type StreamKind = "stdout" | "stderr" | "combined";
@@ -87,8 +88,7 @@ interface CommandBuilderState {
 }
 
 const textDecoder = new TextDecoder();
-
-const builtInCommands = {
+let builtInCommands: Record<string, CommandHandler> = {
   cd: cdCommand,
   printenv: printEnvCommand,
   echo: echoCommand,
@@ -106,6 +106,16 @@ const builtInCommands = {
   unset: unsetCommand,
   which: whichCommand,
 };
+
+// dnt-shim-ignore
+// deno-lint-ignore no-explicit-any
+const isDeno = (globalThis as any).Deno?.version?.deno != null;
+if (isDeno && !((globalThis as any).Deno?.build?.standalone)) {
+  builtInCommands = {
+    ...builtInCommands,
+    deno: createExecutableCommand(Deno.execPath()),
+  };
+}
 
 /** @internal */
 export const getRegisteredCommandNamesSymbol: unique symbol = Symbol();
