@@ -938,6 +938,15 @@ const result = await commandBuilder
   .spawn();
 ```
 
+#### Default Commands
+
+The `CommandBuilder` will always have the default cross-platform commands registered. You can unregister them by using the `unregisterCommand` function:
+
+```ts
+const commandBuilder = new CommandBuilder()
+  .unregisterCommand("printenv"); // will use what's on the system now
+```
+
 ### `RequestBuilder`
 
 `RequestBuilder` can be used for building up requests similar to `$.request`:
