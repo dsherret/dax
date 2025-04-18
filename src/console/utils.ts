@@ -7,7 +7,6 @@ import {
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 
 export enum Keys {
   Up,
@@ -20,9 +19,16 @@ export enum Keys {
 }
 
 export async function* readKeys() {
+  return yield* innerReadKeys(Deno.stdin);
+}
+
+export async function* innerReadKeys(reader: Pick<typeof Deno.stdin, "read">) {
+  // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
+  const decoder = new TextDecoder();
+
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await Deno.stdin.read(buf);
+    const byteCount = await reader.read(buf);
     if (byteCount == null) {
       break;
     }
@@ -57,7 +63,9 @@ export async function* readKeys() {
         continue;
       }
     }
-    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0)));
+    // stream: true preserves the remaining bytes that the decoder did not interpret as characters.
+    // This is important because we want to handle multibyte characters correctly.
+    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0), { stream: true }));
     if (text.length > 0) {
       yield text;
     }

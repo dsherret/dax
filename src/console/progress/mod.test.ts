@@ -112,6 +112,34 @@ Deno.test("should render when has length", () => {
       "[##>------------------------------------] (0.10 MiB/1.00 MiB)",
     ].join("\n"),
   );
+
+  // unknown completed
+  assertEquals(
+    getOutput({
+      prefix: "Syncing",
+      message: "items",
+      currentPos: 42,
+    }),
+    "⠋ Syncing items (42/?)",
+  );
+
+  // unknown bytes
+  assertEquals(
+    getOutput({
+      message: "Downloading",
+      currentPos: 12345,
+      kind: "bytes",
+    }),
+    "⠋ Downloading (12.05 KiB/?)",
+  );
+  assertEquals(
+    getOutput({
+      message: "Downloading",
+      currentPos: 123456789,
+      kind: "bytes",
+    }),
+    "⠋ Downloading (117.73 MiB/?)",
+  );
 });
 
 function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
