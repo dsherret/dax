@@ -39,7 +39,6 @@ import {
 import { RequestBuilder } from "./request.ts";
 import { parseCommand, spawn } from "./shell.ts";
 import { StreamFds } from "./shell.ts";
-import { createExecutableCommand } from "./commands/executable.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
 type StreamKind = "stdout" | "stderr" | "combined";
