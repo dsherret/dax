@@ -589,8 +589,8 @@ function buildInitial$State<TExtras extends ExtrasObject>(
   opts: Create$Options<TExtras> & { isGlobal: boolean },
 ): $State<TExtras> {
   return {
-    commandBuilder: new TreeBox(opts.commandBuilder ?? new CommandBuilder()),
-    requestBuilder: opts.requestBuilder ?? new RequestBuilder(),
+    commandBuilder: new TreeBox(resolveCommandBuilder()),
+    requestBuilder: resolveRequestBuilder(),
     // deno-lint-ignore no-console
     infoLogger: new LoggerTreeBox(console.error),
     // deno-lint-ignore no-console
@@ -600,6 +600,28 @@ function buildInitial$State<TExtras extends ExtrasObject>(
     indentLevel: new Box(0),
     extras: opts.extras,
   };
+
+  function resolveCommandBuilder() {
+    if (opts.commandBuilder instanceof CommandBuilder) {
+      return opts.commandBuilder;
+    } else if (opts.commandBuilder instanceof Function) {
+      return opts.commandBuilder(new CommandBuilder());
+    } else {
+      const _assertUndefined: undefined = opts.commandBuilder;
+      return new CommandBuilder();
+    }
+  }
+
+  function resolveRequestBuilder() {
+    if (opts.requestBuilder instanceof RequestBuilder) {
+      return opts.requestBuilder;
+    } else if (opts.requestBuilder instanceof Function) {
+      return opts.requestBuilder(new RequestBuilder());
+    } else {
+      const _assertUndefined: undefined = opts.requestBuilder;
+      return new RequestBuilder();
+    }
+  }
 }
 
 const helperObject = {
@@ -621,10 +643,14 @@ const helperObject = {
 
 /** Options for creating a custom `$`. */
 export interface Create$Options<TExtras extends ExtrasObject> {
-  /** Uses the state of this command builder as a starting point. */
-  commandBuilder?: CommandBuilder;
-  /** Uses the state of this request builder as a starting point. */
-  requestBuilder?: RequestBuilder;
+  /** Uses the state of this command builder as a starting point or
+   * provide a function to build off the current builder.
+   */
+  commandBuilder?: CommandBuilder | ((builder: CommandBuilder) => CommandBuilder);
+  /** Uses the state of this request builder as a starting point or
+   * provide a function to build off the current builder.
+   */
+  requestBuilder?: RequestBuilder | ((builder: RequestBuilder) => RequestBuilder);
   /** Extra properties to put on the `$`. */
   extras?: TExtras;
 }
@@ -651,10 +677,8 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
     {
       build$<TNewExtras extends ExtrasObject>(opts: Create$Options<TNewExtras> = {}) {
         return build$FromState({
-          commandBuilder: opts.commandBuilder != null
-            ? new TreeBox(opts.commandBuilder)
-            : state.commandBuilder.createChild(),
-          requestBuilder: opts.requestBuilder ?? state.requestBuilder,
+          commandBuilder: resolveCommandBuilder(),
+          requestBuilder: resolveRequestBuilder(),
           errorLogger: state.errorLogger.createChild(),
           infoLogger: state.infoLogger.createChild(),
           warnLogger: state.warnLogger.createChild(),
@@ -664,6 +688,28 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
             ...opts.extras,
           },
         });
+
+        function resolveCommandBuilder() {
+          if (opts.commandBuilder instanceof CommandBuilder) {
+            return new TreeBox(opts.commandBuilder);
+          } else if (opts.commandBuilder instanceof Function) {
+            return new TreeBox(opts.commandBuilder(state.commandBuilder.getValue()));
+          } else {
+            const _assertUndefined: undefined = opts.commandBuilder;
+            return state.commandBuilder.createChild();
+          }
+        }
+
+        function resolveRequestBuilder() {
+          if (opts.requestBuilder instanceof RequestBuilder) {
+            return opts.requestBuilder;
+          } else if (opts.requestBuilder instanceof Function) {
+            return opts.requestBuilder(state.requestBuilder);
+          } else {
+            const _assertUndefined: undefined = opts.requestBuilder;
+            return state.requestBuilder;
+          }
+        }
       },
       log(...data: any[]) {
         state.infoLogger.getValue()(getLogText(data));

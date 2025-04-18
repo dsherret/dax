@@ -938,6 +938,15 @@ const result = await commandBuilder
   .spawn();
 ```
 
+#### Default Commands
+
+The `CommandBuilder` will always have the default cross-platform commands registered. You can unregister them by using the `unregisterCommand` function:
+
+```ts
+const commandBuilder = new CommandBuilder()
+  .unregisterCommand("printenv"); // will use what's on the system now
+```
+
 ### `RequestBuilder`
 
 `RequestBuilder` can be used for building up requests similar to `$.request`:
@@ -959,16 +968,18 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
-import { build$, CommandBuilder, createExecutableCommand, RequestBuilder } from "@david/dax";
+import { build$, createExecutableCommand } from "@david/dax";
 
 // creates a $ object with the provided starting environment
 const $ = build$({
-  commandBuilder: new CommandBuilder()
-    .registerCommand("deno", createExecutableCommand(Deno.execPath()))
-    .cwd("./subDir")
-    .env("HTTPS_PROXY", "some_value"),
-  requestBuilder: new RequestBuilder()
-    .header("SOME_NAME", "some value"),
+  commandBuilder: (builder) =>
+    builder
+      .registerCommand("deno", createExecutableCommand(Deno.execPath()))
+      .cwd("./subDir")
+      .env("HTTPS_PROXY", "some_value"),
+  requestBuilder: (builder) =>
+    builder
+      .header("SOME_NAME", "some value"),
   extras: {
     add(a: number, b: number) {
       return a + b;
@@ -989,11 +1000,11 @@ console.log($.add(1, 2));
 This may be useful also if you want to change the default configuration. Another example:
 
 ```ts
-const commandBuilder = new CommandBuilder()
-  .exportEnv()
-  .noThrow();
-
-const $ = build$({ commandBuilder });
+const $ = build$({
+  commandBuilder: (builder) =>
+    builder.exportEnv()
+      .noThrow(),
+});
 
 // since exportEnv() was set, this will now actually change
 // the directory of the executing process
