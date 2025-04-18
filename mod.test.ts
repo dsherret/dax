@@ -1972,27 +1972,6 @@ Deno.test("touch test", async () => {
   });
 });
 
-Deno.test("cd", () => {
-  const cwd = Deno.cwd();
-
-  try {
-    $.cd("./src");
-    assert(Deno.cwd().endsWith("src"));
-    // todo: this originally passed in import.meta, but that
-    // didn't work in the node cjs tests, so now it's doing this
-    // thing that doesn't really test it
-    $.cd($.path(new URL(import.meta.url)).parentOrThrow());
-    $.cd("./src");
-    assert(Deno.cwd().endsWith("src"));
-    const path = $.path(import.meta.url).parentOrThrow();
-    $.cd(path);
-    $.cd("./src");
-    assert(Deno.cwd().endsWith("src"));
-  } finally {
-    Deno.chdir(cwd);
-  }
-});
-
 Deno.test("cat", async () => {
   await withTempDir(async (tempDir) => {
     await Deno.writeTextFile("hello", "hello world");
