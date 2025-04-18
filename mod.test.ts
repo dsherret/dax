@@ -829,9 +829,20 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("tilde expansion", async () => {
-  const name = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
-  const text = await $`echo ~/home`.env(name, "/var").text();
-  assertEquals(text, `/var/home`);
+  const envVarName = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
+  {
+    const text = await $`echo ~/home`.env(envVarName, "/var").text();
+    assertEquals(text, `/var/home`);
+  }
+  {
+    await assertRejects(
+      async () => {
+        await $`echo ~/home`.env(envVarName, undefined).text();
+      },
+      Error,
+      `Failed resolving home directory for tilde expansion ('${envVarName}' env var not set).`,
+    );
+  }
 });
 
 Deno.test("timeout", async () => {

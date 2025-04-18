@@ -1369,7 +1369,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         const envVarName = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
         const homeDirEnv = context.getVar(envVarName);
         if (homeDirEnv == null) {
-          throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set.).`);
+          throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set).`);
         }
         currentText += homeDirEnv;
         break;
