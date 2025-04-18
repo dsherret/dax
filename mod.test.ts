@@ -1963,6 +1963,9 @@ Deno.test("touch test", async () => {
     assert(dir.join("b").existsSync());
     assert(dir.join("c").existsSync());
 
+    await $`mkdir subdir && cd subdir && touch a`;
+    assert(dir.join("subdir/a").existsSync());
+
     assertEquals(await getStdErr($`touch`), "touch: missing file operand\n");
 
     assertEquals(await getStdErr($`touch --test hello`), "touch: unsupported flag: --test\n");
