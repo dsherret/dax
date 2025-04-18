@@ -209,8 +209,6 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   build$<TNewExtras extends ExtrasObject = {}>(
     options?: Create$Options<TNewExtras>,
   ): $Type<Omit<TExtras, keyof TNewExtras> & TNewExtras>;
-  /** Changes the directory of the current process. */
-  cd(path: string | URL | ImportMeta | Path): void;
   /**
    * Escapes an argument for the shell when NOT using the template
    * literal.
