@@ -186,15 +186,21 @@ const dirNames = ["some_dir", "other dir"];
 await $`mkdir ${dirNames}`; // executes as: mkdir some_dir 'other dir'
 ```
 
-If you do not want to escape arguments in a template literal, you can opt out completely, by using `$.raw`:
+If you do not want to escape an argument in a template literal, you can opt out by using `$.rawArg` starting in 0.43.0:
 
 ```ts
-const args = "arg1   arg2   arg3";
-await $.raw`echo ${args}`; // executes as: echo arg1   arg2   arg3
+const args = "arg1   arg2";
+await $`echo ${$.rawArg(args)} ${args}`; // executes as: echo arg1 arg2 arg1   arg2
+```
+
+Alternatively, you can opt out completely by using `$.raw`:
+
+```ts
+const args = "arg1   arg2";
+await $.raw`echo ${args}`; // executes as: echo arg1 arg2
 
 // or escape a specific argument while using $.raw
-const args2 = "arg1  arg2";
-await $.raw`echo ${$.escapeArg(args2)} ${args2}`; // executes as: echo "arg1  arg2" arg1  arg2
+await $.raw`echo ${$.escapeArg(args)} ${args}`; // executes as: echo "arg1  arg2" arg1 arg2
 ```
 
 Providing stdout of one command to another is possible as follows:

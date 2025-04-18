@@ -1119,6 +1119,22 @@ export function escapeArg(arg: string) {
   }
 }
 
+export class RawArg<T> {
+  #value: T;
+
+  constructor(value: T) {
+    this.#value = value;
+  }
+
+  get value(): T {
+    return this.#value;
+  }
+}
+
+export function rawArg<T>(arg: T): RawArg<T> {
+  return new RawArg(arg);
+}
+
 function validateCommandName(command: string) {
   if (command.match(/^[a-zA-Z0-9-_]+$/) == null) {
     throw new Error("Invalid command name");
@@ -1498,6 +1514,8 @@ function templateLiteralExprToString(expr: TemplateExpr, escape: ((arg: string) 
       "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). " +
         "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
     );
+  } else if (expr instanceof RawArg) {
+    return templateLiteralExprToString(expr.value, undefined);
   } else if (typeof expr === "object" && expr.toString === Object.prototype.toString) {
     throw new Error("Provided object does not override `toString()`.");
   } else {

@@ -4,11 +4,12 @@ import {
   CommandBuilder,
   escapeArg,
   getRegisteredCommandNamesSymbol,
+  rawArg,
   setCommandTextStateSymbol,
   template,
   templateRaw,
 } from "./src/command.ts";
-import type { TemplateExpr } from "./src/command.ts";
+import type { RawArg, TemplateExpr } from "./src/command.ts";
 import {
   Box,
   type Delay,
@@ -57,6 +58,7 @@ export {
   KillSignal,
   KillSignalController,
   type KillSignalListener,
+  RawArg,
   type TemplateExpr,
 } from "./src/command.ts";
 export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
@@ -505,6 +507,18 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    */
   raw(strings: TemplateStringsArray, ...exprs: TemplateExpr[]): CommandBuilder;
   /**
+   * Prevents an argument being escaped.
+   *
+   * ```ts
+   * import $ from "dax";
+   *
+   * const value = "1    2     3";
+   * await $`echo ${value}`; // 1    2     3
+   * await $`echo ${$.rawArg(value)}`; // 1 2 3
+   * ```
+   */
+  rawArg<T>(arg: T): RawArg<T>;
+  /**
    * Does the provided action until it succeeds (does not throw)
    * or the specified number of retries (`count`) is hit.
    */
@@ -771,6 +785,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         const textState = templateRaw(strings, exprs);
         return state.commandBuilder.getValue()[setCommandTextStateSymbol](textState);
       },
+      rawArg,
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);
       },
