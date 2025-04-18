@@ -44,7 +44,7 @@ Deno.test("should render when has length", () => {
     [
       "Message",
       "[---------------------------------------------------------] (0/100)",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(
@@ -56,7 +56,7 @@ Deno.test("should render when has length", () => {
     [
       "Prefix",
       "[###########################>-----------------------------] (50/100)",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   assertEquals(
@@ -69,7 +69,7 @@ Deno.test("should render when has length", () => {
     [
       "Prefix Message",
       "[#########################################>---------------] (75/100)",
-    ].join("\n"),
+    ].join("\r\n"),
   );
   assertEquals(
     getOutput({
@@ -110,7 +110,7 @@ Deno.test("should render when has length", () => {
     [
       "Message",
       "[##>------------------------------------] (0.10 MiB/1.00 MiB)",
-    ].join("\n"),
+    ].join("\r\n"),
   );
 
   // unknown completed
