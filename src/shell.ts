@@ -505,7 +505,7 @@ export class Context {
 }
 
 export function parseCommand(command: string) {
-  return wasmInstance.parse(command) as SequentialList;
+  return wasmInstance.parse(command.trim()) as SequentialList;
 }
 
 export interface SpawnOpts {
