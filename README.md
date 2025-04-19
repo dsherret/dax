@@ -140,7 +140,7 @@ Or handle the error case within the shell:
 await $`failing_command || echo 'Errored!'`;
 ```
 
-Note: if you want it to not throw default, you can build a custom `$` (see below).
+Note: if you want it to not throw by default, you can build a custom `$` (see below).
 
 ### Piping
 
