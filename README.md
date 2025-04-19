@@ -115,6 +115,33 @@ const text = await $`deno eval 'console.log(1); console.error(2); console.log(3)
 console.log(text); // 1\n2\n3\n
 ```
 
+### Exit codes
+
+By default, commands will throw an error on non-zero exit code:
+
+```ts
+await $`exit 123`;
+// Uncaught Error: Exited with code: 123
+//    at CommandChild.pipedStdoutBuffer (...)
+```
+
+If you want to disable this behaviour, run a command with `.noThrow()`:
+
+```ts
+const result = await $`exit 123`.noThrow();
+console.log(result.code); // 123
+// or only for certain exit codes
+await $`exit 123`.noThrow(123);
+```
+
+Or handle the error case within the shell:
+
+```ts
+await $`failing_command || echo 'Errored!'`;
+```
+
+Note: if you want it to not throw default, you can build a custom `$` (see below).
+
 ### Piping
 
 Piping stdout or stderr to a `Deno.WriterSync`:
