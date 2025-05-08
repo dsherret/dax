@@ -7,7 +7,8 @@
   },
   "typescript": {
     "deno": true,
-    "lineWidth": 120
+    "lineWidth": 120,
+    "binaryExpression.operatorPosition": "nextLine"
   },
   "markdown": {
     "lineWidth": 120
@@ -18,10 +19,10 @@
     "**/*.generated.js"
   ],
   "plugins": [
-    "https://plugins.dprint.dev/typescript-0.88.7.wasm",
-    "https://plugins.dprint.dev/json-0.19.1.wasm",
-    "https://plugins.dprint.dev/markdown-0.16.3.wasm",
-    "https://plugins.dprint.dev/toml-0.5.4.wasm",
-    "https://plugins.dprint.dev/exec-0.4.4.json@c207bf9b9a4ee1f0ecb75c594f774924baf62e8e53a2ce9d873816a408cecbf7"
+    "https://plugins.dprint.dev/typescript-0.95.0.wasm",
+    "https://plugins.dprint.dev/json-0.20.0.wasm",
+    "https://plugins.dprint.dev/markdown-0.18.0.wasm",
+    "https://plugins.dprint.dev/toml-0.7.0.wasm",
+    "https://plugins.dprint.dev/exec-0.5.1.json@492414e39dea4dccc07b4af796d2f4efdb89e84bae2bd4e1e924c0cc050855bf"
   ]
 }

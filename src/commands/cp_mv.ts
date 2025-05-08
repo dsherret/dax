@@ -38,9 +38,9 @@ export async function parseCpArgs(cwd: string, args: string[]): Promise<CopyFlag
   for (const arg of parseArgKinds(args)) {
     if (arg.kind === "Arg") paths.push(arg.arg);
     else if (
-      (arg.arg === "recursive" && arg.kind === "LongFlag") ||
-      (arg.arg === "r" && arg.kind == "ShortFlag") ||
-      (arg.arg === "R" && arg.kind === "ShortFlag")
+      (arg.arg === "recursive" && arg.kind === "LongFlag")
+      || (arg.arg === "r" && arg.kind == "ShortFlag")
+      || (arg.arg === "R" && arg.kind === "ShortFlag")
     ) {
       recursive = true;
     } else bailUnsupported(arg);

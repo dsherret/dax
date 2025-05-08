@@ -77,9 +77,9 @@ interface DrawState {
 
 function render(state: DrawState): TextItem[] {
   return [
-    colors.bold(colors.blue(state.title)) +
-    " " + (state.hasCompleted ? "" : state.default == null ? "(Y/N) " : state.default ? "(Y/n) " : "(y/N) ") +
-    state.inputText +
-    (state.hasCompleted ? "" : "\u2588"), // (block character)
+    colors.bold(colors.blue(state.title))
+    + " " + (state.hasCompleted ? "" : state.default == null ? "(Y/N) " : state.default ? "(Y/n) " : "(y/N) ")
+    + state.inputText
+    + (state.hasCompleted ? "" : "\u2588"), // (block character)
   ];
 }

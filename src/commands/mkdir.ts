@@ -44,8 +44,8 @@ export function parseArgs(args: string[]) {
 
   for (const arg of parseArgKinds(args)) {
     if (
-      (arg.arg === "parents" && arg.kind === "LongFlag") ||
-      (arg.arg === "p" && arg.kind == "ShortFlag")
+      (arg.arg === "parents" && arg.kind === "LongFlag")
+      || (arg.arg === "p" && arg.kind == "ShortFlag")
     ) {
       result.parents = true;
     } else {

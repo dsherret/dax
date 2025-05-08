@@ -120,9 +120,9 @@ function createInstance(options: Options): Outdent {
       const strings = stringsOrOptions;
 
       // Is first interpolated value a reference to outdent, alone on its own line, without any preceding non-whitespace?
-      const firstInterpolatedValueSetsIndentationLevel = (values[0] === outdent || values[0] === defaultOutdent) &&
-        reOnlyWhitespaceWithAtLeastOneNewline.test(strings[0]) &&
-        reStartsWithNewlineOrIsEmpty.test(strings[1]);
+      const firstInterpolatedValueSetsIndentationLevel = (values[0] === outdent || values[0] === defaultOutdent)
+        && reOnlyWhitespaceWithAtLeastOneNewline.test(strings[0])
+        && reStartsWithNewlineOrIsEmpty.test(strings[1]);
 
       // Perform outdentation
       const cache = firstInterpolatedValueSetsIndentationLevel ? arrayFirstInterpSetsIndentCache : arrayAutoIndentCache;

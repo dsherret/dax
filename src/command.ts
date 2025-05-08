@@ -842,9 +842,9 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       const stdin = state.stdin.value;
       if (stdin === "consumed") {
         throw new Error(
-          "Cannot spawn command. Stdin was already consumed when a previous command using " +
-            "the same stdin was spawned. You need to call `.stdin(...)` again with a new " +
-            "value before spawning.",
+          "Cannot spawn command. Stdin was already consumed when a previous command using "
+            + "the same stdin was spawned. You need to call `.stdin(...)` again with a new "
+            + "value before spawning.",
         );
       }
       state.stdin.value = "consumed";
@@ -1336,8 +1336,8 @@ function templateInner(
               const stream = (expr as any)[symbols.readable]?.();
               if (!(stream instanceof ReadableStream)) {
                 throw new Error(
-                  "Expected a ReadableStream or an object with a [$.symbols.readable] method " +
-                    `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
+                  "Expected a ReadableStream or an object with a [$.symbols.readable] method "
+                    + `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
                 );
               }
               return stream;
@@ -1371,8 +1371,8 @@ function templateInner(
                 return result;
               } catch (err) {
                 throw new Error(
-                  `Error getting ReadableStream from function at ` +
-                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
+                  `Error getting ReadableStream from function at `
+                    + `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
                 );
               }
             });
@@ -1407,8 +1407,8 @@ function templateInner(
               const stream = (expr as any)[symbols.writable]?.();
               if (!(stream instanceof WritableStream)) {
                 throw new Error(
-                  `Expected a WritableStream or an object with a [$.symbols.writable] method ` +
-                    `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
+                  `Expected a WritableStream or an object with a [$.symbols.writable] method `
+                    + `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
                 );
               }
               return stream;
@@ -1423,8 +1423,8 @@ function templateInner(
                 return result;
               } catch (err) {
                 throw new Error(
-                  `Error getting WritableStream from function at ` +
-                    `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
+                  `Error getting WritableStream from function at `
+                    + `expression ${i + 1}/${exprsCount}. ${errorToString(err)}`,
                 );
               }
             });
@@ -1510,8 +1510,8 @@ function templateLiteralExprToString(expr: TemplateExpr, escape: ((arg: string) 
     result = expr.stdout.replace(/\r?\n$/, "");
   } else if (expr instanceof CommandBuilder) {
     throw new Error(
-      "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). " +
-        "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
+      "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). "
+        + "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
     );
   } else if (expr instanceof RawArg) {
     return templateLiteralExprToString(expr.value, undefined);

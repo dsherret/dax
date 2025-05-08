@@ -115,9 +115,9 @@ function render(state: DrawState): TextItem[] {
   }
 
   return [
-    colors.bold(colors.blue(state.title)) +
-    " " +
-    inputText +
-    (state.hasCompleted ? "" : "\u2588"), // (block character)
+    colors.bold(colors.blue(state.title))
+    + " "
+    + inputText
+    + (state.hasCompleted ? "" : "\u2588"), // (block character)
   ];
 }

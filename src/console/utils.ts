@@ -90,8 +90,8 @@ function isTerminal(pipe: { isTerminal?(): boolean; rid?: number }) {
   if (typeof pipe.isTerminal === "function") {
     return pipe.isTerminal();
   } else if (
-    pipe.rid != null &&
-    typeof (Deno as any).isatty === "function"
+    pipe.rid != null
+    && typeof (Deno as any).isatty === "function"
   ) {
     return (Deno as any).isatty(pipe.rid);
   } else {

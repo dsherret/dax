@@ -1035,8 +1035,8 @@ Deno.test("spawning a command twice that has stdin set to a Reader should error"
   await assertRejects(
     () => command.text(),
     Error,
-    "Cannot spawn command. Stdin was already consumed when a previous command using the same stdin " +
-      "was spawned. You need to call `.stdin(...)` again with a new value before spawning.",
+    "Cannot spawn command. Stdin was already consumed when a previous command using the same stdin "
+      + "was spawned. You need to call `.stdin(...)` again with a new value before spawning.",
   );
 });
 
@@ -1493,8 +1493,8 @@ Deno.test("output redirect with provided object", async () => {
     assertThrows(
       () => $`echo 1 > ${"test.txt"}`,
       Error,
-      "Failed resolving expression in command. Cannot provide strings to output " +
-        "redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
+      "Failed resolving expression in command. Cannot provide strings to output "
+        + "redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
     );
   }
 });
@@ -2228,8 +2228,8 @@ Deno.test("nice error message when not awaiting a CommandBuilder", async () => {
       return await $`echo ${cmd}`;
     },
     Error,
-    "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). " +
-      "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
+    "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). "
+      + "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
   );
 });
 
