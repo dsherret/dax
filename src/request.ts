@@ -313,8 +313,8 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
     let builder: RequestBuilder = this;
     const acceptHeaderName = "ACCEPT";
     if (
-      builder.#state == null ||
-      !Object.hasOwn(builder.#state.headers, acceptHeaderName)
+      builder.#state == null
+      || !Object.hasOwn(builder.#state.headers, acceptHeaderName)
     ) {
       builder = builder.header(acceptHeaderName, "application/json");
     }
@@ -796,8 +796,8 @@ function resolvePipeToPathParams(
     const fileName = url == null ? undefined : getFileNameFromUrl(url);
     if (fileName == null) {
       throw new Error(
-        "Could not derive the path from the request URL. " +
-          "Please explicitly provide a path.",
+        "Could not derive the path from the request URL. "
+          + "Please explicitly provide a path.",
       );
     }
     return fileName;

@@ -131,8 +131,8 @@ export function delayToMs(delay: Delay) {
     const minutesSecondsMatch = delay.match(/^([0-9]+\.?[0-9]*)m([0-9]+\.?[0-9]*)s$/);
     if (minutesSecondsMatch != null) {
       return Math.round(
-        parseFloat(minutesSecondsMatch[1]) * 1000 * 60 +
-          parseFloat(minutesSecondsMatch[2]) * 1000,
+        parseFloat(minutesSecondsMatch[1]) * 1000 * 60
+          + parseFloat(minutesSecondsMatch[2]) * 1000,
       );
     }
     const hoursMatch = delay.match(/^([0-9]+\.?[0-9]*)h$/);
@@ -142,16 +142,16 @@ export function delayToMs(delay: Delay) {
     const hoursMinutesMatch = delay.match(/^([0-9]+\.?[0-9]*)h([0-9]+\.?[0-9]*)m$/);
     if (hoursMinutesMatch != null) {
       return Math.round(
-        parseFloat(hoursMinutesMatch[1]) * 1000 * 60 * 60 +
-          parseFloat(hoursMinutesMatch[2]) * 1000 * 60,
+        parseFloat(hoursMinutesMatch[1]) * 1000 * 60 * 60
+          + parseFloat(hoursMinutesMatch[2]) * 1000 * 60,
       );
     }
     const hoursMinutesSecondsMatch = delay.match(/^([0-9]+\.?[0-9]*)h([0-9]+\.?[0-9]*)m([0-9]+\.?[0-9]*)s$/);
     if (hoursMinutesSecondsMatch != null) {
       return Math.round(
-        parseFloat(hoursMinutesSecondsMatch[1]) * 1000 * 60 * 60 +
-          parseFloat(hoursMinutesSecondsMatch[2]) * 1000 * 60 +
-          parseFloat(hoursMinutesSecondsMatch[3]) * 1000,
+        parseFloat(hoursMinutesSecondsMatch[1]) * 1000 * 60 * 60
+          + parseFloat(hoursMinutesSecondsMatch[2]) * 1000 * 60
+          + parseFloat(hoursMinutesSecondsMatch[3]) * 1000,
       );
     }
   }

@@ -8,6 +8,7 @@
   },
   "fmt": {
     "proseWrap": "preserve",
+    "operatorPosition": "nextLine",
     "lineWidth": 120
   },
   "lint": {

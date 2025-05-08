@@ -829,8 +829,8 @@ async function resolveRedirectPipe(
       return context.error("redirect path must be 1 argument, but found 0");
     } else if (words.length > 1) {
       return context.error(
-        `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). ` +
-          `Did you mean to quote it (ex. "${words.join(" ")}")?`,
+        `redirect path must be 1 argument, but found ${words.length} (${words.join(" ")}). `
+          + `Did you mean to quote it (ex. "${words.join(" ")}")?`,
       );
     }
 
