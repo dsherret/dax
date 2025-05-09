@@ -2233,6 +2233,29 @@ Deno.test("nice error message when not awaiting a CommandBuilder", async () => {
   );
 });
 
+Deno.test("type error null", async () => {
+  await assertRejects(
+    async () => {
+      // @ts-expect-error promise is not supported here
+      return await $`echo ${null}`;
+    },
+    Error,
+    "Failed resolving expression in command. Expression was null or undefined.",
+  );
+});
+
+Deno.test("type error Promise", async () => {
+  await assertRejects(
+    async () => {
+      const promise = Promise.resolve("");
+      // @ts-expect-error promise is not supported here
+      return await $`echo ${promise}`;
+    },
+    Error,
+    "Failed resolving expression in command. Provided object was a Promise. Please await it before providing it.",
+  );
+});
+
 Deno.test("which uses same as $.which", async () => {
   {
     const whichFnOutput = await $.which("deno");

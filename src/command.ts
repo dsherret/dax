@@ -350,13 +350,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   stdout(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
-        throw new Error(
+        throw new TypeError(
           "Cannot set stdout's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
       if (options?.signal != null) {
         // not sure what this would mean
-        throw new Error("Setting a signal for a stdout WritableStream is not yet supported.");
+        throw new TypeError("Setting a signal for a stdout WritableStream is not yet supported.");
       }
       state.stdout = {
         kind,
@@ -371,13 +371,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   stderr(kind: ShellPipeWriterKind, options?: StreamPipeOptions): CommandBuilder {
     return this.#newWithState((state) => {
       if (state.combinedStdoutStderr && kind !== "piped" && kind !== "inheritPiped") {
-        throw new Error(
+        throw new TypeError(
           "Cannot set stderr's kind to anything but 'piped' or 'inheritPiped' when combined is true.",
         );
       }
       if (options?.signal != null) {
         // not sure what this would mean
-        throw new Error("Setting a signal for a stderr WritableStream is not yet supported.");
+        throw new TypeError("Setting a signal for a stderr WritableStream is not yet supported.");
       }
       state.stderr = {
         kind,
@@ -534,7 +534,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
           return kind;
         default: {
           const _assertNever: never = kind;
-          throw new Error(`Unhandled kind ${kind}.`);
+          throw new TypeError(`Unhandled kind ${kind}.`);
         }
       }
     }
@@ -931,7 +931,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
           return "null";
         default: {
           const _assertNever: never = kind;
-          throw new Error("Unhandled.");
+          throw new TypeError("Unhandled.");
         }
       }
     }
@@ -1136,7 +1136,7 @@ export function rawArg<T>(arg: T): RawArg<T> {
 
 function validateCommandName(command: string) {
   if (command.match(/^[a-zA-Z0-9-_]+$/) == null) {
-    throw new Error("Invalid command name");
+    throw new TypeError("Invalid command name");
   }
 }
 
@@ -1282,7 +1282,7 @@ type NonRedirectTemplateExpr =
   | Uint8Array
   | CommandResult
   | RawArg<NonRedirectTemplateExpr>
-  | { toString(): string };
+  | { toString(): string; catch?: never };
 export type TemplateExpr =
   | NonRedirectTemplateExpr
   | NonRedirectTemplateExpr[]
@@ -1338,7 +1338,7 @@ function templateInner(
             handleReadableStream(() => {
               const stream = (expr as any)[symbols.readable]?.();
               if (!(stream instanceof ReadableStream)) {
-                throw new Error(
+                throw new TypeError(
                   "Expected a ReadableStream or an object with a [$.symbols.readable] method "
                     + `that returns a ReadableStream at expression ${i + 1}/${exprsCount}.`,
                 );
@@ -1369,7 +1369,7 @@ function templateInner(
               try {
                 const result = expr();
                 if (!(result instanceof ReadableStream)) {
-                  throw new Error("Function did not return a ReadableStream.");
+                  throw new TypeError("Function did not return a ReadableStream.");
                 }
                 return result;
               } catch (err) {
@@ -1380,7 +1380,7 @@ function templateInner(
               }
             });
           } else {
-            throw new Error("Unsupported object provided to input redirect.");
+            throw new TypeError("Unsupported object provided to input redirect.");
           }
         } else if (inputOrOutputRedirect === ">") {
           if (expr instanceof Path) {
@@ -1409,7 +1409,7 @@ function templateInner(
             handleWritableStream(() => {
               const stream = (expr as any)[symbols.writable]?.();
               if (!(stream instanceof WritableStream)) {
-                throw new Error(
+                throw new TypeError(
                   `Expected a WritableStream or an object with a [$.symbols.writable] method `
                     + `that returns a WritableStream at expression ${i + 1}/${exprsCount}.`,
                 );
@@ -1421,7 +1421,7 @@ function templateInner(
               try {
                 const result = expr();
                 if (!(result instanceof WritableStream)) {
-                  throw new Error("Function did not return a WritableStream.");
+                  throw new TypeError("Function did not return a WritableStream.");
                 }
                 return result;
               } catch (err) {
@@ -1432,11 +1432,11 @@ function templateInner(
               }
             });
           } else if (typeof expr === "string") {
-            throw new Error(
+            throw new TypeError(
               "Cannot provide strings to output redirects. Did you mean to provide a path instead via the `$.path(...)` API?",
             );
           } else {
-            throw new Error("Unsupported object provided to output redirect.");
+            throw new TypeError("Unsupported object provided to output redirect.");
           }
         } else {
           text += templateLiteralExprToString(expr, escape);
@@ -1445,7 +1445,12 @@ function templateInner(
         const startMessage = exprsCount === 1
           ? "Failed resolving expression in command."
           : `Failed resolving expression ${i + 1}/${exprsCount} in command.`;
-        throw new Error(`${startMessage} ${errorToString(err)}`);
+        const message = `${startMessage} ${errorToString(err)}`;
+        if (err instanceof TypeError) {
+          throw new TypeError(message);
+        } else {
+          throw new Error(message);
+        }
       }
     }
   }
@@ -1512,14 +1517,18 @@ function templateLiteralExprToString(expr: TemplateExpr, escape: ((arg: string) 
     // remove last newline
     result = expr.stdout.replace(/\r?\n$/, "");
   } else if (expr instanceof CommandBuilder) {
-    throw new Error(
+    throw new TypeError(
       "Providing a command builder is not yet supported (https://github.com/dsherret/dax/issues/239). "
         + "Await the command builder's text before using it in an expression (ex. await $`cmd`.text()).",
     );
   } else if (expr instanceof RawArg) {
     return templateLiteralExprToString(expr.value, undefined);
   } else if (typeof expr === "object" && expr.toString === Object.prototype.toString) {
-    throw new Error("Provided object does not override `toString()`.");
+    if (expr instanceof Promise) {
+      throw new TypeError("Provided object was a Promise. Please await it before providing it.");
+    } else {
+      throw new TypeError("Provided object does not override `toString()`.");
+    }
   } else {
     result = `${expr}`;
   }
