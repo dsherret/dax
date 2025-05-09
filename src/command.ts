@@ -1274,24 +1274,27 @@ export function templateRaw(strings: TemplateStringsArray, exprs: TemplateExpr[]
   return templateInner(strings, exprs, undefined);
 }
 
-export type TemplateExpr =
+type NonRedirectTemplateExpr =
   | string
   | number
   | boolean
   | Path
   | Uint8Array
   | CommandResult
-  | { toString(): string }
-  | (string | number | boolean | Path | { toString(): string })[]
+  | RawArg<NonRedirectTemplateExpr>
+  | { toString(): string };
+export type TemplateExpr =
+  | NonRedirectTemplateExpr
+  | NonRedirectTemplateExpr[]
   | ReadableStream<Uint8Array>
   | {
-    // type is unfortuantely not that great
+    // type is unfortunately not that great
     [readable: symbol]: () => ReadableStream<Uint8Array>;
   }
   | (() => ReadableStream<Uint8Array>)
   // for input redirects only
   | {
-    // type is unfortuantely not that great
+    // type is unfortunately not that great
     [writable: symbol]: () => WritableStream<Uint8Array>;
   }
   | WritableStream<Uint8Array>
