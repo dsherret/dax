@@ -1,6 +1,7 @@
 import * as colors from "@std/fmt/colors";
 import {
   type ConsoleSize,
+  type DeferredItem,
   maybeConsoleSize,
   renderTextItems,
   staticText,
@@ -8,9 +9,9 @@ import {
 } from "@david/console-static-text";
 import { isOutputTty } from "../utils.ts";
 import { humanDownloadSize } from "./format.ts";
-import { addProgressBar, removeProgressBar, type RenderIntervalProgressBar } from "./container.ts";
+import { logger, LoggerRefreshItemKind } from "../logger.ts";
 
-export { isShowingProgressBars } from "./container.ts";
+const progressBars: RenderIntervalProgressBar[] = [];
 
 /** Options for showing progress. */
 export interface ProgressOptions {
@@ -249,4 +250,43 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     result.push(secondLine);
     return result;
   }
+}
+
+export interface RenderIntervalProgressBar {
+  render(size: ConsoleSize | undefined): TextItem[];
+}
+
+function addProgressBar(render: (size: ConsoleSize) => TextItem[]): RenderIntervalProgressBar {
+  const pb = {
+    render,
+  };
+  progressBars.push(pb);
+  refresh();
+  return pb;
+}
+
+function removeProgressBar(pb: RenderIntervalProgressBar) {
+  const index = progressBars.indexOf(pb);
+  if (index === -1) {
+    return false;
+  }
+  progressBars.splice(index, 1);
+  refresh();
+  return true;
+}
+
+function refresh() {
+  logger.setItems(
+    LoggerRefreshItemKind.ProgressBars,
+    progressBars.map((p) => {
+      const item: DeferredItem = (consoleSize) => {
+        return p.render(consoleSize);
+      };
+      return item;
+    }),
+  );
+}
+
+export function isShowingProgressBars() {
+  return isOutputTty && progressBars.length > 0;
 }

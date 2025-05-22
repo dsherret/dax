@@ -22,7 +22,7 @@ import { whichCommand } from "./commands/which.ts";
 import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import type { Delay } from "./common.ts";
 import { symbols } from "./common.ts";
-import { isShowingProgressBars } from "./console/progress/container.ts";
+import { isShowingProgressBars } from "./console/progress/mod.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,
