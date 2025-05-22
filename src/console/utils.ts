@@ -1,10 +1,5 @@
-import {
-  static_text_clear_text,
-  static_text_render_once,
-  static_text_render_text,
-  strip_ansi_codes,
-} from "../lib/rs_lib.js";
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
+import { maybeConsoleSize, stripAnsiCodes, type TextItem } from "@david/console-static-text";
 
 const encoder = new TextEncoder();
 
@@ -65,7 +60,7 @@ export async function* innerReadKeys(reader: Pick<typeof Deno.stdin, "read">) {
     }
     // stream: true preserves the remaining bytes that the decoder did not interpret as characters.
     // This is important because we want to handle multibyte characters correctly.
-    const text = strip_ansi_codes(decoder.decode(buf.slice(0, byteCount ?? 0), { stream: true }));
+    const text = stripAnsiCodes(decoder.decode(buf.slice(0, byteCount ?? 0), { stream: true }));
     if (text.length > 0) {
       yield text;
     }
@@ -80,7 +75,7 @@ export function showCursor() {
   Deno.stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export let isOutputTty = safeConsoleSize() != null && isTerminal(Deno.stderr);
+export let isOutputTty = maybeConsoleSize() != null && isTerminal(Deno.stderr);
 
 export function setNotTtyForTesting() {
   isOutputTty = false;
@@ -118,7 +113,7 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
   if (!isOutputTty || !isTerminal(Deno.stdin)) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
-  if (safeConsoleSize() == null) {
+  if (maybeConsoleSize() == null) {
     throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
   }
   return ensureSingleSelection(async () => {
@@ -166,51 +161,3 @@ function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
   lastPromise = currentPromise;
   return currentPromise;
 }
-
-export type TextItem = string | HangingTextItem;
-
-export interface HangingTextItem {
-  text: string;
-  indent: number;
-}
-
-export interface ConsoleSize {
-  columns: number;
-  rows: number;
-}
-
-export function safeConsoleSize(): ConsoleSize | undefined {
-  try {
-    return Deno.consoleSize();
-  } catch {
-    return undefined;
-  }
-}
-
-export const staticText = {
-  set(items: TextItem[], size?: ConsoleSize) {
-    if (items.length === 0) {
-      return this.clear(size);
-    }
-
-    const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = static_text_render_text(items, columns, rows);
-    if (newText != null) {
-      Deno.stderr.writeSync(encoder.encode(newText));
-    }
-  },
-  outputItems(items: TextItem[], size?: ConsoleSize) {
-    const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = static_text_render_once(items, columns, rows);
-    if (newText != null) {
-      Deno.stderr.writeSync(encoder.encode(newText + "\n"));
-    }
-  },
-  clear(size?: ConsoleSize) {
-    const { columns, rows } = size ?? Deno.consoleSize();
-    const newText = static_text_clear_text(columns, rows);
-    if (newText != null) {
-      Deno.stderr.writeSync(encoder.encode(newText));
-    }
-  },
-};

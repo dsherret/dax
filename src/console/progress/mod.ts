@@ -1,9 +1,16 @@
 import * as colors from "@std/fmt/colors";
-import { type ConsoleSize, isOutputTty, safeConsoleSize, type TextItem } from "../utils.ts";
+import {
+  type ConsoleSize,
+  maybeConsoleSize,
+  renderTextItems,
+  staticText,
+  type TextItem,
+} from "@david/console-static-text";
+import { isOutputTty } from "../utils.ts";
 import { humanDownloadSize } from "./format.ts";
-import { addProgressBar, forceRender, removeProgressBar, type RenderIntervalProgressBar } from "./interval.ts";
+import { addProgressBar, removeProgressBar, type RenderIntervalProgressBar } from "./container.ts";
 
-export { isShowingProgressBars } from "./interval.ts";
+export { isShowingProgressBars } from "./container.ts";
 
 /** Options for showing progress. */
 export interface ProgressOptions {
@@ -118,7 +125,7 @@ export class ProgressBar {
 
   /** Forces a render to the console. */
   forceRender(): void {
-    return forceRender();
+    return staticText.refresh();
   }
 
   /** Finish showing the progress bar. */
@@ -126,9 +133,8 @@ export class ProgressBar {
     if (removeProgressBar(this.#pb)) {
       this.#state.hasCompleted = true;
       if (this.#noClear) {
-        const text = renderProgressBar(this.#state, safeConsoleSize())
-          .map((item) => typeof item === "string" ? item : item.text)
-          .join("\n");
+        const size = maybeConsoleSize();
+        const text = renderTextItems(renderProgressBar(this.#state, size), size);
         this.#onLog(text);
       }
     }

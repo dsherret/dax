@@ -167,7 +167,7 @@ export class InheritStaticTextBypassWriter implements WriterSync {
 
   flush() {
     const bytes = this.#buffer.bytes({ copy: false });
-    logger.logAboveStaticText(() => {
+    logger.withTempClear(() => {
       writeAllSync(this.#innerWriter, bytes);
     });
     this.#buffer.reset();

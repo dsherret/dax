@@ -207,7 +207,7 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
   override getValue(): (...args: any[]) => void {
     const innerValue = super.getValue();
     return (...args: any[]) => {
-      return logger.logAboveStaticText(() => {
+      return logger.withTempClear(() => {
         innerValue(...args);
       });
     };
