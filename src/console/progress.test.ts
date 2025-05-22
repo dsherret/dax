@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { renderTextItems, stripAnsiCodes } from "@david/console-static-text";
-import { renderProgressBar } from "./mod.ts";
+import { humanDownloadSize, renderProgressBar } from "./progress.ts";
 
 Deno.test("should render when no length", () => {
   assertEquals(
@@ -155,3 +155,27 @@ function getOutput(state: Partial<Parameters<typeof renderProgressBar>[0]>) {
   }, { columns: 80, rows: 10 });
   return stripAnsiCodes(renderTextItems(items, { columns: 80, rows: 10 }) ?? "");
 }
+
+Deno.test("should format bytes", () => {
+  assertEquals(
+    humanDownloadSize(1023, 1023),
+    "1023 B",
+  );
+  assertEquals(
+    humanDownloadSize(1023, 1024),
+    "0.99 KiB",
+  );
+  assertEquals(
+    humanDownloadSize(10486, Math.pow(1024, 2)),
+    "0.01 MiB",
+  );
+
+  assertEquals(
+    humanDownloadSize(10737418, Math.pow(1024, 3)),
+    "0.00 GiB",
+  );
+  assertEquals(
+    humanDownloadSize(10737419, Math.pow(1024, 3)),
+    "0.01 GiB",
+  );
+});

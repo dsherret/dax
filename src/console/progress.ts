@@ -7,11 +7,8 @@ import {
   staticText,
   type TextItem,
 } from "@david/console-static-text";
-import { isOutputTty } from "../utils.ts";
-import { humanDownloadSize } from "./format.ts";
-import { logger, LoggerRefreshItemKind } from "../logger.ts";
-
-const progressBars: RenderIntervalProgressBar[] = [];
+import { isOutputTty } from "./utils.ts";
+import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 /** Options for showing progress. */
 export interface ProgressOptions {
@@ -32,7 +29,7 @@ export interface ProgressOptions {
 /** A progress bar instance created via `$.progress(...)`. */
 export class ProgressBar {
   #state: RenderState;
-  #pb: RenderIntervalProgressBar;
+  #pb: DeferredItem;
   #withCount = 0;
   #onLog: (...data: any[]) => void;
   #noClear: boolean;
@@ -252,20 +249,15 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
   }
 }
 
-export interface RenderIntervalProgressBar {
-  render(size: ConsoleSize | undefined): TextItem[];
-}
+const progressBars: DeferredItem[] = [];
 
-function addProgressBar(render: (size: ConsoleSize) => TextItem[]): RenderIntervalProgressBar {
-  const pb = {
-    render,
-  };
-  progressBars.push(pb);
+function addProgressBar(render: DeferredItem): DeferredItem {
+  progressBars.push(render);
   refresh();
-  return pb;
+  return render;
 }
 
-function removeProgressBar(pb: RenderIntervalProgressBar) {
+function removeProgressBar(pb: DeferredItem) {
   const index = progressBars.indexOf(pb);
   if (index === -1) {
     return false;
@@ -278,15 +270,20 @@ function removeProgressBar(pb: RenderIntervalProgressBar) {
 function refresh() {
   logger.setItems(
     LoggerRefreshItemKind.ProgressBars,
-    progressBars.map((p) => {
-      const item: DeferredItem = (consoleSize) => {
-        return p.render(consoleSize);
-      };
-      return item;
-    }),
+    progressBars,
   );
 }
 
 export function isShowingProgressBars() {
   return isOutputTty && progressBars.length > 0;
+}
+
+const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+
+export function humanDownloadSize(byteCount: number, totalBytes?: number) {
+  const exponentBasis = totalBytes ?? byteCount;
+  const exponent = Math.min(units.length - 1, Math.floor(Math.log(exponentBasis) / Math.log(1024)));
+  const unit = units[exponent];
+  const prettyBytes = (Math.floor(byteCount / Math.pow(1024, exponent) * 100) / 100).toFixed(exponent === 0 ? 0 : 2);
+  return `${prettyBytes} ${unit}`;
 }
