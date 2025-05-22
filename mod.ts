@@ -37,7 +37,7 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import { strip_ansi_codes } from "./src/lib/rs_lib.js";
+import { stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
@@ -629,7 +629,7 @@ const helperObject = {
   cd,
   escapeArg,
   stripAnsi(text: string) {
-    return strip_ansi_codes(text);
+    return stripAnsiCodes(text);
   },
   dedent: outdent,
   sleep,

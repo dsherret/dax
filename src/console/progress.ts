@@ -1,9 +1,14 @@
 import * as colors from "@std/fmt/colors";
-import { type ConsoleSize, isOutputTty, safeConsoleSize, type TextItem } from "../utils.ts";
-import { humanDownloadSize } from "./format.ts";
-import { addProgressBar, forceRender, removeProgressBar, type RenderIntervalProgressBar } from "./interval.ts";
-
-export { isShowingProgressBars } from "./interval.ts";
+import {
+  type ConsoleSize,
+  type DeferredItem,
+  maybeConsoleSize,
+  renderTextItems,
+  staticText,
+  type TextItem,
+} from "@david/console-static-text";
+import { isOutputTty } from "./utils.ts";
+import { logger, LoggerRefreshItemKind } from "./logger.ts";
 
 /** Options for showing progress. */
 export interface ProgressOptions {
@@ -24,7 +29,7 @@ export interface ProgressOptions {
 /** A progress bar instance created via `$.progress(...)`. */
 export class ProgressBar {
   #state: RenderState;
-  #pb: RenderIntervalProgressBar;
+  #pb: DeferredItem;
   #withCount = 0;
   #onLog: (...data: any[]) => void;
   #noClear: boolean;
@@ -118,7 +123,7 @@ export class ProgressBar {
 
   /** Forces a render to the console. */
   forceRender(): void {
-    return forceRender();
+    return staticText.refresh();
   }
 
   /** Finish showing the progress bar. */
@@ -126,9 +131,8 @@ export class ProgressBar {
     if (removeProgressBar(this.#pb)) {
       this.#state.hasCompleted = true;
       if (this.#noClear) {
-        const text = renderProgressBar(this.#state, safeConsoleSize())
-          .map((item) => typeof item === "string" ? item : item.text)
-          .join("\n");
+        const size = maybeConsoleSize();
+        const text = renderTextItems(renderProgressBar(this.#state, size), size);
         this.#onLog(text);
       }
     }
@@ -243,4 +247,43 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     result.push(secondLine);
     return result;
   }
+}
+
+const progressBars: DeferredItem[] = [];
+
+function addProgressBar(render: DeferredItem): DeferredItem {
+  progressBars.push(render);
+  refresh();
+  return render;
+}
+
+function removeProgressBar(pb: DeferredItem) {
+  const index = progressBars.indexOf(pb);
+  if (index === -1) {
+    return false;
+  }
+  progressBars.splice(index, 1);
+  refresh();
+  return true;
+}
+
+function refresh() {
+  logger.setItems(
+    LoggerRefreshItemKind.ProgressBars,
+    progressBars,
+  );
+}
+
+export function isShowingProgressBars() {
+  return isOutputTty && progressBars.length > 0;
+}
+
+const units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+
+export function humanDownloadSize(byteCount: number, totalBytes?: number) {
+  const exponentBasis = totalBytes ?? byteCount;
+  const exponent = Math.min(units.length - 1, Math.floor(Math.log(exponentBasis) / Math.log(1024)));
+  const unit = units[exponent];
+  const prettyBytes = (Math.floor(byteCount / Math.pow(1024, exponent) * 100) / 100).toFixed(exponent === 0 ? 0 : 2);
+  return `${prettyBytes} ${unit}`;
 }

@@ -1,4 +1,8 @@
-import { type ConsoleSize, isOutputTty, safeConsoleSize, staticText, type TextItem } from "./utils.ts";
+import { isOutputTty } from "./utils.ts";
+import { type ConsoleSize, renderInterval, staticText, type TextItem } from "@david/console-static-text";
+
+const staticTextScope = staticText.createScope();
+const _renderScope = renderInterval.start();
 
 export enum LoggerRefreshItemKind {
   ProgressBars,
@@ -20,33 +24,18 @@ function refresh(size?: ConsoleSize) {
     return;
   }
   const items = Object.values(refreshItems).flatMap((items) => items ?? []);
-  staticText.set(items, size);
-}
-
-function logAboveStaticText(inner: () => void, providedSize?: ConsoleSize) {
-  if (!isOutputTty) {
-    inner();
-    return;
-  }
-
-  const size = providedSize ?? safeConsoleSize();
-  if (size != null) {
-    staticText.clear(size);
-  }
-  inner();
-  refresh(size);
-}
-
-function logOnce(items: TextItem[], size?: ConsoleSize) {
-  logAboveStaticText(() => {
-    staticText.outputItems(items, size);
-  }, size);
+  staticTextScope.setText(items);
+  staticText.refresh(size);
 }
 
 const logger = {
   setItems,
-  logOnce,
-  logAboveStaticText,
+  logOnce(items: TextItem[], size?: ConsoleSize) {
+    staticTextScope.logAbove(items, size);
+  },
+  withTempClear(action: () => void) {
+    staticText.withTempClear(action);
+  },
 };
 
 export { logger };

@@ -1,5 +1,6 @@
 import * as colors from "@std/fmt/colors";
-import { createSelection, Keys, resultOrExit, type SelectionOptions, type TextItem } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
+import type { TextItem } from "@david/console-static-text";
 
 /** Options for showing an input where the user enters a value. */
 export interface PromptOptions {

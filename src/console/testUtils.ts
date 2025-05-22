@@ -1,4 +1,4 @@
-import { static_text_render_once, strip_ansi_codes } from "../lib/rs_lib.js";
+import { renderTextItems, stripAnsiCodes } from "@david/console-static-text";
 import type { Keys, SelectionOptions } from "./utils.ts";
 
 export function createTester<TReturn>(
@@ -10,8 +10,8 @@ export function createTester<TReturn>(
     },
     getText() {
       const items = renderer.render();
-      const text = static_text_render_once(items, 100, 20);
-      return text == null ? undefined : strip_ansi_codes(text);
+      const text = renderTextItems(items, { columns: 100, rows: 20 });
+      return text == null ? undefined : stripAnsiCodes(text);
     },
   };
 }
