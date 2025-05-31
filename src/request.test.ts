@@ -168,6 +168,8 @@ Deno.test("$.request", (t) => {
       const originDir = Deno.cwd();
       try {
         {
+          // ensure that a truncate happens
+          $.path(testFilePath).writeTextSync("text".repeat(1002));
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
