@@ -626,6 +626,7 @@ export class RequestResponse {
       const file = await filePath.open({
         write: true,
         create: true,
+        truncate: true,
         ...(options ?? {}),
       });
       try {
