@@ -2103,7 +2103,7 @@ Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "l
       .noThrow()
       .stdout("piped")
       .spawn();
-  await $.sleep(60);
+  await $.sleep(100);
   p.kill("SIGINT");
   await $.sleep(30);
   // now terminate it
