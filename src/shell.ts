@@ -1217,6 +1217,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
   ) {
     if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value))) {
       let currentText = "";
+      const globEscapeChar = Deno.build.os === "windows" ? "`" : "\\";
       for (const textPart of textParts) {
         switch (textPart.kind) {
           case "quoted":
@@ -1227,8 +1228,10 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
                 case "*":
                 case "[":
                 case "]":
+                case "{":
+                case "}":
                   // escape because it was quoted
-                  currentText += `[${char}]`;
+                  currentText += `${globEscapeChar}${char}`;
                   break;
                 default:
                   currentText += char;
@@ -1236,9 +1239,24 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
               }
             }
             break;
-          case "text":
-            currentText += textPart.value;
+          case "text": {
+            const textPartValue = textPart.value
+              .replaceAll("[]]", `${globEscapeChar}]`)
+              .replaceAll("[[]", `${globEscapeChar}[`);
+            for (let i = 0; i < textPartValue.length; i++) {
+              const char = textPartValue[i];
+              switch (char) {
+                case "{":
+                case "}":
+                  currentText += `${globEscapeChar}${char}`;
+                  break;
+                default:
+                  currentText += char;
+                  break;
+              }
+            }
             break;
+          }
           default: {
             const _assertNever: never = textPart;
             break;
