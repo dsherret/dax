@@ -11,8 +11,8 @@ import $, {
   CommandBuilder,
   type CommandContext,
   type CommandHandler,
+  KillController,
   KillSignal,
-  KillSignalController,
   Path,
   PathRef,
 } from "./mod.ts";
@@ -2159,7 +2159,7 @@ Deno.test("signal listening in registered commands", async () => {
 });
 
 Deno.test("should support setting a command signal", async () => {
-  const controller = new KillSignalController();
+  const controller = new KillController();
   const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
   const $ = build$({ commandBuilder });
   const startTime = new Date().getTime();
@@ -2170,10 +2170,10 @@ Deno.test("should support setting a command signal", async () => {
     $`sleep 100s`.spawn(),
     // this will be triggered as well because this signal
     // will be linked to the parent signal
-    $`sleep 100s`.signal(new KillSignalController().signal),
+    $`sleep 100s`.signal(new KillController().signal),
   ];
 
-  const subController = new KillSignalController();
+  const subController = new KillController();
   const p = $`sleep 100s`.signal(subController.signal).spawn();
 
   await $.sleep("5ms");
@@ -2192,8 +2192,8 @@ Deno.test("should support setting a command signal", async () => {
   assert(endTime - startTime < 1000);
 });
 
-Deno.test("ensure KillSignalController readme example works", async () => {
-  const controller = new KillSignalController();
+Deno.test("ensure KillController readme example works", async () => {
+  const controller = new KillController();
   const signal = controller.signal;
   const startTime = new Date().getTime();
 
