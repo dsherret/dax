@@ -718,6 +718,12 @@ async function executeCommand(command: Command, context: Context): Promise<Execu
         context = context.withInner({
           stderr: writer,
         });
+      } else if (toFd === "&") {
+        context = context.withInner({
+          stdout: writer,
+        }).withInner({
+          stderr: writer,
+        });
       } else {
         const _assertNever: never = toFd;
         throw new Error(`Not handled fd: ${toFd}`);
@@ -763,7 +769,7 @@ async function resolveRedirectPipe(
   }
 
   const toFd = resolveRedirectToFd(redirect, context);
-  if (typeof toFd !== "number") {
+  if (typeof toFd !== "number" && toFd !== "&") {
     return toFd;
   }
   const { ioFile } = redirect;
@@ -895,13 +901,13 @@ function getStdinReader(stdin: CommandPipeReader): Reader {
   }
 }
 
-function resolveRedirectToFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 {
+function resolveRedirectToFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 | "&" {
   const maybeFd = redirect.maybeFd;
   if (maybeFd == null) {
     return 1; // stdout
   }
   if (maybeFd.kind === "stdoutStderr") {
-    return context.error("redirecting to both stdout and stderr is not implemented");
+    return "&";
   }
   if (maybeFd.fd !== 1 && maybeFd.fd !== 2) {
     return context.error(`only redirecting to stdout (1) and stderr (2) is supported`);
