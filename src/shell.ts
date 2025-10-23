@@ -589,9 +589,11 @@ function executePipeline(pipeline: Pipeline, context: Context): Promise<ExecuteR
   const output = executePipelineInner(pipeline.inner, context);
   if (pipeline.negated) {
     return Promise.resolve(output).then((result)=>{
-      result.code = result.code == 0 ? 1 : 0
-      return result
-    })
+      return {
+        ...result,
+        code: result.code === 0 ? 1 : 0,
+      };
+    });
   }
   return output
 }
