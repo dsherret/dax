@@ -33,6 +33,10 @@ jobs:
         if: runner.os == 'Linux'
         run: deno lint
 
+      - name: check
+        if: runner.os == 'Linux'
+        run: deno check
+
       - name: test
         run: deno test -A
 
