@@ -142,6 +142,14 @@ await $`failing_command || echo 'Errored!'`;
 
 Note: if you want it to not throw by default, you can build a custom `$` (see below).
 
+#### Exit code helper
+
+If you just want to get the exit code, you can use the `.code()` helper:
+
+```ts
+const code = await $`git diff --quiet`.code();
+```
+
 ### Piping
 
 Piping stdout or stderr to a `Deno.WriterSync`:

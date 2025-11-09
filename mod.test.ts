@@ -2332,6 +2332,12 @@ Deno.test("negation chaining", async () => {
   );
 });
 
+Deno.test("gets exit code", async () => {
+  assertEquals(await $`exit 0`.code(), 0);
+  assertEquals(await $`exit 1`.code(), 1);
+  assertEquals(await $`exit 123`.code(), 123);
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));
