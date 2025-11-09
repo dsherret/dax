@@ -2323,6 +2323,15 @@ Deno.test("windows cmd file", { ignore: Deno.build.os !== "windows" }, async () 
   });
 });
 
+Deno.test("negation chaining", async () => {
+  await assertEquals(await $`! false && echo 1`.text(), "1");
+  await assertRejects(
+    () => $`! echo hello && ! echo 1`.text(),
+    Error,
+    "Exited with code: 1",
+  );
+});
+
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
   return new Promise<void>((resolve, reject) => {
     promise.then(() => reject(new Error("Promise was resolved")));
