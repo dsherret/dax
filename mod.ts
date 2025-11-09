@@ -563,15 +563,6 @@ async function withRetries<TReturn>(
   throw new Error(`Failed after ${opts.count} attempts.`);
 }
 
-function cd(path: string | URL | ImportMeta | Path) {
-  if (typeof path === "string" || path instanceof URL) {
-    path = new Path(path);
-  } else if (!(path instanceof Path) && typeof path?.url === "string") {
-    path = new Path(path.url).parentOrThrow();
-  }
-  Deno.chdir(path.toString());
-}
-
 /** @internal */
 type ExtrasObject = Record<string, (...args: any[]) => unknown>;
 
@@ -626,7 +617,6 @@ function buildInitial$State<TExtras extends ExtrasObject>(
 
 const helperObject = {
   path: createPath,
-  cd,
   escapeArg,
   stripAnsi(text: string) {
     return stripAnsiCodes(text);
