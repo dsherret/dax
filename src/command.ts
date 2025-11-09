@@ -601,6 +601,20 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return (await this.quiet(kind))[`${kind}Json`];
   }
 
+  /**
+   * Helper to get the exit code without throwing on non-zero exit codes.
+   *
+   * Shorthand for:
+   *
+   * ```ts
+   * const code = (await $`command`.noThrow()).code;
+   * ```
+   */
+  async code(): Promise<number> {
+    const result = await this.noThrow();
+    return result.code;
+  }
+
   /** @internal */
   [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);

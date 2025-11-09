@@ -1,6 +1,11 @@
 {
   "name": "@david/dax",
   "nodeModulesDir": "none",
+  "test": {
+    "permissions": {
+      "all": true
+    }
+  },
   "tasks": {
     "dnt": "deno run -A ./scripts/build_npm.ts",
     "test": "deno test -A",
