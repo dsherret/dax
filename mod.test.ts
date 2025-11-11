@@ -2210,6 +2210,174 @@ Deno.test("ensure KillController readme example works", async () => {
   assert(endTime - startTime < 1000);
 });
 
+Deno.test("glob", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat *.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\ntest2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test?.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[0-9].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[!a-z].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[a-z].txt`.captureCombined(true)).combined;
+    assertEquals(out, "testa\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat */*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat **/*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "3\n2\n1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat $PWD/**/*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "3\n2\n1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("dir").mkdirSync();
+    tempDir.join("dir/1.txt").writeTextSync("1\n");
+    tempDir.join("dir_1.txt").writeTextSync("2\n");
+    const out = (await $`cat dir*1.txt`.captureCombined(true)).combined;
+    assertEquals(out, "2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
+    const err = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    assertEquals(err, "glob: no matches found '$TEMP_DIR/*.ts'\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    const builderPathLen = tempDir.toString().length;
+    const errorPos = builderPathLen + 1;
+
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+
+    const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
+    const stderr = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    assertEquals(
+      stderr,
+      `glob: no matches found '$TEMP_DIR/[].ts'. Pattern syntax error near position ${errorPos}: invalid range pattern\n`,
+    );
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
+    const replaced = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    assertEquals(replaced, "glob: no matches found '$TEMP_DIR/*.ts'\n2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts 2> /dev/null || echo 2`.noThrow().captureCombined(true)).combined;
+    assertEquals(combined, "2\n");
+  });
+});
+
+Deno.test("glob case insensitive", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("TEST.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat tes*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\ntest2\ntesta\n");
+  });
+});
+
+Deno.test("glob escapes", async () => {
+  // no escape
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat [test].txt`.captureCombined(true)).combined;
+    assertEquals(out, "t\n");
+  });
+
+  // escape
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat [[]test[]].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // single quotes
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat '[test].txt'`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // double quotes
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat "[test].txt"`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // mix
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat "["test"]".txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+});
+
 Deno.test("should support empty quoted string", async () => {
   const output = await $`echo '' test ''`.text();
   assertEquals(output, " test ");
