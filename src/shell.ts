@@ -1,4 +1,5 @@
 import * as path from "@std/path";
+import { expandGlob } from "@std/fs/expand-glob";
 import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
@@ -15,6 +16,9 @@ import {
 } from "./pipes.ts";
 import { type EnvChange, type ExecuteResult, getAbortedResult } from "./result.ts";
 import { createExecutableCommand } from "./commands/executable.ts";
+
+class ShellEvaluateError extends Error {
+}
 
 export interface SequentialList {
   items: SequentialListItem[];
@@ -61,6 +65,10 @@ export interface SimpleCommand {
 export type Word = WordPart[];
 
 export type WordPart = Text | Variable | StringPartCommand | Quoted | Tilde;
+export type TextPart = Text | {
+  kind: "quoted";
+  value: string;
+};
 
 export interface Text {
   kind: "text";
@@ -567,7 +575,7 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
   };
 }
 
-function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> {
+function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> | ExecuteResult {
   if (context.signal.aborted) {
     return Promise.resolve(getAbortedResult());
   }
@@ -931,11 +939,19 @@ function executeCommandInner(command: CommandInner, context: Context): Promise<E
 
 async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
   const context = parentContext.clone();
-  for (const envVar of command.envVars) {
-    context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
+  try {
+    for (const envVar of command.envVars) {
+      context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
+    }
+    const commandArgs = await evaluateArgs(command.args, context);
+    return await executeCommandArgs(commandArgs, context);
+  } catch (err) {
+    if (err instanceof ShellEvaluateError) {
+      return context.error(err.message);
+    } else {
+      throw err;
+    }
   }
-  const commandArgs = await evaluateArgs(command.args, context);
-  return await executeCommandArgs(commandArgs, context);
 }
 
 function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
@@ -1194,23 +1210,121 @@ async function evaluateWord(word: Word, context: Context) {
 }
 
 async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted = false) {
+  function hasGlobChar(text: string) {
+    for (let i = 0; i < text.length; i++) {
+      switch (text[i]) {
+        case "?":
+        case "*":
+        case "[":
+          return true;
+        default:
+          break;
+      }
+    }
+    return false;
+  }
+
+  function textPartsToString(textParts: TextPart[]) {
+    return textParts.map((p) => p.value).join("");
+  }
+
+  async function evaluateWordText(
+    textParts: TextPart[],
+    isQuoted: boolean,
+  ) {
+    if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value))) {
+      let currentText = "";
+      const globEscapeChar = Deno.build.os === "windows" ? "`" : "\\";
+      for (const textPart of textParts) {
+        switch (textPart.kind) {
+          case "quoted":
+            for (let i = 0; i < textPart.value.length; i++) {
+              const char = textPart.value[i];
+              switch (char) {
+                case "?":
+                case "*":
+                case "[":
+                case "]":
+                case "{":
+                case "}":
+                  // escape because it was quoted
+                  currentText += `${globEscapeChar}${char}`;
+                  break;
+                default:
+                  currentText += char;
+                  break;
+              }
+            }
+            break;
+          case "text": {
+            const textPartValue = textPart.value
+              .replaceAll("[]]", `${globEscapeChar}]`)
+              .replaceAll("[[]", `${globEscapeChar}[`);
+            for (let i = 0; i < textPartValue.length; i++) {
+              const char = textPartValue[i];
+              switch (char) {
+                case "{":
+                case "}":
+                  currentText += `${globEscapeChar}${char}`;
+                  break;
+                default:
+                  currentText += char;
+                  break;
+              }
+            }
+            break;
+          }
+          default: {
+            const _assertNever: never = textPart;
+            break;
+          }
+        }
+      }
+      const cwd = context.getCwd();
+      const isAbsolute = path.isAbsolute(currentText);
+      const pattern = isAbsolute ? currentText : path.joinGlobs([cwd, currentText]);
+      const entries = await Array.fromAsync(expandGlob(pattern, {
+        canonicalize: false,
+        // be the same on all operating systems
+        caseInsensitive: true,
+        followSymlinks: false,
+        exclude: [],
+        extended: false,
+        globstar: true,
+        root: cwd,
+        includeDirs: false,
+      }));
+      if (entries.length === 0) {
+        throw new ShellEvaluateError(`glob: no matches found '${pattern}'`);
+      }
+      if (isAbsolute) {
+        return entries.map((e) => e.path);
+      } else {
+        return entries.map((e) => path.relative(cwd, e.path));
+      }
+    } else {
+      return [textPartsToString(textParts)];
+    }
+  }
+
   // not implemented mostly, and copying from deno_task_shell
   const result: string[] = [];
-  let currentText = "";
-  let hasQuoted = false;
+  let currentText: TextPart[] = [];
   for (const stringPart of wordParts) {
     let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
       case "text":
-        currentText += stringPart.value;
+        currentText.push(stringPart);
         break;
       case "variable":
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
       case "quoted": {
-        const text = (await evaluateWordParts(stringPart.value, context, true)).join("");
-        currentText += text;
-        hasQuoted = true;
+        const text = (await evaluateWordParts(stringPart.value, context, true)).join(" ");
+        currentText.push({
+          kind: "quoted",
+          value: text,
+        });
         continue;
       }
       case "tilde": {
@@ -1219,7 +1333,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         if (homeDirEnv == null) {
           throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set).`);
         }
-        currentText += homeDirEnv;
+        evaluationResult = homeDirEnv;
         break;
       }
       case "command":
@@ -1227,31 +1341,39 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
     }
 
     if (evaluationResult != null) {
-      if (quoted) {
-        currentText += evaluationResult;
-      } else {
-        const parts = evaluationResult.split(" ")
-          .map((t) => t.trim())
-          .filter((t) => t.length > 0);
+      const parts: TextPart[] = evaluationResult.split(" ")
+        .map((t) => ({
+          kind: "text" as const,
+          value: t.trim(),
+        }))
+        .filter((t) => t.value.length > 0);
+      if (parts.length > 0) {
+        // append the first part to the current text
+        currentText.push(...parts.splice(0, 1));
+
         if (parts.length > 0) {
-          // append the first part to the current text
-          currentText += parts[0];
-
           // store the current text
-          result.push(currentText);
+          result.push(...await evaluateWordText(currentText, quoted));
 
-          // store all the rest of the parts
-          result.push(...parts.slice(1));
+          // store all the parts except the last one
+          for (const part of parts.splice(0, parts.length - 1)) {
+            result.push(
+              ...await evaluateWordText(
+                [part],
+                quoted,
+              ),
+            );
+          }
 
           // use the last part as the current text so it maybe
           // gets appended to in the future
-          currentText = result.pop()!;
+          currentText = parts;
         }
       }
     }
   }
-  if (hasQuoted || currentText.length !== 0) {
-    result.push(currentText);
+  if (currentText.length !== 0) {
+    result.push(...await evaluateWordText(currentText, quoted));
   }
   return result;
 }
