@@ -11,8 +11,8 @@ import $, {
   CommandBuilder,
   type CommandContext,
   type CommandHandler,
+  KillController,
   KillSignal,
-  KillSignalController,
   Path,
   PathRef,
 } from "./mod.ts";
@@ -2103,7 +2103,7 @@ Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "l
       .noThrow()
       .stdout("piped")
       .spawn();
-  await $.sleep(60);
+  await $.sleep(100);
   p.kill("SIGINT");
   await $.sleep(30);
   // now terminate it
@@ -2159,7 +2159,7 @@ Deno.test("signal listening in registered commands", async () => {
 });
 
 Deno.test("should support setting a command signal", async () => {
-  const controller = new KillSignalController();
+  const controller = new KillController();
   const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
   const $ = build$({ commandBuilder });
   const startTime = new Date().getTime();
@@ -2170,10 +2170,10 @@ Deno.test("should support setting a command signal", async () => {
     $`sleep 100s`.spawn(),
     // this will be triggered as well because this signal
     // will be linked to the parent signal
-    $`sleep 100s`.signal(new KillSignalController().signal),
+    $`sleep 100s`.signal(new KillController().signal),
   ];
 
-  const subController = new KillSignalController();
+  const subController = new KillController();
   const p = $`sleep 100s`.signal(subController.signal).spawn();
 
   await $.sleep("5ms");
@@ -2192,8 +2192,8 @@ Deno.test("should support setting a command signal", async () => {
   assert(endTime - startTime < 1000);
 });
 
-Deno.test("ensure KillSignalController readme example works", async () => {
-  const controller = new KillSignalController();
+Deno.test("ensure KillController readme example works", async () => {
+  const controller = new KillController();
   const signal = controller.signal;
   const startTime = new Date().getTime();
 
@@ -2489,6 +2489,21 @@ Deno.test("windows cmd file", { ignore: Deno.build.os !== "windows" }, async () 
     const result = await $`./script.cmd eval "console.log(1); console.log(2)"`.lines("combined");
     assertEquals(result, ["1", "2"]);
   });
+});
+
+Deno.test("negation chaining", async () => {
+  await assertEquals(await $`! false && echo 1`.text(), "1");
+  await assertRejects(
+    () => $`! echo hello && ! echo 1`.text(),
+    Error,
+    "Exited with code: 1",
+  );
+});
+
+Deno.test("gets exit code", async () => {
+  assertEquals(await $`exit 0`.code(), 0);
+  assertEquals(await $`exit 1`.code(), 1);
+  assertEquals(await $`exit 123`.code(), 123);
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {

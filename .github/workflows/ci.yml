@@ -33,8 +33,12 @@ jobs:
         if: runner.os == 'Linux'
         run: deno lint
 
+      - name: check
+        if: runner.os == 'Linux'
+        run: deno check
+
       - name: test
-        run: deno test -A
+        run: deno test -P
 
       - name: Get tag version
         if: startsWith(github.ref, 'refs/tags/') && runner.os == 'Linux'

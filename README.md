@@ -142,6 +142,14 @@ await $`failing_command || echo 'Errored!'`;
 
 Note: if you want it to not throw by default, you can build a custom `$` (see below).
 
+#### Exit code helper
+
+If you just want to get the exit code, you can use the `.code()` helper:
+
+```ts
+const code = await $`git diff --quiet`.code();
+```
+
 ### Piping
 
 Piping stdout or stderr to a `Deno.WriterSync`:
@@ -391,14 +399,14 @@ child.kill(); // defaults to "SIGTERM"
 await child; // Error: Aborted with exit code: 124
 ```
 
-#### `KillSignalController`
+#### `KillController`
 
-In some cases you might want to send signals to many commands at the same time. This is possible via a `KillSignalController`.
+In some cases you might want to send signals to many commands at the same time. This is possible via a `KillController`.
 
 ```ts
-import $, { KillSignalController } from "...";
+import $, { KillController } from "...";
 
-const controller = new KillSignalController();
+const controller = new KillController();
 const signal = controller.signal;
 
 const promise = Promise.all([

@@ -601,6 +601,20 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     return (await this.quiet(kind))[`${kind}Json`];
   }
 
+  /**
+   * Helper to get the exit code without throwing on non-zero exit codes.
+   *
+   * Shorthand for:
+   *
+   * ```ts
+   * const code = (await $`command`.noThrow()).code;
+   * ```
+   */
+  async code(): Promise<number> {
+    const result = await this.noThrow();
+    return result.code;
+  }
+
   /** @internal */
   [getRegisteredCommandNamesSymbol](): string[] {
     return Object.keys(this.#state.commands);
@@ -617,13 +631,13 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 export class CommandChild extends Promise<CommandResult> {
   #pipedStdoutBuffer: PipedBuffer | "consumed" | undefined;
   #pipedStderrBuffer: PipedBuffer | "consumed" | undefined;
-  #killSignalController: KillSignalController | undefined;
+  #killSignalController: KillController | undefined;
 
   /** @internal */
   constructor(executor: (resolve: (value: CommandResult) => void, reject: (reason?: any) => void) => void, options: {
     pipedStdoutBuffer: PipedBuffer | undefined;
     pipedStderrBuffer: PipedBuffer | undefined;
-    killSignalController: KillSignalController | undefined;
+    killSignalController: KillController | undefined;
   } = { pipedStderrBuffer: undefined, pipedStdoutBuffer: undefined, killSignalController: undefined }) {
     super(executor);
     this.#pipedStdoutBuffer = options.pipedStdoutBuffer;
@@ -711,7 +725,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   const asyncDisposables: AsyncDisposable[] = [];
 
   const parentSignal = state.signal;
-  const killSignalController = new KillSignalController();
+  const killSignalController = new KillController();
   if (parentSignal != null) {
     const parentSignalListener = (signal: Deno.Signal) => {
       killSignalController.kill(signal);
@@ -1148,7 +1162,7 @@ interface KillSignalState {
 }
 
 /** Similar to an AbortController, but for sending signals to commands. */
-export class KillSignalController {
+export class KillController {
   #state: KillSignalState;
   #killSignal: KillSignal;
 
@@ -1182,7 +1196,7 @@ export type KillSignalListener = (signal: Deno.Signal) => void;
  * A `KillSignal` is considered aborted if its controller
  * receives SIGTERM, SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP.
  *
- * These can be created via a `KillSignalController`.
+ * These can be created via a `KillController`.
  */
 export class KillSignal {
   #state: KillSignalState;

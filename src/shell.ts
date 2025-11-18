@@ -591,10 +591,16 @@ function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteR
 }
 
 function executePipeline(pipeline: Pipeline, context: Context): Promise<ExecuteResult> {
+  const output = executePipelineInner(pipeline.inner, context);
   if (pipeline.negated) {
-    throw new Error("Negated pipelines are not implemented.");
+    return Promise.resolve(output).then((result) => {
+      return {
+        ...result,
+        code: result.code === 0 ? 1 : 0,
+      };
+    });
   }
-  return executePipelineInner(pipeline.inner, context);
+  return output;
 }
 
 async function executeBooleanList(list: BooleanList, context: Context): Promise<ExecuteResult> {
