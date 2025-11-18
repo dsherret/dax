@@ -1269,9 +1269,9 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
           }
         }
       }
-      const isAbsolute = path.isAbsolute(currentText);
       const cwd = context.getCwd();
-      let pattern = isAbsolute ? currentText : path.joinGlobs([cwd, currentText]);
+      const isAbsolute = path.isAbsolute(currentText);
+      const pattern = isAbsolute ? currentText : path.joinGlobs([cwd, currentText]);
       const entries = await Array.fromAsync(expandGlob(pattern, {
         canonicalize: false,
         // be the same on all operating systems
@@ -1299,7 +1299,6 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
   // not implemented mostly, and copying from deno_task_shell
   const result: string[] = [];
   let currentText: TextPart[] = [];
-  let hasQuoted = false;
   for (const stringPart of wordParts) {
     let evaluationResult: string | undefined = undefined;
     switch (stringPart.kind) {
@@ -1316,7 +1315,6 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
           kind: "quoted",
           value: text,
         });
-        hasQuoted = true;
         continue;
       }
       case "tilde": {
