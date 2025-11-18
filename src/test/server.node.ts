@@ -14,7 +14,7 @@ export const startServer: StartServerHandler = (options) => {
         // todo: improve
         const body = await handlerResponse.arrayBuffer();
         response.end(new Uint8Array(body));
-      } catch (error) {
+      } catch (error: any) {
         // deno-lint-ignore no-console
         console.error("Error", error);
         if (!response.headersSent) {

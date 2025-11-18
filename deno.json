@@ -1,6 +1,11 @@
 {
   "name": "@david/dax",
   "nodeModulesDir": "none",
+  "test": {
+    "permissions": {
+      "all": true
+    }
+  },
   "tasks": {
     "dnt": "deno run -A ./scripts/build_npm.ts",
     "test": "deno test -A",
@@ -39,7 +44,7 @@
     "@std/assert": "jsr:@std/assert@1",
     "@std/async": "jsr:@std/async@^1.0.13",
     "@std/fmt": "jsr:@std/fmt@1",
-    "@std/fs": "jsr:@std/fs@1",
+    "@std/fs": "jsr:@std/fs@^1.0.20",
     "@std/io": "jsr:@std/io@0.225",
     "@std/path": "jsr:@std/path@1",
     "which": "jsr:@david/which@~0.4.1",

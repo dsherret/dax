@@ -11,8 +11,8 @@ import $, {
   CommandBuilder,
   type CommandContext,
   type CommandHandler,
+  KillController,
   KillSignal,
-  KillSignalController,
   Path,
   PathRef,
 } from "./mod.ts";
@@ -276,6 +276,19 @@ Deno.test("set var for command", async () => {
 Deno.test("variable substitution", async () => {
   const output = await $`deno eval "console.log($TEST);"`.env("TEST", "123").text();
   assertEquals(output.trim(), "123");
+});
+
+Deno.test("quoted variable with spaces", async () => {
+  const output = await $`echo "$test"`.env("test", "one two").text();
+  assertEquals(output, "one two");
+});
+
+Deno.test("quoted multiple variables with spaces", async () => {
+  const output = await $`echo "$test $other"`.env({
+    test: "one two",
+    other: "three four",
+  }).text();
+  assertEquals(output, "one two three four");
 });
 
 Deno.test("stdoutJson", async () => {
@@ -2159,7 +2172,7 @@ Deno.test("signal listening in registered commands", async () => {
 });
 
 Deno.test("should support setting a command signal", async () => {
-  const controller = new KillSignalController();
+  const controller = new KillController();
   const commandBuilder = new CommandBuilder().signal(controller.signal).noThrow();
   const $ = build$({ commandBuilder });
   const startTime = new Date().getTime();
@@ -2170,10 +2183,10 @@ Deno.test("should support setting a command signal", async () => {
     $`sleep 100s`.spawn(),
     // this will be triggered as well because this signal
     // will be linked to the parent signal
-    $`sleep 100s`.signal(new KillSignalController().signal),
+    $`sleep 100s`.signal(new KillController().signal),
   ];
 
-  const subController = new KillSignalController();
+  const subController = new KillController();
   const p = $`sleep 100s`.signal(subController.signal).spawn();
 
   await $.sleep("5ms");
@@ -2192,8 +2205,8 @@ Deno.test("should support setting a command signal", async () => {
   assert(endTime - startTime < 1000);
 });
 
-Deno.test("ensure KillSignalController readme example works", async () => {
-  const controller = new KillSignalController();
+Deno.test("ensure KillController readme example works", async () => {
+  const controller = new KillController();
   const signal = controller.signal;
   const startTime = new Date().getTime();
 
@@ -2208,6 +2221,174 @@ Deno.test("ensure KillSignalController readme example works", async () => {
   await assertRejects(() => promise, Error, "Aborted with exit code: 124");
   const endTime = new Date().getTime();
   assert(endTime - startTime < 1000);
+});
+
+Deno.test("glob", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat *.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\ntest2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test?.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[0-9].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[!a-z].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat test[a-z].txt`.captureCombined(true)).combined;
+    assertEquals(out, "testa\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat */*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat **/*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "3\n2\n1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
+    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
+    tempDir.join("3.txt").writeTextSync("3\n");
+    const out = (await $`cat $PWD/**/*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "3\n2\n1\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("dir").mkdirSync();
+    tempDir.join("dir/1.txt").writeTextSync("1\n");
+    tempDir.join("dir_1.txt").writeTextSync("2\n");
+    const out = (await $`cat dir*1.txt`.captureCombined(true)).combined;
+    assertEquals(out, "2\n");
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
+    assert(
+      combined.match(/glob: no matches found '[^\']+\*\.ts'\n/) != null,
+      combined,
+    );
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+
+    const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
+    assert(
+      combined.match(/glob: no matches found '[^\']+\.ts'\n/) != null,
+      combined,
+    );
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
+    assert(
+      combined.match(/glob: no matches found '[^\']+\*\.ts'\n2\n/) != null,
+      combined,
+    );
+  });
+
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const combined = (await $`cat *.ts 2> /dev/null || echo 2`.noThrow().captureCombined(true)).combined;
+    assertEquals(combined, "2\n");
+  });
+});
+
+Deno.test("glob case insensitive", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("TEST.txt").writeTextSync("test\n");
+    tempDir.join("testa.txt").writeTextSync("testa\n");
+    tempDir.join("test2.txt").writeTextSync("test2\n");
+    const out = (await $`cat tes*.txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\ntest2\ntesta\n");
+  });
+});
+
+Deno.test("glob escapes", async () => {
+  // no escape
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat [test].txt`.captureCombined(true)).combined;
+    assertEquals(out, "t\n");
+  });
+
+  // escape
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat [[]test[]].txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // single quotes
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat '[test].txt'`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // double quotes
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat "[test].txt"`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
+
+  // mix
+  await withTempDir(async (tempDir) => {
+    tempDir.join("[test].txt").writeTextSync("test\n");
+    tempDir.join("t.txt").writeTextSync("t\n");
+    const out = (await $`cat "["test"]".txt`.captureCombined(true)).combined;
+    assertEquals(out, "test\n");
+  });
 });
 
 Deno.test("should support empty quoted string", async () => {
@@ -2321,6 +2502,21 @@ Deno.test("windows cmd file", { ignore: Deno.build.os !== "windows" }, async () 
     const result = await $`./script.cmd eval "console.log(1); console.log(2)"`.lines("combined");
     assertEquals(result, ["1", "2"]);
   });
+});
+
+Deno.test("negation chaining", async () => {
+  await assertEquals(await $`! false && echo 1`.text(), "1");
+  await assertRejects(
+    () => $`! echo hello && ! echo 1`.text(),
+    Error,
+    "Exited with code: 1",
+  );
+});
+
+Deno.test("gets exit code", async () => {
+  assertEquals(await $`exit 0`.code(), 0);
+  assertEquals(await $`exit 1`.code(), 1);
+  assertEquals(await $`exit 123`.code(), 123);
 });
 
 function ensurePromiseNotResolved(promise: Promise<unknown>) {
