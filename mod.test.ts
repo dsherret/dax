@@ -2291,7 +2291,8 @@ Deno.test("glob", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
-    const err = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    const err = combined
+      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
     assertEquals(err, "glob: no matches found '$TEMP_DIR/*.ts'\n");
   });
 
@@ -2303,7 +2304,8 @@ Deno.test("glob", async () => {
     tempDir.join("test2.txt").writeTextSync("test2\n");
 
     const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
-    const stderr = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    const stderr = combined
+      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
     assertEquals(
       stderr,
       `glob: no matches found '$TEMP_DIR/[].ts'. Pattern syntax error near position ${errorPos}: invalid range pattern\n`,
@@ -2314,7 +2316,8 @@ Deno.test("glob", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
-    const replaced = combined.replaceAll(tempDir.toString(), "$TEMP_DIR");
+    const replaced = combined
+      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
     assertEquals(replaced, "glob: no matches found '$TEMP_DIR/*.ts'\n2\n");
   });
 

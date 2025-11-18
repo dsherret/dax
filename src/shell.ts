@@ -17,6 +17,9 @@ import {
 import { type EnvChange, type ExecuteResult, getAbortedResult } from "./result.ts";
 import { createExecutableCommand } from "./commands/executable.ts";
 
+class ShellEvaluateError extends Error {
+}
+
 export interface SequentialList {
   items: SequentialListItem[];
 }
@@ -572,7 +575,7 @@ async function executeSequentialList(list: SequentialList, context: Context): Pr
   };
 }
 
-function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> {
+function executeSequence(sequence: Sequence, context: Context): Promise<ExecuteResult> | ExecuteResult {
   if (context.signal.aborted) {
     return Promise.resolve(getAbortedResult());
   }
@@ -936,11 +939,19 @@ function executeCommandInner(command: CommandInner, context: Context): Promise<E
 
 async function executeSimpleCommand(command: SimpleCommand, parentContext: Context) {
   const context = parentContext.clone();
-  for (const envVar of command.envVars) {
-    context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
+  try {
+    for (const envVar of command.envVars) {
+      context.setEnvVar(envVar.name, await evaluateWord(envVar.value, context));
+    }
+    const commandArgs = await evaluateArgs(command.args, context);
+    return await executeCommandArgs(commandArgs, context);
+  } catch (err) {
+    if (err instanceof ShellEvaluateError) {
+      return context.error(err.message);
+    } else {
+      throw err;
+    }
   }
-  const commandArgs = await evaluateArgs(command.args, context);
-  return await executeCommandArgs(commandArgs, context);
 }
 
 function executeCommandArgs(commandArgs: string[], context: Context): Promise<ExecuteResult> {
@@ -1284,7 +1295,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         includeDirs: false,
       }));
       if (entries.length === 0) {
-        throw new Error(`glob: no matches found '${pattern}'`);
+        throw new ShellEvaluateError(`glob: no matches found '${pattern}'`);
       }
       if (isAbsolute) {
         return entries.map((e) => e.path);
