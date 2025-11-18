@@ -278,6 +278,19 @@ Deno.test("variable substitution", async () => {
   assertEquals(output.trim(), "123");
 });
 
+Deno.test("quoted variable with spaces", async () => {
+  const output = await $`echo "$test"`.env("test", "one two").text();
+  assertEquals(output, "one two");
+});
+
+Deno.test("quoted multiple variables with spaces", async () => {
+  const output = await $`echo "$test $other"`.env({
+    test: "one two",
+    other: "three four",
+  }).text();
+  assertEquals(output, "one two three four");
+});
+
 Deno.test("stdoutJson", async () => {
   const output = await $`deno eval "console.log(JSON.stringify({ test: 5 }));"`.stdout("piped");
   assertEquals(output.stdoutJson, { test: 5 });

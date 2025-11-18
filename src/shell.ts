@@ -1320,8 +1320,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         evaluationResult = context.getVar(stringPart.value); // value is name
         break;
       case "quoted": {
-        // todo(THIS PR): deno_task_shell does a " " join here... investigate!
-        const text = (await evaluateWordParts(stringPart.value, context, true)).join("");
+        const text = (await evaluateWordParts(stringPart.value, context, true)).join(" ");
         currentText.push({
           kind: "quoted",
           value: text,
