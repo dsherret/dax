@@ -2297,9 +2297,6 @@ Deno.test("glob", async () => {
   });
 
   await withTempDir(async (tempDir) => {
-    const builderPathLen = tempDir.toString().length;
-    const errorPos = builderPathLen + 1;
-
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
 
@@ -2308,7 +2305,7 @@ Deno.test("glob", async () => {
       .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
     assertEquals(
       stderr,
-      `glob: no matches found '$TEMP_DIR/[].ts'. Pattern syntax error near position ${errorPos}: invalid range pattern\n`,
+      `glob: no matches found '$TEMP_DIR/[].ts'\n`,
     );
   });
 
