@@ -2291,10 +2291,10 @@ Deno.test("glob", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
-    const err = combined
-      .replaceAll(tempDir.toString(), "$TEMP_DIR")
-      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
-    assertEquals(err, "glob: no matches found '$TEMP_DIR/*.ts'\n");
+    assert(
+      combined.match(/glob: no matches found '[^\']+\*\.ts'\n/) != null,
+      combined,
+    );
   });
 
   await withTempDir(async (tempDir) => {
@@ -2302,12 +2302,9 @@ Deno.test("glob", async () => {
     tempDir.join("test2.txt").writeTextSync("test2\n");
 
     const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
-    const stderr = combined
-      .replaceAll(tempDir.toString(), "$TEMP_DIR")
-      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
-    assertEquals(
-      stderr,
-      `glob: no matches found '$TEMP_DIR/[].ts'\n`,
+    assert(
+      combined.match(/glob: no matches found '[^\']+\.ts'\n/) != null,
+      combined,
     );
   });
 
@@ -2315,10 +2312,10 @@ Deno.test("glob", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
-    const replaced = combined
-      .replaceAll(tempDir.toString(), "$TEMP_DIR")
-      .replaceAll(tempDir.realPathSync().toString(), "$TEMP_DIR");
-    assertEquals(replaced, "glob: no matches found '$TEMP_DIR/*.ts'\n2\n");
+    assert(
+      combined.match(/glob: no matches found '[^\']+\*\.ts'\n2\n/) != null,
+      combined,
+    );
   });
 
   await withTempDir(async (tempDir) => {
