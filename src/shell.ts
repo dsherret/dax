@@ -771,7 +771,7 @@ interface ResolvedRedirectPipeInput {
 interface ResolvedRedirectPipeOutput {
   kind: "output";
   pipe: PipeWriter;
-  toFd: 1 | 2;
+  toFd: 1 | 2 | "&";
 }
 
 async function resolveRedirectPipe(
@@ -915,7 +915,10 @@ function getStdinReader(stdin: CommandPipeReader): Reader {
   }
 }
 
-function resolveRedirectToFd(redirect: Redirect, context: Context): ExecuteResult | Promise<ExecuteResult> | 1 | 2 | "&" {
+function resolveRedirectToFd(
+  redirect: Redirect,
+  context: Context,
+): ExecuteResult | Promise<ExecuteResult> | 1 | 2 | "&" {
   const maybeFd = redirect.maybeFd;
   if (maybeFd == null) {
     return 1; // stdout

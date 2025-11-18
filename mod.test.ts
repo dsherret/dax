@@ -1375,6 +1375,26 @@ Deno.test("output redirects", async () => {
   });
 });
 
+Deno.test("output redirects with & (both stdout and stderr)", async () => {
+  await withTempDir(async (tempDir) => {
+    // Test that both streams really go to the same file
+    const tempFile = tempDir.join("combined.txt");
+    await $`deno eval 'console.log(1); console.error(2); console.log(3);' &> ./combined.txt`
+      .cwd(tempDir)
+      .env("NO_COLOR", "1");
+    const content4 = tempFile.readTextSync();
+    assertStringIncludes(content4, "1");
+    assertStringIncludes(content4, "2");
+    assertStringIncludes(content4, "3");
+
+    // Test with /dev/null
+    const result = await $`deno eval 'console.log("visible"); console.error("invisible");' &> /dev/null`
+      .env("NO_COLOR", "1")
+      .text();
+    assertEquals(result, "");
+  });
+});
+
 Deno.test("input redirects", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("Hi!");
