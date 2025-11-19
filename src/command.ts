@@ -84,6 +84,7 @@ interface CommandBuilderState {
   printCommandLogger: LoggerTreeBox;
   timeout: number | undefined;
   signal: KillSignal | undefined;
+  encoding: string | undefined;
 }
 
 const textDecoder = new TextDecoder();
@@ -155,6 +156,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     ),
     timeout: undefined,
     signal: undefined,
+    encoding: undefined,
   };
 
   #getClonedState(): CommandBuilderState {
@@ -182,6 +184,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       printCommandLogger: state.printCommandLogger.createChild(),
       timeout: state.timeout,
       signal: state.signal,
+      encoding: state.encoding,
     };
   }
 
@@ -568,6 +571,18 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Sets the text decoder encoding to use for decoding stdout and stderr.
+   *
+   * This can be useful when the command output uses a specific character encoding
+   * that differs from the default UTF-8 encoding.
+   */
+  encoding(encoding?: string): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.encoding = encoding;
+    });
+  }
+
+  /**
    * Sets the provided stream (stdout by default) as quiet, spawns the command, and gets the stream as a string without the last newline.
    * Can be used to get stdout, stderr, or both.
    *
@@ -803,6 +818,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         finalizeCommandResultBuffer(stdoutBuffer),
         finalizeCommandResultBuffer(stderrBuffer),
         combinedBuffer instanceof Buffer ? combinedBuffer : undefined,
+        state.encoding,
       );
       const maybeError = await cleanupDisposablesAndMaybeGetError(undefined);
       if (maybeError) {
@@ -1002,16 +1018,24 @@ export class CommandResult {
   #stdout: BufferStdio;
   #stderr: BufferStdio;
   #combined: Buffer | undefined;
+  #textDecoder: TextDecoder;
 
   /** The exit code. */
   readonly code: number;
 
   /** @internal */
-  constructor(code: number, stdout: BufferStdio, stderr: BufferStdio, combined: Buffer | undefined) {
+  constructor(
+    code: number,
+    stdout: BufferStdio,
+    stderr: BufferStdio,
+    combined: Buffer | undefined,
+    encoding: string | undefined,
+  ) {
     this.code = code;
     this.#stdout = stdout;
     this.#stderr = stderr;
     this.#combined = combined;
+    this.#textDecoder = encoding ? new TextDecoder(encoding) : textDecoder;
   }
 
   #memoizedStdout: string | undefined;
@@ -1019,7 +1043,7 @@ export class CommandResult {
   /** Raw decoded stdout text. */
   get stdout(): string {
     if (!this.#memoizedStdout) {
-      this.#memoizedStdout = textDecoder.decode(this.stdoutBytes);
+      this.#memoizedStdout = this.#textDecoder.decode(this.stdoutBytes);
     }
     return this.#memoizedStdout;
   }
@@ -1058,7 +1082,7 @@ export class CommandResult {
   /** Raw decoded stdout text. */
   get stderr(): string {
     if (!this.#memoizedStderr) {
-      this.#memoizedStderr = textDecoder.decode(this.stderrBytes);
+      this.#memoizedStderr = this.#textDecoder.decode(this.stderrBytes);
     }
     return this.#memoizedStderr;
   }
