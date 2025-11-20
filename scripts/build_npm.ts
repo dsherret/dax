@@ -14,6 +14,13 @@ await build({
     deno: true,
     custom: [{
       package: {
+        name: "node:util",
+      },
+      globalNames: [
+        "TextDecoder",
+      ],
+    }, {
+      package: {
         name: "node:stream/web",
       },
       globalNames: [
