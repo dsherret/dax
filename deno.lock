@@ -15,7 +15,7 @@
     "jsr:@std/fs@1": "1.0.21",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/internal@^1.0.6": "1.0.12",
-    "jsr:@std/io@~0.225.2": "0.225.2",
+    "jsr:@std/io@0.225": "0.225.2",
     "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
@@ -139,7 +139,7 @@
       "jsr:@std/async@1",
       "jsr:@std/fmt@1",
       "jsr:@std/fs@1",
-      "jsr:@std/io@~0.225.2",
+      "jsr:@std/io@0.225",
       "jsr:@std/path@1"
     ]
   }
