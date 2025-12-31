@@ -1,7 +1,7 @@
 # dax
 
 [![JSR](https://jsr.io/badges/@david/dax)](https://jsr.io/@david/dax)
-[![npm Version](https://img.shields.io/npm/v/dax-sh.svg?style=flat)](http://www.npmjs.com/package/dax-sh)
+[![npm Version](https://img.shields.io/npm/v/dax.svg?style=flat)](http://www.npmjs.com/package/dax)
 
 <img src="src/assets/logo.svg" height="150px" alt="dax logo">
 
@@ -32,14 +32,14 @@ deno add jsr:@david/dax
 Node:
 
 ```sh
-npm install dax-sh
+npm install dax
 ```
 
 ## Executing commands
 
 ```ts
 #!/usr/bin/env -S deno run --allow-all
-import $ from "@david/dax"; // "dax-sh" in Node
+import $ from "@david/dax"; // "dax" in Node
 
 // run a command
 await $`echo 5`; // outputs: 5
