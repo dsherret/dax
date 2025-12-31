@@ -39,15 +39,15 @@
   "exports": "./mod.ts",
   "imports": {
     "@david/console-static-text": "jsr:@david/console-static-text@^0.3.0",
-    "@deno/dnt": "jsr:@deno/dnt@~0.41.3",
+    "@deno/dnt": "jsr:@deno/dnt@~0.42.3",
     "@david/path": "jsr:@david/path@0.2",
     "@std/assert": "jsr:@std/assert@1",
-    "@std/async": "jsr:@std/async@^1.0.13",
+    "@std/async": "jsr:@std/async@1",
     "@std/fmt": "jsr:@std/fmt@1",
-    "@std/fs": "jsr:@std/fs@^1.0.20",
-    "@std/io": "jsr:@std/io@0.225",
+    "@std/fs": "jsr:@std/fs@1",
+    "@std/io": "jsr:@std/io@^0.225",
     "@std/path": "jsr:@std/path@1",
     "which": "jsr:@david/which@~0.4.1",
-    "which_runtime": "jsr:@david/which-runtime@0.2"
+    "which_runtime": "jsr:@david/which-runtime@^0.2.1"
   }
 }
