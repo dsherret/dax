@@ -7,16 +7,14 @@
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@~0.4.1": "0.4.1",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
+    "jsr:@std/assert@1": "1.0.13",
     "jsr:@std/assert@^1.0.13": "1.0.13",
-    "jsr:@std/assert@^1.0.16": "1.0.16",
-    "jsr:@std/async@^1.0.16": "1.0.16",
+    "jsr:@std/async@1": "1.0.16",
     "jsr:@std/bytes@^1.0.5": "1.0.6",
     "jsr:@std/fmt@1": "1.0.8",
-    "jsr:@std/fmt@^1.0.8": "1.0.8",
     "jsr:@std/fs@1": "1.0.21",
-    "jsr:@std/fs@^1.0.21": "1.0.21",
     "jsr:@std/internal@^1.0.12": "1.0.12",
-    "jsr:@std/internal@^1.0.6": "1.0.7",
+    "jsr:@std/internal@^1.0.6": "1.0.12",
     "jsr:@std/io@~0.225.2": "0.225.2",
     "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
@@ -34,7 +32,7 @@
     "@david/path@0.2.0": {
       "integrity": "f2d7aa7f02ce5a55e27c09f9f1381794acb09d328f8d3c8a2e3ab3ffc294dccd",
       "dependencies": [
-        "jsr:@std/fs@1",
+        "jsr:@std/fs",
         "jsr:@std/path@1"
       ]
     },
@@ -48,8 +46,8 @@
       "integrity": "62a917a0492f3c8af002dce90605bb0d41f7d29debc06aca40dba72ab65d8ae3",
       "dependencies": [
         "jsr:@david/code-block-writer",
-        "jsr:@std/fmt@1",
-        "jsr:@std/fs@1",
+        "jsr:@std/fmt",
+        "jsr:@std/fs",
         "jsr:@std/path@1",
         "jsr:@ts-morph/bootstrap"
       ]
@@ -58,12 +56,6 @@
       "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
       "dependencies": [
         "jsr:@std/internal@^1.0.6"
-      ]
-    },
-    "@std/assert@1.0.16": {
-      "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",
-      "dependencies": [
-        "jsr:@std/internal@^1.0.12"
       ]
     },
     "@std/async@1.0.13": {
@@ -122,11 +114,7 @@
       ]
     },
     "@ts-morph/common@0.27.0": {
-      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052",
-      "dependencies": [
-        "jsr:@std/fs@1",
-        "jsr:@std/path@1"
-      ]
+      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052"
     }
   },
   "npm": {
@@ -147,12 +135,12 @@
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.4.1",
       "jsr:@deno/dnt@~0.42.3",
-      "jsr:@std/assert@^1.0.16",
-      "jsr:@std/async@^1.0.16",
-      "jsr:@std/fmt@^1.0.8",
-      "jsr:@std/fs@^1.0.21",
+      "jsr:@std/assert@1",
+      "jsr:@std/async@1",
+      "jsr:@std/fmt@1",
+      "jsr:@std/fs@1",
       "jsr:@std/io@~0.225.2",
-      "jsr:@std/path@^1.1.4"
+      "jsr:@std/path@1"
     ]
   }
 }
