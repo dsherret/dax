@@ -1,34 +1,11 @@
 import type { CommandContext } from "../command_handler.ts";
-import type { EnvChange, ExecuteResult } from "../result.ts";
-import { ShellOption } from "../result.ts";
+import type { EnvChange, ExecuteResult, ShellOption } from "../result.ts";
 
-const VALID_OPTIONS = ["nullglob", "failglob", "globstar"] as const;
-type ShoptOptionName = typeof VALID_OPTIONS[number];
+const SHOPT_OPTIONS = ["nullglob", "failglob", "globstar"] as const;
+type ShoptOption = typeof SHOPT_OPTIONS[number];
 
-function parseOptionName(name: string): ShellOption | undefined {
-  switch (name) {
-    case "nullglob":
-      return ShellOption.NullGlob;
-    case "failglob":
-      return ShellOption.FailGlob;
-    case "globstar":
-      return ShellOption.GlobStar;
-    default:
-      return undefined;
-  }
-}
-
-function optionToName(option: ShellOption): string {
-  switch (option) {
-    case ShellOption.NullGlob:
-      return "nullglob";
-    case ShellOption.FailGlob:
-      return "failglob";
-    case ShellOption.GlobStar:
-      return "globstar";
-    case ShellOption.PipeFail:
-      return "pipefail";
-  }
+function isShoptOption(name: string): name is ShoptOption {
+  return SHOPT_OPTIONS.includes(name as ShoptOption);
 }
 
 function invalidOptionError(context: CommandContext, name: string) {
@@ -55,11 +32,10 @@ export function shoptCommand(context: CommandContext): ExecuteResult | Promise<E
   // parse option names
   const options: ShellOption[] = [];
   for (const arg of optionArgs) {
-    const opt = parseOptionName(arg);
-    if (opt === undefined) {
+    if (!isShoptOption(arg)) {
       return invalidOptionError(context, arg);
     }
-    options.push(opt);
+    options.push(arg);
   }
 
   // set/unset mode
@@ -85,12 +61,11 @@ export function shoptCommand(context: CommandContext): ExecuteResult | Promise<E
     // print specified options and return non-zero if any are off
     let anyOff = false;
     for (const opt of options) {
-      const name = optionToName(opt);
-      const isOn = currentOptions[name as ShoptOptionName];
+      const isOn = currentOptions[opt];
       if (!isOn) {
         anyOff = true;
       }
-      context.stdout.writeLine(`${name}\t${isOn ? "on" : "off"}`);
+      context.stdout.writeLine(`${opt}\t${isOn ? "on" : "off"}`);
     }
     return { code: anyOff ? 1 : 0 };
   }

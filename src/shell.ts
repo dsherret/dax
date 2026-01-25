@@ -14,7 +14,7 @@ import {
   type Reader,
   ShellPipeWriter,
 } from "./pipes.ts";
-import { type EnvChange, type ExecuteResult, getAbortedResult, ShellOption } from "./result.ts";
+import { type EnvChange, type ExecuteResult, getAbortedResult, type ShellOption } from "./result.ts";
 import { createExecutableCommand } from "./commands/executable.ts";
 
 class ShellEvaluateError extends Error {
@@ -449,20 +449,7 @@ export class Context {
   }
 
   setShellOption(option: ShellOption, value: boolean) {
-    switch (option) {
-      case ShellOption.NullGlob:
-        this.#static.shellOptions.nullglob = value;
-        break;
-      case ShellOption.FailGlob:
-        this.#static.shellOptions.failglob = value;
-        break;
-      case ShellOption.PipeFail:
-        this.#static.shellOptions.pipefail = value;
-        break;
-      case ShellOption.GlobStar:
-        this.#static.shellOptions.globstar = value;
-        break;
-    }
+    this.#static.shellOptions[option] = value;
   }
 
   getFdReader(fd: number) {

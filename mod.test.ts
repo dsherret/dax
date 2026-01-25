@@ -2566,7 +2566,8 @@ Deno.test("shopt command", async () => {
   assertEquals(result3.combined.trim(), "failglob\toff");
 
   // can set and unset different options with separate commands
-  const result4 = await $`shopt -u failglob && shopt -s nullglob && shopt nullglob && shopt failglob`.noThrow().captureCombined(true);
+  const result4 = await $`shopt -u failglob && shopt -s nullglob && shopt nullglob && shopt failglob`.noThrow()
+    .captureCombined(true);
   assertEquals(result4.code, 1); // returns 1 because failglob is now off
   assert(result4.combined.includes("nullglob\ton"));
   assert(result4.combined.includes("failglob\toff"));

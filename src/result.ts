@@ -82,20 +82,13 @@ export interface CdChange {
 
 /**
  * Shell options that can be set via `shopt` or `set -o`.
+ *
+ * - `nullglob`: a glob pattern that matches no files expands to nothing
+ * - `failglob`: a glob pattern that matches no files causes an error (default)
+ * - `pipefail`: pipeline exit code is the rightmost non-zero exit code
+ * - `globstar`: `**` matches recursively across directories (default)
  */
-export enum ShellOption {
-  /** When set, a glob pattern that matches no files expands to nothing (empty) rather than returning an error. */
-  NullGlob = "nullglob",
-  /** When set, a glob pattern that matches no files causes an error. This is the default. */
-  FailGlob = "failglob",
-  /** When set, pipeline exit code is the rightmost non-zero exit code. Set via `set -o pipefail`. */
-  PipeFail = "pipefail",
-  /**
-   * When set, the pattern `**` used in a pathname expansion context will
-   * match all files and zero or more directories and subdirectories. This is the default.
-   */
-  GlobStar = "globstar",
-}
+export type ShellOption = "nullglob" | "failglob" | "pipefail" | "globstar";
 
 /** Change that sets a shell option (ex. `shopt -s nullglob` or `set -o pipefail`).
  *

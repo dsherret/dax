@@ -76,7 +76,6 @@ export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSy
 export { RequestBuilder, RequestResponse } from "./src/request.ts";
 // these are used when registering commands
 export {
-  ShellOption,
   type CdChange,
   type ContinueExecuteResult,
   type EnvChange,
@@ -85,6 +84,7 @@ export {
   type SetEnvVarChange,
   type SetOptionChange,
   type SetShellVarChange,
+  type ShellOption,
   type UnsetVarChange,
 } from "./src/result.ts";
 export type { ShellOptionsState } from "./src/shell.ts";

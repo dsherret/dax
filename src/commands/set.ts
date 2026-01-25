@@ -1,6 +1,12 @@
 import type { CommandContext } from "../command_handler.ts";
-import type { EnvChange, ExecuteResult } from "../result.ts";
-import { ShellOption } from "../result.ts";
+import type { EnvChange, ExecuteResult, ShellOption } from "../result.ts";
+
+const SET_OPTIONS = ["pipefail"] as const;
+type SetOption = typeof SET_OPTIONS[number];
+
+function isSetOption(name: string): name is SetOption {
+  return SET_OPTIONS.includes(name as SetOption);
+}
 
 export function setCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   const args = context.args;
@@ -33,13 +39,12 @@ export function setCommand(context: CommandContext): ExecuteResult | Promise<Exe
     if ((arg === "-o" || arg === "+o") && i + 1 < args.length) {
       const enable = arg === "-o";
       const optionName = args[i + 1];
-      const option = parseOptionName(optionName);
-      if (option === undefined) {
+      if (!isSetOption(optionName)) {
         return context.error(`set: unknown option: ${optionName}`);
       }
       changes.push({
         kind: "setoption",
-        option,
+        option: optionName,
         value: enable,
       });
       i += 2;
@@ -49,13 +54,4 @@ export function setCommand(context: CommandContext): ExecuteResult | Promise<Exe
   }
 
   return { code: 0, changes };
-}
-
-function parseOptionName(name: string): ShellOption | undefined {
-  switch (name) {
-    case "pipefail":
-      return ShellOption.PipeFail;
-    default:
-      return undefined;
-  }
 }
