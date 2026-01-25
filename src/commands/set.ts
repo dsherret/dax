@@ -1,5 +1,5 @@
 import type { CommandContext } from "../command_handler.ts";
-import type { EnvChange, ExecuteResult, ShellOption } from "../result.ts";
+import type { EnvChange, ExecuteResult } from "../result.ts";
 
 const SET_OPTIONS = ["pipefail"] as const;
 type SetOption = typeof SET_OPTIONS[number];
