@@ -1,6 +1,7 @@
 import type { KillSignal } from "./command.ts";
 import type { Reader, ShellPipeWriterKind } from "./pipes.ts";
 import type { ExecuteResult } from "./result.ts";
+import type { ShellOptionsState } from "./shell.ts";
 
 /** Used to read from stdin. */
 export type CommandPipeReader = "inherit" | "null" | Reader;
@@ -23,6 +24,8 @@ export interface CommandContext {
   get stdout(): CommandPipeWriter;
   get stderr(): CommandPipeWriter;
   get signal(): KillSignal;
+  /** Current shell options (nullglob, failglob, pipefail, globstar). */
+  get shellOptions(): ShellOptionsState;
   /// Helper function for writing a line to stderr and returning a 1 exit code.
   error(message: string): Promise<ExecuteResult> | ExecuteResult;
   /// Helper function for writing a line to stderr and returning the provided exit code.

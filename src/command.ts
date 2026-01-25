@@ -14,6 +14,8 @@ import { mkdirCommand } from "./commands/mkdir.ts";
 import { printEnvCommand } from "./commands/printenv.ts";
 import { pwdCommand } from "./commands/pwd.ts";
 import { rmCommand } from "./commands/rm.ts";
+import { setCommand } from "./commands/set.ts";
+import { shoptCommand } from "./commands/shopt.ts";
 import { sleepCommand } from "./commands/sleep.ts";
 import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
@@ -37,7 +39,7 @@ import {
   type WriterSync,
 } from "./pipes.ts";
 import { RequestBuilder } from "./request.ts";
-import { parseCommand, spawn } from "./shell.ts";
+import { parseCommand, type ShellOptionsState, spawn } from "./shell.ts";
 import { StreamFds } from "./shell.ts";
 
 type BufferStdio = "inherit" | "null" | "streamed" | Buffer;
@@ -85,6 +87,7 @@ interface CommandBuilderState {
   timeout: number | undefined;
   signal: KillSignal | undefined;
   encoding: string | undefined;
+  shellOptions: Partial<ShellOptionsState>;
 }
 
 const textDecoder = new TextDecoder();
@@ -95,6 +98,8 @@ const builtInCommands: Record<string, CommandHandler> = {
   cat: catCommand,
   exit: exitCommand,
   export: exportCommand,
+  set: setCommand,
+  shopt: shoptCommand,
   sleep: sleepCommand,
   test: testCommand,
   rm: rmCommand,
@@ -157,6 +162,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     timeout: undefined,
     signal: undefined,
     encoding: undefined,
+    shellOptions: {},
   };
 
   #getClonedState(): CommandBuilderState {
@@ -185,6 +191,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
       timeout: state.timeout,
       signal: state.signal,
       encoding: state.encoding,
+      shellOptions: { ...state.shellOptions },
     };
   }
 
@@ -583,6 +590,87 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Sets whether pipefail is enabled. When enabled, a pipeline's exit code
+   * is the rightmost non-zero exit code, or 0 if all commands succeed.
+   *
+   * ```ts
+   * // without pipefail (default): exit code is from the last command (grep)
+   * const code1 = await $`false | grep foo`.noThrow().code(); // 1 (grep's exit code)
+   *
+   * // with pipefail: exit code is from the first failing command
+   * const code2 = await $`false | grep foo`.pipefail().noThrow().code(); // 1 (false's exit code)
+   * ```
+   */
+  pipefail(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.shellOptions.pipefail = value;
+    });
+  }
+
+  /**
+   * Sets whether nullglob is enabled. When enabled, a glob pattern that
+   * matches no files expands to nothing (empty) rather than returning an error.
+   *
+   * Note: This also disables failglob since nullglob and failglob are
+   * mutually exclusive behaviors.
+   *
+   * ```ts
+   * // without nullglob (default): throws error if no matches
+   * await $`echo *.nonexistent`; // Error: glob: no matches found
+   *
+   * // with nullglob: expands to nothing
+   * await $`echo *.nonexistent`.nullglob(); // outputs empty line
+   * ```
+   */
+  nullglob(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.shellOptions.nullglob = value;
+      if (value) {
+        // nullglob and failglob are mutually exclusive
+        state.shellOptions.failglob = false;
+      }
+    });
+  }
+
+  /**
+   * Sets whether failglob is enabled. When enabled (the default), a glob pattern
+   * that matches no files causes an error. When disabled, unmatched patterns
+   * are passed through literally.
+   *
+   * ```ts
+   * // with failglob (default): throws error if no matches
+   * await $`echo *.nonexistent`; // Error: glob: no matches found
+   *
+   * // without failglob: passes pattern literally
+   * await $`echo *.nonexistent`.failglob(false); // outputs "*.nonexistent"
+   * ```
+   */
+  failglob(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.shellOptions.failglob = value;
+    });
+  }
+
+  /**
+   * Sets whether globstar is enabled. When enabled (the default), the pattern `**`
+   * used in a pathname expansion context will match all files and zero or more
+   * directories and subdirectories. When disabled, `**` is treated as `*`.
+   *
+   * ```ts
+   * // with globstar (default): ** matches recursively
+   * await $`echo **\/*.ts`; // matches all .ts files in all subdirectories
+   *
+   * // without globstar: ** is treated as *
+   * await $`echo **\/*.ts`.globstar(false); // matches only .ts files one level deep
+   * ```
+   */
+  globstar(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.shellOptions.globstar = value;
+    });
+  }
+
+  /**
    * Sets the provided stream (stdout by default) as quiet, spawns the command, and gets the stream as a string without the last newline.
    * Can be used to get stdout, stderr, or both.
    *
@@ -791,6 +879,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         clearedEnv: state.clearEnv,
         signal,
         fds,
+        shellOptions: state.shellOptions,
       });
       if (code !== 0) {
         if (timedOut) {

@@ -30,7 +30,7 @@ export interface ContinueExecuteResult {
  *
  * Used for registering custom commands.
  */
-export type EnvChange = SetEnvVarChange | SetShellVarChange | UnsetVarChange | CdChange;
+export type EnvChange = SetEnvVarChange | SetShellVarChange | UnsetVarChange | CdChange | SetOptionChange;
 
 /** Change that sets an environment variable (ex. `export ENV_VAR=VALUE`)
  *
@@ -78,4 +78,34 @@ export interface CdChange {
   kind: "cd";
   /** Relative or absolute directory to change to. */
   dir: string;
+}
+
+/**
+ * Shell options that can be set via `shopt` or `set -o`.
+ */
+export enum ShellOption {
+  /** When set, a glob pattern that matches no files expands to nothing (empty) rather than returning an error. */
+  NullGlob = "nullglob",
+  /** When set, a glob pattern that matches no files causes an error. This is the default. */
+  FailGlob = "failglob",
+  /** When set, pipeline exit code is the rightmost non-zero exit code. Set via `set -o pipefail`. */
+  PipeFail = "pipefail",
+  /**
+   * When set, the pattern `**` used in a pathname expansion context will
+   * match all files and zero or more directories and subdirectories. This is the default.
+   */
+  GlobStar = "globstar",
+}
+
+/** Change that sets a shell option (ex. `shopt -s nullglob` or `set -o pipefail`).
+ *
+ * Used for registering custom commands.
+ */
+export interface SetOptionChange {
+  /** Discriminator. */
+  kind: "setoption";
+  /** The shell option to set. */
+  option: ShellOption;
+  /** Whether to enable or disable the option. */
+  value: boolean;
 }

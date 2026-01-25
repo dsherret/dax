@@ -14,7 +14,7 @@ import {
   type Reader,
   ShellPipeWriter,
 } from "./pipes.ts";
-import { type EnvChange, type ExecuteResult, getAbortedResult } from "./result.ts";
+import { type EnvChange, type ExecuteResult, getAbortedResult, ShellOption } from "./result.ts";
 import { createExecutableCommand } from "./commands/executable.ts";
 
 class ShellEvaluateError extends Error {
@@ -324,11 +324,24 @@ interface ContextOptions {
   static: StaticContextState;
 }
 
+/** Shell options state that can be modified via shopt/set commands. */
+export interface ShellOptionsState {
+  /** When set, a glob pattern that matches no files expands to nothing. */
+  nullglob: boolean;
+  /** When set, a glob pattern that matches no files causes an error. */
+  failglob: boolean;
+  /** When set, pipeline exit code is the rightmost non-zero exit code. */
+  pipefail: boolean;
+  /** When set, ** matches recursively across directories. */
+  globstar: boolean;
+}
+
 /** State that never changes across the entire execution of the shell. */
 interface StaticContextState {
   signal: KillSignal;
   commands: Record<string, CommandHandler>;
   fds: StreamFds | undefined;
+  shellOptions: ShellOptionsState;
 }
 
 export class Context {
@@ -370,6 +383,9 @@ export class Context {
         case "unsetvar":
           this.setShellVar(change.name, undefined);
           this.setEnvVar(change.name, undefined);
+          break;
+        case "setoption":
+          this.setShellOption(change.option, change.value);
           break;
         default: {
           const _assertNever: never = change;
@@ -428,6 +444,27 @@ export class Context {
     return this.#static.commands[command] ?? null;
   }
 
+  getShellOptions(): ShellOptionsState {
+    return this.#static.shellOptions;
+  }
+
+  setShellOption(option: ShellOption, value: boolean) {
+    switch (option) {
+      case ShellOption.NullGlob:
+        this.#static.shellOptions.nullglob = value;
+        break;
+      case ShellOption.FailGlob:
+        this.#static.shellOptions.failglob = value;
+        break;
+      case ShellOption.PipeFail:
+        this.#static.shellOptions.pipefail = value;
+        break;
+      case ShellOption.GlobStar:
+        this.#static.shellOptions.globstar = value;
+        break;
+    }
+  }
+
   getFdReader(fd: number) {
     return this.#static.fds?.getReader(fd);
   }
@@ -459,6 +496,9 @@ export class Context {
       },
       get signal() {
         return context.signal;
+      },
+      get shellOptions() {
+        return context.getShellOptions();
       },
       error(codeOrText: number | string, maybeText?: string): Promise<ExecuteResult> | ExecuteResult {
         return context.error(codeOrText, maybeText);
@@ -525,11 +565,22 @@ export interface SpawnOpts {
   clearedEnv: boolean;
   signal: KillSignal;
   fds: StreamFds | undefined;
+  shellOptions?: Partial<ShellOptionsState>;
+}
+
+function getDefaultShellOptions(): ShellOptionsState {
+  return {
+    nullglob: false,
+    failglob: true, // default: error on no glob matches
+    pipefail: false,
+    globstar: true, // default: ** matches recursively
+  };
 }
 
 export async function spawn(list: SequentialList, opts: SpawnOpts) {
   const env = opts.exportEnv ? opts.clearedEnv ? new RealEnvWriteOnly() : new RealEnv() : new ShellEnv();
   initializeEnv(env, opts);
+  const defaultOptions = getDefaultShellOptions();
   const context = new Context({
     env,
     stdin: opts.stdin,
@@ -540,6 +591,10 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
       commands: opts.commands,
       fds: opts.fds,
       signal: opts.signal,
+      shellOptions: {
+        ...defaultOptions,
+        ...opts.shellOptions,
+      },
     },
   });
   const result = await executeSequentialList(list, context);
@@ -1165,9 +1220,26 @@ async function executePipeSequence(sequence: PipeSequence, context: Context): Pr
       .then(() => ({ code: 0 })),
   );
   const results = await Promise.all(waitTasks);
-  // the second last result is the last command
-  const secondLastResult = results[results.length - 2];
-  return secondLastResult;
+
+  // determine exit code based on pipefail option
+  const shellOptions = context.getShellOptions();
+  let exitCode: number;
+  if (shellOptions.pipefail) {
+    // with pipefail: return the rightmost non-zero exit code, or 0 if all succeeded
+    exitCode = 0;
+    for (let i = results.length - 1; i >= 0; i--) {
+      const code = results[i].code;
+      if (code !== 0) {
+        exitCode = code;
+        break;
+      }
+    }
+  } else {
+    // without pipefail: return the last command's exit code (second to last in results array)
+    exitCode = results[results.length - 2].code;
+  }
+
+  return { code: exitCode };
 }
 
 async function parseShebangArgs(info: ShebangInfo, context: Context): Promise<string[]> {
@@ -1290,8 +1362,20 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         }
       }
       const cwd = context.getCwd();
+      const shellOptions = context.getShellOptions();
       const isAbsolute = path.isAbsolute(currentText);
-      const pattern = isAbsolute ? currentText : path.joinGlobs([cwd, currentText]);
+
+      // when globstar is disabled, replace ** with * so it doesn't match
+      // across directory boundaries
+      let patternText = currentText;
+      if (!shellOptions.globstar && currentText.includes("**")) {
+        // repeatedly replace ** with * to handle cases like *** -> ** -> *
+        while (patternText.includes("**")) {
+          patternText = patternText.replace("**", "*");
+        }
+      }
+
+      const pattern = isAbsolute ? patternText : path.joinGlobs([cwd, patternText]);
       const entries = await Array.fromAsync(expandGlob(pattern, {
         canonicalize: false,
         // be the same on all operating systems
@@ -1299,12 +1383,23 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         followSymlinks: false,
         exclude: [],
         extended: false,
-        globstar: true,
+        globstar: shellOptions.globstar,
         root: cwd,
         includeDirs: false,
       }));
       if (entries.length === 0) {
-        throw new ShellEvaluateError(`glob: no matches found '${pattern}'`);
+        if (shellOptions.failglob) {
+          // failglob - error when set (default behavior)
+          throw new ShellEvaluateError(
+            `glob: no matches found '${pattern}' (run \`shopt -u failglob\` to pass unmatched glob patterns literally)`,
+          );
+        } else if (shellOptions.nullglob) {
+          // nullglob - return empty array (pattern expands to nothing)
+          return [];
+        } else {
+          // default bash behavior - return pattern literally
+          return [textPartsToString(textParts)];
+        }
       }
       if (isAbsolute) {
         return entries.map((e) => e.path);

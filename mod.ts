@@ -75,16 +75,19 @@ export type {
 export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export { RequestBuilder, RequestResponse } from "./src/request.ts";
 // these are used when registering commands
-export type {
-  CdChange,
-  ContinueExecuteResult,
-  EnvChange,
-  ExecuteResult,
-  ExitExecuteResult,
-  SetEnvVarChange,
-  SetShellVarChange,
-  UnsetVarChange,
+export {
+  ShellOption,
+  type CdChange,
+  type ContinueExecuteResult,
+  type EnvChange,
+  type ExecuteResult,
+  type ExitExecuteResult,
+  type SetEnvVarChange,
+  type SetOptionChange,
+  type SetShellVarChange,
+  type UnsetVarChange,
 } from "./src/result.ts";
+export type { ShellOptionsState } from "./src/shell.ts";
 export { createExecutableCommand } from "./src/commands/executable.ts";
 
 /**
