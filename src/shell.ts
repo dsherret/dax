@@ -562,7 +562,7 @@ export interface SpawnOpts {
 function getDefaultShellOptions(): ShellOptionsState {
   return {
     nullglob: false,
-    failglob: true, // default: error on no glob matches
+    failglob: false, // default: pass unmatched globs through literally
     pipefail: false,
     globstar: true, // default: ** matches recursively
   };
@@ -1380,7 +1380,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
       }));
       if (entries.length === 0) {
         if (shellOptions.failglob) {
-          // failglob - error when set (default behavior)
+          // failglob - error when set
           throw new ShellEvaluateError(
             `glob: no matches found '${pattern}' (run \`shopt -u failglob\` to pass unmatched glob patterns literally)`,
           );

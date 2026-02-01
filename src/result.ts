@@ -84,7 +84,7 @@ export interface CdChange {
  * Shell options that can be set via `shopt` or `set -o`.
  *
  * - `nullglob`: a glob pattern that matches no files expands to nothing
- * - `failglob`: a glob pattern that matches no files causes an error (default)
+ * - `failglob`: a glob pattern that matches no files causes an error
  * - `pipefail`: pipeline exit code is the rightmost non-zero exit code
  * - `globstar`: `**` matches recursively across directories (default)
  */

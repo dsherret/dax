@@ -901,7 +901,7 @@ Currently implemented (though not every option is supported):
     parents with no error if it exists.
 - [`pwd`](https://man7.org/linux/man-pages/man1/pwd.1.html) - Prints the current/working directory.
 - [`set`](https://man7.org/linux/man-pages/man1/set.1p.html) - Only supports `pipefail`
-- [`shopt`](https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html) - Only supports `nullglob`, `failglob`, `globstar` (defaults to `failglob`, `globstar`)
+- [`shopt`](https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html) - Only supports `nullglob`, `failglob`, `globstar` (defaults to `globstar`)
 - [`sleep`](https://man7.org/linux/man-pages/man1/sleep.1.html) - Sleep command.
 - [`test`](https://man7.org/linux/man-pages/man1/test.1.html) - Test command.
 - [`touch`](https://man7.org/linux/man-pages/man1/touch.1.html) - Creates a file (note: flags have not been implemented yet).
@@ -919,7 +919,7 @@ Note that these cross-platform commands can be bypassed by running them through 
 
 - `pipefail` (`set -o`/`+o`) - When enabled, a pipeline's exit code is the rightmost non-zero exit code. Default: **off**
 - `nullglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing expands to nothing. Default: **off**
-- `failglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing causes an error. Default: **on**
+- `failglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing causes an error. Default: **off**
 - `globstar` (`shopt -s`/`-u`) - When enabled, `**` matches recursively across directories. Default: **on**
 
 These can be configured via builder methods or when building a custom `$`:
@@ -930,7 +930,7 @@ const $ = build$({
     builder
       .pipefail()
       .nullglob()
-      .failglob(false)
+      .failglob()
       .globstar(false),
 });
 ```

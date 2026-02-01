@@ -609,14 +609,15 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
 
   /**
    * Sets whether nullglob is enabled. When enabled, a glob pattern that
-   * matches no files expands to nothing (empty) rather than returning an error.
+   * matches no files expands to nothing (empty) rather than being passed
+   * through literally.
    *
    * Note: This also disables failglob since nullglob and failglob are
    * mutually exclusive behaviors.
    *
    * ```ts
-   * // without nullglob (default): throws error if no matches
-   * await $`echo *.nonexistent`; // Error: glob: no matches found
+   * // without nullglob (default): passes pattern literally
+   * await $`echo *.nonexistent`; // outputs "*.nonexistent"
    *
    * // with nullglob: expands to nothing
    * await $`echo *.nonexistent`.nullglob(); // outputs empty line
@@ -633,16 +634,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
-   * Sets whether failglob is enabled. When enabled (the default), a glob pattern
-   * that matches no files causes an error. When disabled, unmatched patterns
-   * are passed through literally.
+   * Sets whether failglob is enabled. When enabled, a glob pattern
+   * that matches no files causes an error. When disabled (the default),
+   * unmatched patterns are passed through literally.
    *
    * ```ts
-   * // with failglob (default): throws error if no matches
-   * await $`echo *.nonexistent`; // Error: glob: no matches found
+   * // without failglob (default): passes pattern literally
+   * await $`echo *.nonexistent`; // outputs "*.nonexistent"
    *
-   * // without failglob: passes pattern literally
-   * await $`echo *.nonexistent`.failglob(false); // outputs "*.nonexistent"
+   * // with failglob: throws error if no matches
+   * await $`echo *.nonexistent`.failglob(); // Error: glob: no matches found
    * ```
    */
   failglob(value = true): CommandBuilder {

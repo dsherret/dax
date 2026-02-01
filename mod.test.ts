@@ -2323,7 +2323,7 @@ Deno.test("glob", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
-    const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
+    const combined = (await $`cat *.ts`.failglob().noThrow().captureCombined(true)).combined;
     assert(
       combined.match(/glob: no matches found '[^\']+\*\.ts'/) != null,
       combined,
@@ -2334,7 +2334,7 @@ Deno.test("glob", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
 
-    const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
+    const combined = (await $`cat [].ts`.failglob().noThrow().captureCombined(true)).combined;
     assert(
       combined.match(/glob: no matches found '[^\']+\.ts'/) != null,
       combined,
@@ -2344,7 +2344,7 @@ Deno.test("glob", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
-    const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
+    const combined = (await $`cat *.ts || echo 2`.failglob().noThrow().captureCombined(true)).combined;
     assert(
       combined.match(/glob: no matches found '[^\']+\*\.ts'[\s\S]*2\n/) != null,
       combined,
@@ -2551,7 +2551,7 @@ Deno.test("shopt command", async () => {
   // query all options
   const result = await $`shopt`.noThrow().captureCombined(true);
   assertEquals(result.code, 0);
-  assert(result.combined.includes("failglob\ton"));
+  assert(result.combined.includes("failglob\toff"));
   assert(result.combined.includes("globstar\ton"));
   assert(result.combined.includes("nullglob\toff"));
 
@@ -2560,17 +2560,17 @@ Deno.test("shopt command", async () => {
   assertEquals(result2.code, 0);
   assertEquals(result2.combined.trim(), "nullglob\ton");
 
-  // unset failglob - note: shopt returns 1 when querying an option that is off
-  const result3 = await $`shopt -u failglob && shopt failglob`.noThrow().captureCombined(true);
-  assertEquals(result3.code, 1); // returns 1 because failglob is now off
-  assertEquals(result3.combined.trim(), "failglob\toff");
+  // set failglob
+  const result3 = await $`shopt -s failglob && shopt failglob`.noThrow().captureCombined(true);
+  assertEquals(result3.code, 0);
+  assertEquals(result3.combined.trim(), "failglob\ton");
 
   // can set and unset different options with separate commands
-  const result4 = await $`shopt -u failglob && shopt -s nullglob && shopt nullglob && shopt failglob`.noThrow()
+  const result4 = await $`shopt -s failglob && shopt -s nullglob && shopt nullglob && shopt failglob`.noThrow()
     .captureCombined(true);
-  assertEquals(result4.code, 1); // returns 1 because failglob is now off
+  assertEquals(result4.code, 0);
   assert(result4.combined.includes("nullglob\ton"));
-  assert(result4.combined.includes("failglob\toff"));
+  assert(result4.combined.includes("failglob\ton"));
 
   // error: invalid option name
   const result5 = await $`shopt -s invalid`.noThrow().captureCombined(true);
@@ -2644,11 +2644,10 @@ Deno.test("nullglob option", async () => {
     tempDir.join("test.txt").writeTextSync("test\n");
 
     // with nullglob: non-matching glob expands to nothing
-    // note: must also unset failglob since it takes precedence
-    const output = await $`shopt -u failglob && shopt -s nullglob && echo *.nonexistent`.text();
+    const output = await $`shopt -s nullglob && echo *.nonexistent`.text();
     assertEquals(output, "");
 
-    // CommandBuilder API (automatically unsets failglob)
+    // CommandBuilder API
     const output2 = await $`echo *.nonexistent`.nullglob().text();
     assertEquals(output2, "");
   });
@@ -2658,18 +2657,19 @@ Deno.test("failglob option", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("test\n");
 
-    // with failglob (default): non-matching glob causes error
-    const result = await $`echo *.nonexistent`.noThrow().captureCombined(true);
+    // without failglob (default): non-matching glob passes through literally
+    const output = await $`echo *.nonexistent`.text();
+    assertEquals(output, "*.nonexistent");
+
+    // with failglob: non-matching glob causes error
+    const result = await $`shopt -s failglob && echo *.nonexistent`.noThrow().captureCombined(true);
     assertEquals(result.code, 1);
     assert(result.combined.includes("glob: no matches found"));
 
-    // without failglob: non-matching glob passes through literally
-    const output = await $`shopt -u failglob && echo *.nonexistent`.text();
-    assertEquals(output, "*.nonexistent");
-
     // CommandBuilder API
-    const output2 = await $`echo *.nonexistent`.failglob(false).text();
-    assertEquals(output2, "*.nonexistent");
+    const result2 = await $`echo *.nonexistent`.failglob().noThrow().captureCombined(true);
+    assertEquals(result2.code, 1);
+    assert(result2.combined.includes("glob: no matches found"));
   });
 });
 
