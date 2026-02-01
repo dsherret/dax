@@ -87,8 +87,9 @@ export interface CdChange {
  * - `failglob`: a glob pattern that matches no files causes an error
  * - `pipefail`: pipeline exit code is the rightmost non-zero exit code
  * - `globstar`: `**` matches recursively across directories (default)
+ * - `questionGlob`: `?` matches any single character in glob patterns
  */
-export type ShellOption = "nullglob" | "failglob" | "pipefail" | "globstar";
+export type ShellOption = "nullglob" | "failglob" | "pipefail" | "globstar" | "questionGlob";
 
 /** Change that sets a shell option (ex. `shopt -s nullglob` or `set -o pipefail`).
  *

@@ -2254,7 +2254,7 @@ Deno.test("glob", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("test\n");
     tempDir.join("test2.txt").writeTextSync("test2\n");
-    const out = (await $`cat test?.txt`.captureCombined(true)).combined;
+    const out = (await $`cat test?.txt`.questionGlob().captureCombined(true)).combined;
     assertEquals(out, "test2\n");
   });
 
@@ -2670,6 +2670,40 @@ Deno.test("failglob option", async () => {
     const result2 = await $`echo *.nonexistent`.failglob().noThrow().captureCombined(true);
     assertEquals(result2.code, 1);
     assert(result2.combined.includes("glob: no matches found"));
+  });
+});
+
+Deno.test("questionGlob option", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("abc").writeTextSync("abc\n");
+    tempDir.join("axc").writeTextSync("axc\n");
+
+    // without questionGlob (default): ? is literal
+    const output = await $`echo a?c`.text();
+    assertEquals(output, "a?c");
+
+    // with questionGlob: ? matches any single character
+    const output2 = await $`echo a?c`.questionGlob().text();
+    assert(output2.includes("abc"));
+    assert(output2.includes("axc"));
+
+    // ? should still be literal in quoted strings even with questionGlob
+    const output3 = await $`echo "a?c"`.questionGlob().text();
+    assertEquals(output3, "a?c");
+
+    // ? works alongside * globs when questionGlob is off (? is escaped)
+    const output4 = await $`echo *?c`.text();
+    assertEquals(output4, "*?c");
+
+    // ? works alongside * globs when questionGlob is on
+    const output5 = await $`echo *?c`.questionGlob().text();
+    assert(output5.includes("abc"));
+    assert(output5.includes("axc"));
+
+    // not available via shopt
+    const result = await $`shopt -s questionGlob`.noThrow().captureCombined(true);
+    assertEquals(result.code, 1);
+    assert(result.combined.includes("invalid shell option name"));
   });
 });
 

@@ -672,6 +672,27 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   }
 
   /**
+   * Sets whether questionGlob is enabled. When enabled, `?` matches any
+   * single character in glob patterns. When disabled (the default), `?` is
+   * treated literally.
+   *
+   * This option is only available via the builder API, not via `shopt` or `set`.
+   *
+   * ```ts
+   * // without questionGlob (default): ? is literal
+   * await $`echo a?c`; // outputs "a?c"
+   *
+   * // with questionGlob: ? matches any single character
+   * await $`echo a?c`.questionGlob(); // matches files like "abc", "axc", etc.
+   * ```
+   */
+  questionGlob(value = true): CommandBuilder {
+    return this.#newWithState((state) => {
+      state.shellOptions.questionGlob = value;
+    });
+  }
+
+  /**
    * Sets the provided stream (stdout by default) as quiet, spawns the command, and gets the stream as a string without the last newline.
    * Can be used to get stdout, stderr, or both.
    *

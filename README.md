@@ -921,6 +921,7 @@ Note that these cross-platform commands can be bypassed by running them through 
 - `nullglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing expands to nothing. Default: **off**
 - `failglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing causes an error. Default: **off**
 - `globstar` (`shopt -s`/`-u`) - When enabled, `**` matches recursively across directories. Default: **on**
+- `questionGlob` (builder only) - When enabled, `?` matches any single character in glob patterns. When disabled, `?` is treated literally. Default: **off**
 
 These can be configured via builder methods or when building a custom `$`:
 
@@ -931,7 +932,8 @@ const $ = build$({
       .pipefail()
       .nullglob()
       .failglob()
-      .globstar(false),
+      .globstar(false)
+      .questionGlob(),
 });
 ```
 
