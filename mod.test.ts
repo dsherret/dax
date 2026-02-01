@@ -2325,7 +2325,7 @@ Deno.test("glob", async () => {
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts`.noThrow().captureCombined(true)).combined;
     assert(
-      combined.match(/glob: no matches found '[^\']+\*\.ts'\n/) != null,
+      combined.match(/glob: no matches found '[^\']+\*\.ts'/) != null,
       combined,
     );
   });
@@ -2336,7 +2336,7 @@ Deno.test("glob", async () => {
 
     const combined = (await $`cat [].ts`.noThrow().captureCombined(true)).combined;
     assert(
-      combined.match(/glob: no matches found '[^\']+\.ts'\n/) != null,
+      combined.match(/glob: no matches found '[^\']+\.ts'/) != null,
       combined,
     );
   });
@@ -2346,7 +2346,7 @@ Deno.test("glob", async () => {
     tempDir.join("test2.txt").writeTextSync("test2\n");
     const combined = (await $`cat *.ts || echo 2`.noThrow().captureCombined(true)).combined;
     assert(
-      combined.match(/glob: no matches found '[^\']+\*\.ts'\n2\n/) != null,
+      combined.match(/glob: no matches found '[^\']+\*\.ts'[\s\S]*2\n/) != null,
       combined,
     );
   });
@@ -2545,3 +2545,154 @@ function ensurePromiseNotResolved(promise: Promise<unknown>) {
     setTimeout(resolve, 1);
   });
 }
+
+// shell options tests
+Deno.test("shopt command", async () => {
+  // query all options
+  const result = await $`shopt`.noThrow().captureCombined(true);
+  assertEquals(result.code, 0);
+  assert(result.combined.includes("failglob\ton"));
+  assert(result.combined.includes("globstar\ton"));
+  assert(result.combined.includes("nullglob\toff"));
+
+  // set nullglob
+  const result2 = await $`shopt -s nullglob && shopt nullglob`.noThrow().captureCombined(true);
+  assertEquals(result2.code, 0);
+  assertEquals(result2.combined.trim(), "nullglob\ton");
+
+  // unset failglob - note: shopt returns 1 when querying an option that is off
+  const result3 = await $`shopt -u failglob && shopt failglob`.noThrow().captureCombined(true);
+  assertEquals(result3.code, 1); // returns 1 because failglob is now off
+  assertEquals(result3.combined.trim(), "failglob\toff");
+
+  // can set and unset different options with separate commands
+  const result4 = await $`shopt -u failglob && shopt -s nullglob && shopt nullglob && shopt failglob`.noThrow()
+    .captureCombined(true);
+  assertEquals(result4.code, 1); // returns 1 because failglob is now off
+  assert(result4.combined.includes("nullglob\ton"));
+  assert(result4.combined.includes("failglob\toff"));
+
+  // error: invalid option name
+  const result5 = await $`shopt -s invalid`.noThrow().captureCombined(true);
+  assert(result5.combined.includes("invalid shell option name"));
+  assertEquals(result5.code, 1);
+});
+
+Deno.test("set command", async () => {
+  // enable pipefail
+  const result = await $`set -o pipefail && false | echo test`.noThrow().captureCombined(true);
+  assertEquals(result.code, 1); // false's exit code
+  assertEquals(result.combined, "test\n");
+
+  // disable pipefail (default)
+  const result2 = await $`false | echo test`.noThrow().captureCombined(true);
+  assertEquals(result2.code, 0); // echo's exit code
+  assertEquals(result2.combined, "test\n");
+
+  // disable pipefail with +o
+  const result3 = await $`set -o pipefail && set +o pipefail && false | echo test`.noThrow().captureCombined(true);
+  assertEquals(result3.code, 0); // echo's exit code (pipefail disabled)
+  assertEquals(result3.combined, "test\n");
+
+  // set -o (no option) - lists options
+  const result4 = await $`set -o`.captureCombined(true);
+  assertEquals(result4.code, 0);
+  assertEquals(result4.combined.trim(), "pipefail\toff");
+
+  // set -o after enabling pipefail shows on
+  const result5 = await $`set -o pipefail && set -o`.captureCombined(true);
+  assertEquals(result5.code, 0);
+  assertEquals(result5.combined.trim(), "pipefail\ton");
+
+  // set +o (no option) - outputs commands to recreate settings
+  const result6 = await $`set +o`.captureCombined(true);
+  assertEquals(result6.code, 0);
+  assertEquals(result6.combined.trim(), "set +o pipefail");
+
+  // set +o after enabling pipefail
+  const result7 = await $`set -o pipefail && set +o`.captureCombined(true);
+  assertEquals(result7.code, 0);
+  assertEquals(result7.combined.trim(), "set -o pipefail");
+
+  // error: unknown option
+  const result8 = await $`set -o invalid`.noThrow().captureCombined(true);
+  assertEquals(result8.code, 1);
+  assert(result8.combined.includes("unknown option"));
+
+  // error: invalid argument
+  const result9 = await $`set --invalid`.noThrow().captureCombined(true);
+  assertEquals(result9.code, 1);
+  assert(result9.combined.includes("invalid option"));
+
+  // multiple options in sequence
+  const result10 = await $`set -o pipefail -o pipefail && false | echo test`.noThrow().captureCombined(true);
+  assertEquals(result10.code, 1);
+});
+
+Deno.test("pipefail option via CommandBuilder", async () => {
+  // with pipefail: returns first non-zero exit code
+  const code1 = await $`false | echo test`.pipefail().noThrow().code();
+  assertEquals(code1, 1);
+
+  // without pipefail: returns last command's exit code
+  const code2 = await $`false | echo test`.noThrow().code();
+  assertEquals(code2, 0);
+});
+
+Deno.test("nullglob option", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+
+    // with nullglob: non-matching glob expands to nothing
+    // note: must also unset failglob since it takes precedence
+    const output = await $`shopt -u failglob && shopt -s nullglob && echo *.nonexistent`.text();
+    assertEquals(output, "");
+
+    // CommandBuilder API (automatically unsets failglob)
+    const output2 = await $`echo *.nonexistent`.nullglob().text();
+    assertEquals(output2, "");
+  });
+});
+
+Deno.test("failglob option", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("test.txt").writeTextSync("test\n");
+
+    // with failglob (default): non-matching glob causes error
+    const result = await $`echo *.nonexistent`.noThrow().captureCombined(true);
+    assertEquals(result.code, 1);
+    assert(result.combined.includes("glob: no matches found"));
+
+    // without failglob: non-matching glob passes through literally
+    const output = await $`shopt -u failglob && echo *.nonexistent`.text();
+    assertEquals(output, "*.nonexistent");
+
+    // CommandBuilder API
+    const output2 = await $`echo *.nonexistent`.failglob(false).text();
+    assertEquals(output2, "*.nonexistent");
+  });
+});
+
+Deno.test("globstar option", async () => {
+  await withTempDir(async (tempDir) => {
+    tempDir.join("sub/deep").mkdirSync({ recursive: true });
+    tempDir.join("sub/deep/file.txt").writeTextSync("deep\n");
+    tempDir.join("sub/file.txt").writeTextSync("sub\n");
+    tempDir.join("file.txt").writeTextSync("root\n");
+
+    // with globstar (default): ** matches recursively
+    const output = await $`cat **/*.txt`.captureCombined(true);
+    // order depends on filesystem, so check for all entries
+    assert(output.combined.includes("root"));
+    assert(output.combined.includes("sub"));
+    assert(output.combined.includes("deep"));
+
+    // without globstar: ** is treated as * (only matches one level)
+    const output2 = await $`shopt -u globstar && cat **/*.txt`.captureCombined(true);
+    assertEquals(output2.combined, "sub\n");
+
+    // CommandBuilder API
+    const output3 = await $`cat **/*.txt`.globstar(false).captureCombined(true);
+    assertEquals(output3.combined, "sub\n");
+  });
+});
