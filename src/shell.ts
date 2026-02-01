@@ -335,6 +335,8 @@ export interface ShellOptionsState {
   pipefail: boolean;
   /** When set, ** matches recursively across directories. */
   globstar: boolean;
+  /** When set, ? matches any single character in glob patterns. */
+  questionGlob: boolean;
 }
 
 /** State that never changes across the entire execution of the shell. */
@@ -565,6 +567,7 @@ function getDefaultShellOptions(): ShellOptionsState {
     failglob: false, // default: pass unmatched globs through literally
     pipefail: false,
     globstar: true, // default: ** matches recursively
+    questionGlob: false, // default: ? is literal
   };
 }
 
@@ -1282,10 +1285,12 @@ async function evaluateWord(word: Word, context: Context) {
 }
 
 async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted = false) {
-  function hasGlobChar(text: string) {
+  function hasGlobChar(text: string, questionGlob: boolean) {
     for (let i = 0; i < text.length; i++) {
       switch (text[i]) {
         case "?":
+          if (questionGlob) return true;
+          break;
         case "*":
         case "[":
           return true;
@@ -1304,7 +1309,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
     textParts: TextPart[],
     isQuoted: boolean,
   ) {
-    if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value))) {
+    const questionGlob = context.getShellOptions().questionGlob;
+    if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value, questionGlob))) {
       let currentText = "";
       const globEscapeChar = Deno.build.os === "windows" ? "`" : "\\";
       for (const textPart of textParts) {
@@ -1335,6 +1341,13 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
             for (let i = 0; i < textPartValue.length; i++) {
               const char = textPartValue[i];
               switch (char) {
+                case "?":
+                  if (!questionGlob) {
+                    currentText += `${globEscapeChar}${char}`;
+                  } else {
+                    currentText += char;
+                  }
+                  break;
                 case "{":
                 case "}":
                   currentText += `${globEscapeChar}${char}`;
