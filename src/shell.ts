@@ -321,6 +321,7 @@ interface ContextOptions {
   stderr: ShellPipeWriter;
   env: Env;
   shellVars: Record<string, string>;
+  shellOptions: ShellOptionsState;
   static: StaticContextState;
 }
 
@@ -341,7 +342,6 @@ interface StaticContextState {
   signal: KillSignal;
   commands: Record<string, CommandHandler>;
   fds: StreamFds | undefined;
-  shellOptions: ShellOptionsState;
 }
 
 export class Context {
@@ -350,6 +350,7 @@ export class Context {
   stderr: ShellPipeWriter;
   #env: Env;
   #shellVars: Record<string, string>;
+  #shellOptions: ShellOptionsState;
   #static: StaticContextState;
 
   constructor(opts: ContextOptions) {
@@ -358,6 +359,7 @@ export class Context {
     this.stderr = opts.stderr;
     this.#env = opts.env;
     this.#shellVars = opts.shellVars;
+    this.#shellOptions = opts.shellOptions;
     this.#static = opts.static;
   }
 
@@ -445,11 +447,11 @@ export class Context {
   }
 
   getShellOptions(): ShellOptionsState {
-    return this.#static.shellOptions;
+    return this.#shellOptions;
   }
 
   setShellOption(option: ShellOption, value: boolean) {
-    this.#static.shellOptions[option] = value;
+    this.#shellOptions[option] = value;
   }
 
   getFdReader(fd: number) {
@@ -521,6 +523,7 @@ export class Context {
       stderr: opts.stderr ?? this.stderr,
       env: this.#env.clone(),
       shellVars: { ...this.#shellVars },
+      shellOptions: this.#shellOptions,
       static: this.#static,
     });
   }
@@ -532,6 +535,7 @@ export class Context {
       stderr: this.stderr,
       env: this.#env.clone(),
       shellVars: { ...this.#shellVars },
+      shellOptions: this.#shellOptions,
       static: this.#static,
     });
   }
@@ -574,14 +578,14 @@ export async function spawn(list: SequentialList, opts: SpawnOpts) {
     stdout: opts.stdout,
     stderr: opts.stderr,
     shellVars: {},
+    shellOptions: {
+      ...defaultOptions,
+      ...opts.shellOptions,
+    },
     static: {
       commands: opts.commands,
       fds: opts.fds,
       signal: opts.signal,
-      shellOptions: {
-        ...defaultOptions,
-        ...opts.shellOptions,
-      },
     },
   });
   const result = await executeSequentialList(list, context);
