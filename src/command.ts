@@ -288,9 +288,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    */
   signal(signal: KillSignal | AbortSignal): CommandBuilder {
     return this.#newWithState((state) => {
-      const killSignal = signal instanceof KillSignal
-        ? signal
-        : killSignalFromAbortSignal(signal);
+      const killSignal = signal instanceof KillSignal ? signal : killSignalFromAbortSignal(signal);
       if (state.signal != null) {
         state.signal.linkChild(killSignal);
       }
