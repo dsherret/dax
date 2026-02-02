@@ -2627,8 +2627,8 @@ Deno.test("shopt command", async () => {
 Deno.test("set command", async () => {
   // enable pipefail
   const result = await $`set -o pipefail && false | echo test`.noThrow().captureCombined(true);
-  assertEquals(result.code, 1); // false's exit code
   assertEquals(result.combined, "test\n");
+  assertEquals(result.code, 1); // false's exit code
 
   // disable pipefail (default)
   const result2 = await $`false | echo test`.noThrow().captureCombined(true);

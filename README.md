@@ -909,6 +909,8 @@ Currently implemented (though not every option is supported):
 - [`cat`](https://man7.org/linux/man-pages/man1/cat.1.html) - Concatenate files and print on the standard output
 - [`printenv`](https://man7.org/linux/man-pages/man1/printenv.1.html) - Print all or part of environment
 - `which` - Resolves the path to an executable (`-a` flag is not supported at this time)
+- [`true`](https://man7.org/linux/man-pages/man1/true.1.html) - True command.
+- [`false`](https://man7.org/linux/man-pages/man1/false.1.html) - False command.
 - More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
