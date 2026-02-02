@@ -383,6 +383,43 @@ Deno.test("$.request", (t) => {
       assertEquals(result.code, 1);
     });
 
+    step("signal aborts request", async () => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort("Cancelled."), 50);
+      await assertRejects(
+        () =>
+          new RequestBuilder()
+            .url(new URL("/sleep/10000", serverUrl))
+            .signal(controller.signal)
+            .text(),
+      );
+    });
+
+    step("already aborted signal", async () => {
+      const controller = new AbortController();
+      controller.abort("Pre-aborted.");
+      await assertRejects(
+        () =>
+          new RequestBuilder()
+            .url(new URL("/text-file", serverUrl))
+            .signal(controller.signal)
+            .text(),
+      );
+    });
+
+    step("signal with timeout", async () => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort("Cancelled."), 50);
+      await assertRejects(
+        () =>
+          new RequestBuilder()
+            .url(new URL("/sleep/10000", serverUrl))
+            .timeout("5s")
+            .signal(controller.signal)
+            .text(),
+      );
+    });
+
     await Promise.all(steps);
   });
 });
