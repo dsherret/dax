@@ -20,6 +20,7 @@ interface RequestBuilderState {
   referrerPolicy: ReferrerPolicy | undefined;
   progressOptions: { noClear: boolean } | undefined;
   timeout: number | undefined;
+  signal: AbortSignal | undefined;
 }
 
 /** @internal */
@@ -56,6 +57,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
         ...state.progressOptions,
       },
       timeout: state.timeout,
+      signal: state.signal,
     };
   }
 
@@ -76,6 +78,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       progressBarFactory: undefined,
       progressOptions: undefined,
       timeout: undefined,
+      signal: undefined,
     };
   }
 
@@ -286,6 +289,15 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
   timeout(delay: Delay | undefined): RequestBuilder {
     return this.#newWithState((state) => {
       state.timeout = delay == null ? undefined : delayToMs(delay);
+    });
+  }
+
+  /** Sets an abort signal for the request. When the signal is
+   * aborted, the request will be cancelled.
+   */
+  signal(signal: AbortSignal): RequestBuilder {
+    return this.#newWithState((state) => {
+      state.signal = signal;
     });
   }
 
@@ -690,26 +702,27 @@ export async function makeRequest(state: RequestBuilderState) {
   if (state.url == null) {
     throw new Error("You must specify a URL before fetching.");
   }
-  const abortController = getTimeoutAbortController() ?? {
-    controller: new AbortController(),
-    clearTimeout() {
-      // do nothing
-    },
-  };
-  const response = await fetch(state.url, {
-    body: state.body,
-    // @ts-ignore not supported in Node.js yet?
-    cache: state.cache,
-    headers: filterEmptyRecordValues(state.headers),
-    integrity: state.integrity,
-    keepalive: state.keepalive,
-    method: state.method,
-    mode: state.mode,
-    redirect: state.redirect,
-    referrer: state.referrer,
-    referrerPolicy: state.referrerPolicy,
-    signal: abortController.controller.signal,
-  });
+  const abortController = getAbortController();
+  let response: Response;
+  try {
+    response = await fetch(state.url, {
+      body: state.body,
+      // @ts-ignore not supported in Node.js yet?
+      cache: state.cache,
+      headers: filterEmptyRecordValues(state.headers),
+      integrity: state.integrity,
+      keepalive: state.keepalive,
+      method: state.method,
+      mode: state.mode,
+      redirect: state.redirect,
+      referrer: state.referrer,
+      referrerPolicy: state.referrerPolicy,
+      signal: abortController.controller.signal,
+    });
+  } catch (err) {
+    abortController.clearTimeout();
+    throw err;
+  }
   const result = new RequestResponse({
     response,
     originalUrl: state.url.toString(),
@@ -742,6 +755,38 @@ export async function makeRequest(state: RequestBuilderState) {
       const length = parseInt(contentLength, 10);
       return isNaN(length) ? undefined : length;
     }
+  }
+
+  function getAbortController(): RequestAbortController {
+    const baseController = getTimeoutAbortController() ?? {
+      controller: new AbortController(),
+      clearTimeout() {
+        // do nothing
+      },
+    };
+
+    if (state.signal == null) {
+      return baseController;
+    }
+
+    if (state.signal.aborted) {
+      baseController.controller.abort(state.signal.reason);
+      return baseController;
+    }
+
+    const onAbort = () => {
+      baseController.controller.abort(state.signal!.reason);
+    };
+    state.signal.addEventListener("abort", onAbort, { once: true });
+
+    const originalClearTimeout = baseController.clearTimeout;
+    return {
+      controller: baseController.controller,
+      clearTimeout() {
+        originalClearTimeout();
+        state.signal?.removeEventListener("abort", onAbort);
+      },
+    };
   }
 
   function getTimeoutAbortController(): RequestAbortController | undefined {
