@@ -279,11 +279,16 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
   }
 
-  /** Sets the command signal that will be passed to all commands
+  /** Sets the signal that will be passed to all commands
    * created with this command builder.
+   *
+   * Accepts a `KillSignal` or a standard `AbortSignal`. When an
+   * `AbortSignal` is provided it is internally bridged to a
+   * `KillSignal` that sends `SIGTERM` on abort.
    */
-  signal(killSignal: KillSignal): CommandBuilder {
+  signal(signal: KillSignal | AbortSignal): CommandBuilder {
     return this.#newWithState((state) => {
+      const killSignal = signal instanceof KillSignal ? signal : killSignalFromAbortSignal(signal);
       if (state.signal != null) {
         state.signal.linkChild(killSignal);
       }
@@ -856,6 +861,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       killSignalController.kill(signal);
     };
     parentSignal.addListener(parentSignalListener);
+    // if the parent was already aborted before the listener was added,
+    // propagate immediately since sendSignalToState already ran
+    if (parentSignal.aborted) {
+      killSignalController.kill("SIGTERM");
+    }
     disposables.push({
       [Symbol.dispose]() {
         parentSignal.removeListener(parentSignalListener);
@@ -1382,6 +1392,19 @@ export class KillSignal {
       this.#state.listeners.splice(index, 1);
     }
   }
+}
+
+/** Bridges a standard AbortSignal to a KillSignal, mapping abort to SIGTERM. */
+function killSignalFromAbortSignal(abortSignal: AbortSignal): KillSignal {
+  const controller = new KillController();
+  if (abortSignal.aborted) {
+    controller.kill("SIGTERM");
+  } else {
+    abortSignal.addEventListener("abort", () => {
+      controller.kill("SIGTERM");
+    }, { once: true });
+  }
+  return controller.signal;
 }
 
 function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
