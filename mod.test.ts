@@ -2243,6 +2243,52 @@ Deno.test("ensure KillController readme example works", async () => {
   assert(endTime - startTime < 1000);
 });
 
+Deno.test("should support AbortSignal in command signal", async () => {
+  const controller = new AbortController();
+  const startTime = Date.now();
+
+  const promise = $`sleep 100s`.signal(controller.signal).noThrow();
+
+  $.sleep("5ms").then(() => controller.abort());
+
+  const result = await promise;
+  assertEquals(result.code, 124);
+  assert(Date.now() - startTime < 1000);
+});
+
+Deno.test("should support already-aborted AbortSignal in command signal", async () => {
+  const controller = new AbortController();
+  controller.abort();
+
+  const result = await $`sleep 100s`.signal(controller.signal).noThrow();
+  assertEquals(result.code, 124);
+});
+
+Deno.test("should support already-killed KillSignal in command signal", async () => {
+  const controller = new KillController();
+  controller.kill();
+
+  const result = await $`sleep 100s`.signal(controller.signal).noThrow();
+  assertEquals(result.code, 124);
+});
+
+Deno.test("should support AbortSignal chained with KillSignal", async () => {
+  const abortController = new AbortController();
+  const commandBuilder = new CommandBuilder().signal(abortController.signal).noThrow();
+  const $local = build$({ commandBuilder });
+  const startTime = Date.now();
+
+  const processes = [
+    $local`sleep 100s`.spawn(),
+    $local`sleep 100s`.spawn(),
+  ];
+
+  $.sleep("5ms").then(() => abortController.abort());
+
+  await Promise.all(processes);
+  assert(Date.now() - startTime < 1000);
+});
+
 Deno.test("glob", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("test.txt").writeTextSync("test\n");
