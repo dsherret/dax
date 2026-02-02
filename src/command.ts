@@ -108,6 +108,8 @@ const builtInCommands: Record<string, CommandHandler> = {
   mv: mvCommand,
   pwd: pwdCommand,
   touch: touchCommand,
+  true: () => ({ code: 0 }),
+  false: () => ({ code: 1 }),
   unset: unsetCommand,
   which: whichCommand,
 };
