@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { Buffer } from "@std/io/buffer";
-import * as path from "@std/path";
+import * as path from "node:path";
 import {
   delayToIterator,
   delayToMs,

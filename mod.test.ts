@@ -3,9 +3,8 @@ import * as colors from "@std/fmt/colors";
 import { Buffer } from "@std/io/buffer";
 import { readAll } from "@std/io/read-all";
 import { toWritableStream } from "@std/io/to-writable-stream";
-import * as path from "@std/path";
+import * as path from "node:path";
 import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
-import { isNode } from "which_runtime";
 import $, {
   build$,
   CommandBuilder,
@@ -16,6 +15,7 @@ import $, {
   Path,
   PathRef,
 } from "./mod.ts";
+import * as compat from "./src/compat.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
 import { usingTempDir, withTempDir } from "./src/with_temp_dir.ts";
 import { createExecutableCommand } from "./src/commands/executable.ts";
@@ -558,10 +558,10 @@ Deno.test("sleep command", async () => {
 });
 
 Deno.test("test command", async (t) => {
-  await Deno.writeFile("zero.dat", new Uint8Array());
-  await Deno.writeFile("non-zero.dat", new Uint8Array([242]));
-  if (Deno.build.os !== "windows") {
-    await Deno.symlink("zero.dat", "linked.dat");
+  await compat.writeFile("zero.dat", new Uint8Array());
+  await compat.writeFile("non-zero.dat", new Uint8Array([242]));
+  if (compat.buildOs() !== "windows") {
+    await compat.symlink("zero.dat", "linked.dat");
   }
 
   await t.step("test -e", async () => {
@@ -573,13 +573,13 @@ Deno.test("test command", async (t) => {
     assertEquals(result.code, 0, "should be a file");
   });
   await t.step("test -f on non-file", async () => {
-    const result = await $`test -f ${Deno.cwd()}`.noThrow().stderr("piped");
+    const result = await $`test -f ${compat.cwd()}`.noThrow().stderr("piped");
     assertEquals(result.code, 1, "should not be a file");
     assertEquals(result.stderr, "");
   });
   await t.step("test -d", async () => {
-    const result = await $`test -d ${Deno.cwd()}`.noThrow();
-    assertEquals(result.code, 0, `${Deno.cwd()} should be a directory`);
+    const result = await $`test -d ${compat.cwd()}`.noThrow();
+    assertEquals(result.code, 0, `${compat.cwd()} should be a directory`);
   });
   await t.step("test -d on non-directory", async () => {
     const result = await $`test -d zero.dat`.noThrow().stderr("piped");
@@ -596,7 +596,7 @@ Deno.test("test command", async (t) => {
     assertEquals(result.code, 1, "should fail as file is zero-sized");
     assertEquals(result.stderr, "");
   });
-  if (Deno.build.os !== "windows") {
+  if (compat.buildOs() !== "windows") {
     await t.step("test -L", async () => {
       const result = await $`test -L linked.dat`.noThrow();
       assertEquals(result.code, 0, "should be a symlink");
@@ -628,7 +628,7 @@ Deno.test("test command", async (t) => {
     assertEquals(result.stdout, "yup\n");
   });
   await t.step("should work with boolean: fail && ..", async () => {
-    const result = await $`test -f ${Deno.cwd()} && echo nope`.noThrow().stdout("piped");
+    const result = await $`test -f ${compat.cwd()} && echo nope`.noThrow().stdout("piped");
     assertEquals(result.code, 1), "should have exit code 1";
     assertEquals(result.stdout, "");
   });
@@ -638,16 +638,16 @@ Deno.test("test command", async (t) => {
     assertEquals(result.stdout, "");
   });
   await t.step("should work with boolean: fail || ..", async () => {
-    const result = await $`test -f ${Deno.cwd()} || echo yup`.noThrow().stdout("piped");
+    const result = await $`test -f ${compat.cwd()} || echo yup`.noThrow().stdout("piped");
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "yup\n");
   });
 
-  if (Deno.build.os !== "windows") {
-    await Deno.remove("linked.dat");
+  if (compat.buildOs() !== "windows") {
+    await compat.remove("linked.dat");
   }
-  await Deno.remove("zero.dat");
-  await Deno.remove("non-zero.dat");
+  await compat.remove("zero.dat");
+  await compat.remove("non-zero.dat");
 });
 
 Deno.test("exit command", async () => {
@@ -706,31 +706,31 @@ Deno.test("should provide result from one command to another", async () => {
 });
 
 Deno.test("should actually change the environment when using .exportEnv()", async () => {
-  const originalDir = Deno.cwd();
+  const originalDir = compat.cwd();
   try {
     const srcDir = path.resolve("./src");
     await $`cd src && export SOME_VALUE=5 && OTHER_VALUE=6`.exportEnv();
-    assertEquals(Deno.cwd(), srcDir);
-    assertEquals(Deno.env.get("SOME_VALUE"), "5");
-    assertEquals(Deno.env.get("OTHER_VALUE"), undefined);
+    assertEquals(compat.cwd(), srcDir);
+    assertEquals(compat.env.get("SOME_VALUE"), "5");
+    assertEquals(compat.env.get("OTHER_VALUE"), undefined);
   } finally {
-    Deno.chdir(originalDir);
+    compat.chdir(originalDir);
   }
 });
 
 Deno.test("exporting env should modify real environment when something changed via the api", async () => {
-  const previousCwd = Deno.cwd();
+  const previousCwd = compat.cwd();
   const envName = "DAX_TEST_ENV_SET";
   try {
     await $`echo 2`
       .cwd("./src")
       .env(envName, "123")
       .exportEnv();
-    assertEquals(Deno.env.get(envName), "123");
-    assertEquals(Deno.cwd().slice(-3), "src");
+    assertEquals(compat.env.get(envName), "123");
+    assertEquals(compat.cwd().slice(-3), "src");
   } finally {
-    Deno.env.delete(envName);
-    Deno.chdir(previousCwd);
+    compat.env.delete(envName);
+    compat.chdir(previousCwd);
   }
 });
 
@@ -739,33 +739,37 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
     const text = await $`printenv`.clearEnv().text();
     assertEquals(text, "");
   }
-  Deno.env.set("DAX_TVAR", "123");
+  const denoPath = await $.which("deno");
+  if (denoPath == null) throw new Error("deno binary not found on PATH");
+  compat.env.set("DAX_TVAR", "123");
   try {
     const text = await $`deno eval --no-config 'console.log("DAX_TVAR: " + Deno.env.get("DAX_TVAR"))'`
       .clearEnv()
-      .registerCommand("deno", createExecutableCommand(Deno.execPath()))
+      .registerCommand("deno", createExecutableCommand(denoPath))
       .text();
     assertEquals(text, "DAX_TVAR: undefined");
   } finally {
-    Deno.env.delete("DAX_TVAR");
+    compat.env.delete("DAX_TVAR");
   }
 });
 
 Deno.test("clearEnv + exportEnv should not clear out real environment", async () => {
-  Deno.env.set("DAX_TVAR", "123");
+  const denoPath = await $.which("deno");
+  if (denoPath == null) throw new Error("deno binary not found on PATH");
+  compat.env.set("DAX_TVAR", "123");
   try {
     const text =
       await $`deno eval --no-config 'console.log("VAR: " + Deno.env.get("DAX_TVAR") + " VAR2: " + Deno.env.get("DAX_TVAR2"))'`
         .env("DAX_TVAR2", "shake it shake")
         .clearEnv()
-        .registerCommand("deno", createExecutableCommand(Deno.execPath()))
+        .registerCommand("deno", createExecutableCommand(denoPath))
         .exportEnv()
         .text();
     assertEquals(text, "VAR: undefined VAR2: shake it shake");
-    assertEquals(Deno.env.get("DAX_TVAR2"), "shake it shake");
+    assertEquals(compat.env.get("DAX_TVAR2"), "shake it shake");
   } finally {
-    Deno.env.delete("DAX_TVAR");
-    Deno.env.delete("DAX_TVAR2");
+    compat.env.delete("DAX_TVAR");
+    compat.env.delete("DAX_TVAR2");
   }
 });
 
@@ -826,7 +830,7 @@ Deno.test("cwd should be resolved based on cwd at time of method call and not ex
   await withTempDir(async (tempDir) => {
     await tempDir.join("./src/rs_lib").ensureDir();
     const command = $`echo $PWD`.cwd("./src");
-    Deno.chdir("./src/rs_lib");
+    compat.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
   });
@@ -846,7 +850,7 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("tilde expansion", async () => {
-  const envVarName = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
+  const envVarName = compat.buildOs() === "windows" ? "USERPROFILE" : "HOME";
   {
     const text = await $`echo ~/home`.env(envVarName, "/var").text();
     assertEquals(text, `/var/home`);
@@ -927,7 +931,7 @@ Deno.test("piping to stdin", async (t) => {
     await using tempDir = usingTempDir();
     const tempFile = tempDir.join("temp_file.txt");
     const fileText = "1 testing this out\n".repeat(1_000);
-    tempFile.writeTextSync(fileText);
+    tempFile.writeSync(fileText);
     const output = await $`cat`.stdin(tempFile).text();
     assertEquals(output, fileText.trim());
   });
@@ -1029,9 +1033,11 @@ Deno.test("piping stdout/stderr to a file", async () => {
 
   await withTempDir(async (tempDir) => {
     const tempFile = tempDir.join("temp_file.txt");
-    {
-      using file = tempFile.openSync({ write: true, create: true, truncate: true });
+    const file = tempFile.openSync({ write: true, create: true, truncate: true });
+    try {
       await $`deno eval "console.log('1234\\n'.repeat(1_000));"`.stdout(file.writable);
+    } finally {
+      file.close();
     }
     const text = tempFile.readTextSync();
     // last \n for the console.log itself
@@ -1397,7 +1403,7 @@ Deno.test("output redirects with & (both stdout and stderr)", async () => {
 
 Deno.test("input redirects", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("Hi!");
+    tempDir.join("test.txt").writeSync("Hi!");
     const text = await $`cat - < test.txt`.text();
     assertEquals(text, "Hi!");
   });
@@ -1448,7 +1454,7 @@ Deno.test("input redirects with provided object", async () => {
   await withTempDir(async (tempDir) => {
     const text = "testing".repeat(1000);
     const filePath = tempDir.join("file.txt");
-    filePath.writeTextSync(text);
+    filePath.writeSync(text);
     const file = filePath.openSync({ read: true });
     const output = await $`cat - < ${file}`.text();
     assertEquals(output, text);
@@ -1466,7 +1472,7 @@ Deno.test("output redirect with provided object", async () => {
   await withTempDir(async (tempDir) => {
     const buffer = new Buffer();
     const pipedText = "testing\nthis\nout".repeat(1_000);
-    tempDir.join("data.txt").writeTextSync(pipedText);
+    tempDir.join("data.txt").writeSync(pipedText);
     await $`cat data.txt > ${toWritableStream(buffer)}`.cwd(tempDir);
     assertEquals(new TextDecoder().decode(buffer.bytes()), pipedText);
   });
@@ -1546,7 +1552,7 @@ Deno.test("shebang support", async (t) => {
     };
 
     step("with -S", async () => {
-      dir.join("file.ts").writeTextSync(
+      dir.join("file.ts").writeSync(
         [
           "#!/usr/bin/env -S deno run",
           "console.log(5);",
@@ -1559,7 +1565,7 @@ Deno.test("shebang support", async (t) => {
     });
 
     step("without -S and invalid", async () => {
-      dir.join("file2.ts").writeTextSync(
+      dir.join("file2.ts").writeSync(
         [
           "#!/usr/bin/env deno run",
           "console.log(5);",
@@ -1577,13 +1583,13 @@ Deno.test("shebang support", async (t) => {
     });
 
     step("without -S, but valid", async () => {
-      dir.join("echo_stdin.ts").writeTextSync(
+      dir.join("echo_stdin.ts").writeSync(
         [
           "#!/usr/bin/env -S deno run --allow-run",
           "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
         ].join("\n"),
       );
-      dir.join("file3.ts").writeTextSync(
+      dir.join("file3.ts").writeSync(
         [
           "#!/usr/bin/env ./echo_stdin.ts",
           "console.log('Hello')",
@@ -1596,13 +1602,13 @@ Deno.test("shebang support", async (t) => {
     });
 
     step("relative sub dir", async () => {
-      dir.join("echo_stdin2.ts").writeTextSync(
+      dir.join("echo_stdin2.ts").writeSync(
         [
           "#!/usr/bin/env -S deno run --allow-run",
           "await new Deno.Command('deno', { args: ['run', ...Deno.args] }).spawn();",
         ].join("\n"),
       );
-      dir.join("sub/sub.ts").writeTextSync(
+      dir.join("sub/sub.ts").writeSync(
         [
           "#!/usr/bin/env ../echo_stdin2.ts",
           "console.log('Hello')",
@@ -1729,24 +1735,24 @@ Deno.test("printCommand", async () => {
 
 Deno.test("environment should be evaluated at command execution", async () => {
   const envName = "DAX_TEST_ENV_SET";
-  Deno.env.set(envName, "1");
+  compat.env.set(envName, "1");
   try {
     const result = await $.raw`echo $${envName}`.text();
     assertEquals(result, "1");
   } finally {
-    Deno.env.delete(envName);
+    compat.env.delete(envName);
   }
   const result = await $.raw`echo $${envName}`.text();
   assertEquals(result, "");
 
   // check cwd
-  const previousCwd = Deno.cwd();
+  const previousCwd = compat.cwd();
   try {
-    Deno.chdir("./src");
+    compat.chdir("./src");
     const result = await $`echo $PWD`.text();
     assertEquals(result.slice(-3), "src");
   } finally {
-    Deno.chdir(previousCwd);
+    compat.chdir(previousCwd);
   }
 });
 
@@ -1757,7 +1763,7 @@ Deno.test("test remove", async () => {
     const notExists = dir.join("notexists");
 
     emptyDir.mkdirSync();
-    someFile.writeTextSync("");
+    someFile.writeSync("");
 
     // Remove empty directory or file
     await $`rm ${emptyDir}`;
@@ -1771,11 +1777,7 @@ Deno.test("test remove", async () => {
     {
       const error = await $`rm ${nonEmptyDir}`.noThrow().stderr("piped").spawn()
         .then((r) => r.stderr);
-      const expectedText = isNode
-        ? "rm: directory not empty, rmdir"
-        : Deno.build.os === "linux" || Deno.build.os === "darwin"
-        ? "rm: Directory not empty"
-        : "rm: The directory is not empty";
+      const expectedText = "rm: directory not empty, rmdir";
       assertEquals(error.substring(0, expectedText.length), expectedText);
     }
     {
@@ -1787,11 +1789,7 @@ Deno.test("test remove", async () => {
     {
       const [error, code] = await $`rm ${notExists}`.noThrow().stderr("piped").spawn()
         .then((r) => [r.stderr, r.code] as const);
-      const expectedText = isNode
-        ? "rm: no such file or directory, lstat"
-        : Deno.build.os === "linux" || Deno.build.os === "darwin"
-        ? "rm: No such file or directory"
-        : "rm: The system cannot find the file specified";
+      const expectedText = "rm: no such file or directory, lstat";
       assertEquals(error.substring(0, expectedText.length), expectedText);
       assertEquals(code, 1);
     }
@@ -1823,11 +1821,7 @@ Deno.test("test mkdir", async () => {
         .then(
           (r) => r.stderr,
         );
-      const expectedError = isNode
-        ? "mkdir: no such file or directory, mkdir"
-        : Deno.build.os === "windows"
-        ? "mkdir: The system cannot find the path specified."
-        : "mkdir: No such file or directory";
+      const expectedError = "mkdir: no such file or directory, mkdir";
       assertEquals(error.slice(0, expectedError.length), expectedError);
     }
 
@@ -1840,7 +1834,7 @@ Deno.test("copy test", async () => {
   await withTempDir(async (dir) => {
     const file1 = dir.join("file1.txt");
     const file2 = dir.join("file2.txt");
-    file1.writeTextSync("test");
+    file1.writeSync("test");
     await $`cp ${file1} ${file2}`;
 
     assert(file1.existsSync());
@@ -1856,7 +1850,7 @@ Deno.test("copy test", async () => {
     assert(destDir.join("file2.txt").existsSync());
 
     const newFile = dir.join("new.txt");
-    newFile.writeTextSync("test");
+    newFile.writeSync("test");
     await $`cp ${newFile} ${destDir}`;
 
     assert(destDir.isDirSync());
@@ -1876,7 +1870,7 @@ Deno.test("copy test", async () => {
 
     // recursive test
     destDir.join("sub_dir").mkdirSync();
-    destDir.join("sub_dir", "sub.txt").writeTextSync("test");
+    destDir.join("sub_dir", "sub.txt").writeSync("test");
     const destDir2 = dir.join("dest2");
 
     assertEquals(await getStdErr($`cp ${destDir} ${destDir2}`), "cp: source was a directory; maybe specify -r\n");
@@ -1900,7 +1894,7 @@ Deno.test("cp test2", async () => {
   await withTempDir(async (dir) => {
     await $`mkdir -p a/d1`;
     await $`mkdir -p a/d2`;
-    await Deno.create("a/d1/f").then((f) => f.close());
+    await compat.create("a/d1/f").then((f) => f.close());
     await $`cp a/d1/f a/d2`;
     assert(dir.join("a/d2/f").existsSync());
   });
@@ -1910,14 +1904,14 @@ Deno.test("move test", async () => {
   await withTempDir(async (dir) => {
     const file1 = dir.join("file1.txt");
     const file2 = dir.join("file2.txt");
-    file1.writeTextSync("test");
+    file1.writeSync("test");
 
     await $`mv ${file1} ${file2}`;
     assert(!file1.existsSync());
     assert(file2.existsSync());
 
     const destDir = dir.join("dest");
-    file1.writeTextSync("test"); // recreate
+    file1.writeSync("test"); // recreate
     destDir.mkdirSync();
     await $`mv ${file1} ${file2} ${destDir}`;
     assert(!file1.existsSync());
@@ -1926,7 +1920,7 @@ Deno.test("move test", async () => {
     assert(destDir.join("file2.txt").existsSync());
 
     const newFile = dir.join("new.txt");
-    newFile.writeTextSync("test");
+    newFile.writeSync("test");
     await $`mv ${newFile} ${destDir}`;
     assert(destDir.isDirSync());
     assert(!newFile.existsSync());
@@ -1943,7 +1937,7 @@ Deno.test("move test", async () => {
 });
 
 Deno.test("pwd: pwd", async () => {
-  assertEquals(await $`pwd`.text(), Deno.cwd());
+  assertEquals(await $`pwd`.text(), compat.cwd());
 });
 
 Deno.test("progress", () => {
@@ -2041,7 +2035,7 @@ Deno.test("touch test", async () => {
 
 Deno.test("cat", async () => {
   await withTempDir(async (tempDir) => {
-    await Deno.writeTextFile("hello", "hello world");
+    await compat.writeTextFile("hello", "hello world");
     assertEquals(
       await $`cat hello`.text(),
       "hello world",
@@ -2051,7 +2045,7 @@ Deno.test("cat", async () => {
       await $`cat ${tempDir.join("hello")}`.text(),
       "hello world",
     );
-    await Deno.writeTextFile("hello2", "hello world2");
+    await compat.writeTextFile("hello2", "hello world2");
     assertEquals(
       await $`cat hello hello2`.text(),
       "hello worldhello world2",
@@ -2084,7 +2078,7 @@ Deno.test("cat", async () => {
 Deno.test("printenv", async () => {
   {
     const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
-    if (Deno.build.os === "windows") {
+    if (compat.buildOs() === "windows") {
       assertMatch(result, /HELLO=world/);
       assertMatch(result, /AB=cd/);
     } else {
@@ -2097,7 +2091,7 @@ Deno.test("printenv", async () => {
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "world\ncd\n");
   }
-  if (Deno.build.os === "windows") {
+  if (compat.buildOs() === "windows") {
     // windows is case insensitive
     const result = await $`printenv HeLlO aB`.env("hello", "world").env("ab", "cd").stdout("piped");
     assertEquals(result.code, 0);
@@ -2130,7 +2124,7 @@ Deno.test("should error creating a command signal", () => {
   );
 });
 
-Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "linux" }, async () => {
+Deno.test("should receive signal when listening", { ignore: compat.buildOs() !== "linux" }, async () => {
   const p =
     $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT")); console.log("started"); setTimeout(() => {}, 10_000)'`
       .noThrow()
@@ -2147,7 +2141,7 @@ Deno.test("should receive signal when listening", { ignore: Deno.build.os !== "l
 Deno.test("signal listening in registered commands", async () => {
   const commandBuilder = new CommandBuilder().noThrow().registerCommand("listen", (handler) => {
     return new Promise((resolve) => {
-      function listener(signal: Deno.Signal) {
+      function listener(signal: compat.Signal) {
         if (signal === "SIGKILL") {
           resolve({
             code: 135,
@@ -2291,84 +2285,84 @@ Deno.test("should support AbortSignal chained with KillSignal", async () => {
 
 Deno.test("glob", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat *.txt`.captureCombined(true)).combined;
     assertEquals(out, "test\ntest2\n");
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat test?.txt`.questionGlob().captureCombined(true)).combined;
     assertEquals(out, "test2\n");
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("testa.txt").writeTextSync("testa\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("testa.txt").writeSync("testa\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat test[0-9].txt`.captureCombined(true)).combined;
     assertEquals(out, "test2\n");
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("testa.txt").writeTextSync("testa\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("testa.txt").writeSync("testa\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat test[!a-z].txt`.captureCombined(true)).combined;
     assertEquals(out, "test2\n");
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("testa.txt").writeTextSync("testa\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("testa.txt").writeSync("testa\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat test[a-z].txt`.captureCombined(true)).combined;
     assertEquals(out, "testa\n");
   });
 
   await withTempDir(async (tempDir) => {
     tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
-    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
-    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
-    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
-    tempDir.join("3.txt").writeTextSync("3\n");
+    tempDir.join("sub_dir/sub/1.txt").writeSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeSync("other\n");
+    tempDir.join("3.txt").writeSync("3\n");
     const out = (await $`cat */*.txt`.captureCombined(true)).combined;
     assertEquals(out, "2\n");
   });
 
   await withTempDir(async (tempDir) => {
     tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
-    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
-    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
-    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
-    tempDir.join("3.txt").writeTextSync("3\n");
+    tempDir.join("sub_dir/sub/1.txt").writeSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeSync("other\n");
+    tempDir.join("3.txt").writeSync("3\n");
     const out = (await $`cat **/*.txt`.captureCombined(true)).combined;
     assertEquals(out, "3\n2\n1\n");
   });
 
   await withTempDir(async (tempDir) => {
     tempDir.join("sub_dir/sub").mkdirSync({ recursive: true });
-    tempDir.join("sub_dir/sub/1.txt").writeTextSync("1\n");
-    tempDir.join("sub_dir/2.txt").writeTextSync("2\n");
-    tempDir.join("sub_dir/other.ts").writeTextSync("other\n");
-    tempDir.join("3.txt").writeTextSync("3\n");
+    tempDir.join("sub_dir/sub/1.txt").writeSync("1\n");
+    tempDir.join("sub_dir/2.txt").writeSync("2\n");
+    tempDir.join("sub_dir/other.ts").writeSync("other\n");
+    tempDir.join("3.txt").writeSync("3\n");
     const out = (await $`cat $PWD/**/*.txt`.captureCombined(true)).combined;
     assertEquals(out, "3\n2\n1\n");
   });
 
   await withTempDir(async (tempDir) => {
     tempDir.join("dir").mkdirSync();
-    tempDir.join("dir/1.txt").writeTextSync("1\n");
-    tempDir.join("dir_1.txt").writeTextSync("2\n");
+    tempDir.join("dir/1.txt").writeSync("1\n");
+    tempDir.join("dir_1.txt").writeSync("2\n");
     const out = (await $`cat dir*1.txt`.captureCombined(true)).combined;
     assertEquals(out, "2\n");
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const combined = (await $`cat *.ts`.failglob().noThrow().captureCombined(true)).combined;
     assert(
       combined.match(/glob: no matches found '[^\']+\*\.ts'/) != null,
@@ -2377,8 +2371,8 @@ Deno.test("glob", async () => {
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
 
     const combined = (await $`cat [].ts`.failglob().noThrow().captureCombined(true)).combined;
     assert(
@@ -2388,8 +2382,8 @@ Deno.test("glob", async () => {
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const combined = (await $`cat *.ts || echo 2`.failglob().noThrow().captureCombined(true)).combined;
     assert(
       combined.match(/glob: no matches found '[^\']+\*\.ts'[\s\S]*2\n/) != null,
@@ -2398,8 +2392,8 @@ Deno.test("glob", async () => {
   });
 
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("test.txt").writeSync("test\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const combined = (await $`cat *.ts 2> /dev/null || echo 2`.noThrow().captureCombined(true)).combined;
     assertEquals(combined, "2\n");
   });
@@ -2407,9 +2401,9 @@ Deno.test("glob", async () => {
 
 Deno.test("glob case insensitive", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("TEST.txt").writeTextSync("test\n");
-    tempDir.join("testa.txt").writeTextSync("testa\n");
-    tempDir.join("test2.txt").writeTextSync("test2\n");
+    tempDir.join("TEST.txt").writeSync("test\n");
+    tempDir.join("testa.txt").writeSync("testa\n");
+    tempDir.join("test2.txt").writeSync("test2\n");
     const out = (await $`cat tes*.txt`.captureCombined(true)).combined;
     assertEquals(out, "test\ntest2\ntesta\n");
   });
@@ -2418,40 +2412,40 @@ Deno.test("glob case insensitive", async () => {
 Deno.test("glob escapes", async () => {
   // no escape
   await withTempDir(async (tempDir) => {
-    tempDir.join("[test].txt").writeTextSync("test\n");
-    tempDir.join("t.txt").writeTextSync("t\n");
+    tempDir.join("[test].txt").writeSync("test\n");
+    tempDir.join("t.txt").writeSync("t\n");
     const out = (await $`cat [test].txt`.captureCombined(true)).combined;
     assertEquals(out, "t\n");
   });
 
   // escape
   await withTempDir(async (tempDir) => {
-    tempDir.join("[test].txt").writeTextSync("test\n");
-    tempDir.join("t.txt").writeTextSync("t\n");
+    tempDir.join("[test].txt").writeSync("test\n");
+    tempDir.join("t.txt").writeSync("t\n");
     const out = (await $`cat [[]test[]].txt`.captureCombined(true)).combined;
     assertEquals(out, "test\n");
   });
 
   // single quotes
   await withTempDir(async (tempDir) => {
-    tempDir.join("[test].txt").writeTextSync("test\n");
-    tempDir.join("t.txt").writeTextSync("t\n");
+    tempDir.join("[test].txt").writeSync("test\n");
+    tempDir.join("t.txt").writeSync("t\n");
     const out = (await $`cat '[test].txt'`.captureCombined(true)).combined;
     assertEquals(out, "test\n");
   });
 
   // double quotes
   await withTempDir(async (tempDir) => {
-    tempDir.join("[test].txt").writeTextSync("test\n");
-    tempDir.join("t.txt").writeTextSync("t\n");
+    tempDir.join("[test].txt").writeSync("test\n");
+    tempDir.join("t.txt").writeSync("t\n");
     const out = (await $`cat "[test].txt"`.captureCombined(true)).combined;
     assertEquals(out, "test\n");
   });
 
   // mix
   await withTempDir(async (tempDir) => {
-    tempDir.join("[test].txt").writeTextSync("test\n");
-    tempDir.join("t.txt").writeTextSync("t\n");
+    tempDir.join("[test].txt").writeSync("test\n");
+    tempDir.join("t.txt").writeSync("t\n");
     const out = (await $`cat "["test"]".txt`.captureCombined(true)).combined;
     assertEquals(out, "test\n");
   });
@@ -2507,7 +2501,7 @@ Deno.test("which uses same as $.which", async () => {
   {
     const whichFnOutput = await $.which("deno");
     const whichShellOutput = await $`which deno`.text();
-    if (Deno.build.os === "windows") {
+    if (compat.buildOs() === "windows") {
       // windows is case insensitive
       assertEquals(whichFnOutput?.toLowerCase(), whichShellOutput.toLowerCase());
     } else {
@@ -2558,13 +2552,15 @@ Deno.test("expect error undefined", async () => {
 });
 
 Deno.test("resolve command by path", async () => {
-  const version = await $`${Deno.execPath()} --version`.text();
+  const denoPath = await $.which("deno");
+  if (denoPath == null) throw new Error("deno binary not found on PATH");
+  const version = await $`${denoPath} --version`.text();
   assert(typeof version === "string");
 });
 
-Deno.test("windows cmd file", { ignore: Deno.build.os !== "windows" }, async () => {
+Deno.test("windows cmd file", { ignore: compat.buildOs() !== "windows" }, async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("script.cmd").writeTextSync("@echo off\ndeno %*\n");
+    tempDir.join("script.cmd").writeSync("@echo off\ndeno %*\n");
     const result = await $`./script.cmd eval "console.log(1); console.log(2)"`.lines("combined");
     assertEquals(result, ["1", "2"]);
   });
@@ -2687,7 +2683,7 @@ Deno.test("pipefail option via CommandBuilder", async () => {
 
 Deno.test("nullglob option", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test.txt").writeSync("test\n");
 
     // with nullglob: non-matching glob expands to nothing
     const output = await $`shopt -s nullglob && echo *.nonexistent`.text();
@@ -2701,7 +2697,7 @@ Deno.test("nullglob option", async () => {
 
 Deno.test("failglob option", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("test.txt").writeTextSync("test\n");
+    tempDir.join("test.txt").writeSync("test\n");
 
     // without failglob (default): non-matching glob passes through literally
     const output = await $`echo *.nonexistent`.text();
@@ -2721,8 +2717,8 @@ Deno.test("failglob option", async () => {
 
 Deno.test("questionGlob option", async () => {
   await withTempDir(async (tempDir) => {
-    tempDir.join("abc").writeTextSync("abc\n");
-    tempDir.join("axc").writeTextSync("axc\n");
+    tempDir.join("abc").writeSync("abc\n");
+    tempDir.join("axc").writeSync("axc\n");
 
     // without questionGlob (default): ? is literal
     const output = await $`echo a?c`.text();
@@ -2756,9 +2752,9 @@ Deno.test("questionGlob option", async () => {
 Deno.test("globstar option", async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("sub/deep").mkdirSync({ recursive: true });
-    tempDir.join("sub/deep/file.txt").writeTextSync("deep\n");
-    tempDir.join("sub/file.txt").writeTextSync("sub\n");
-    tempDir.join("file.txt").writeTextSync("root\n");
+    tempDir.join("sub/deep/file.txt").writeSync("deep\n");
+    tempDir.join("sub/file.txt").writeSync("sub\n");
+    tempDir.join("file.txt").writeSync("root\n");
 
     // with globstar (default): ** matches recursively
     const output = await $`cat **/*.txt`.captureCombined(true);

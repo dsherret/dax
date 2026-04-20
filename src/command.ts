@@ -1,9 +1,12 @@
 import { FsFileWrapper, Path } from "@david/path";
 import * as colors from "@std/fmt/colors";
 import { Buffer } from "@std/io/buffer";
-import * as path from "@std/path";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import type { CommandHandler } from "./command_handler.ts";
+import * as compat from "./compat.ts";
+import type { Signal } from "./compat.ts";
 import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
@@ -435,7 +438,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
 
     function setEnv(state: CommandBuilderState, key: string, value: string | undefined) {
-      if (Deno.build.os === "windows") {
+      if (compat.isWindows) {
         key = key.toUpperCase();
       }
       state.env[key] = value;
@@ -446,7 +449,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
   cwd(dirPath: string | URL | Path): CommandBuilder {
     return this.#newWithState((state) => {
       state.cwd = dirPath instanceof URL
-        ? path.fromFileUrl(dirPath)
+        ? fileURLToPath(dirPath)
         : dirPath instanceof Path
         ? dirPath.resolve().toString()
         : path.resolve(dirPath);
@@ -462,8 +465,8 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
    *
    * ```ts
    * await $`cd src && export SOME_VALUE=5`;
-   * console.log(Deno.env.get("SOME_VALUE")); // 5
-   * console.log(Deno.cwd()); // will be in the src directory
+   * console.log(process.env["SOME_VALUE"]); // 5
+   * console.log(process.cwd()); // will be in the src directory
    * ```
    */
   exportEnv(value = true): CommandBuilder {
@@ -784,7 +787,7 @@ export class CommandChild extends Promise<CommandResult> {
    *
    * Defaults to "SIGTERM".
    */
-  kill(signal?: Deno.Signal): void {
+  kill(signal?: Signal): void {
     this.#killSignalController?.kill(signal);
   }
 
@@ -859,7 +862,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   const parentSignal = state.signal;
   const killSignalController = new KillController();
   if (parentSignal != null) {
-    const parentSignalListener = (signal: Deno.Signal) => {
+    const parentSignalListener = (signal: Signal) => {
       killSignalController.kill(signal);
     };
     parentSignal.addListener(parentSignalListener);
@@ -889,11 +892,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
   const stdout = new ShellPipeWriter(
     state.stdout.kind,
-    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? Deno.stdout : stdoutBuffer,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? compat.stdout : stdoutBuffer,
   );
   const stderr = new ShellPipeWriter(
     state.stderr.kind,
-    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? Deno.stderr : stderrBuffer,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? compat.stderr : stderrBuffer,
   );
   const { text: commandText, fds } = state.command;
   const signal = killSignalController.signal;
@@ -908,7 +911,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         stderr,
         env: buildEnv(state.env, state.clearEnv),
         commands: state.commands,
-        cwd: state.cwd ?? Deno.cwd(),
+        cwd: state.cwd ?? compat.cwd(),
         exportEnv: state.exportEnv,
         clearedEnv: state.clearEnv,
         signal,
@@ -1021,8 +1024,8 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();
-    const stdoutBuffer = getOutputBuffer(Deno.stdout, state.stdout);
-    const stderrBuffer = getOutputBuffer(Deno.stderr, state.stderr);
+    const stdoutBuffer = getOutputBuffer(compat.stdout, state.stdout);
+    const stderrBuffer = getOutputBuffer(compat.stderr, state.stderr);
     if (state.combinedStdoutStderr) {
       if (typeof stdoutBuffer === "string" || typeof stderrBuffer === "string") {
         throw new Error("Internal programming error. Expected writers for stdout and stderr.");
@@ -1048,7 +1051,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
       if (typeof kind === "object") {
         if (kind instanceof Path) {
           const file = kind.openSync({ write: true, truncate: true, create: true });
-          disposables.push(file);
+          disposables.push({
+            [Symbol.dispose]() {
+              file.close();
+            },
+          });
           return file;
         } else if (kind instanceof WritableStream) {
           const streamWriter = kind.getWriter();
@@ -1259,7 +1266,7 @@ export class CommandResult {
 }
 
 function buildEnv(env: Record<string, string | undefined>, clearEnv: boolean) {
-  const result = clearEnv ? {} : Deno.env.toObject();
+  const result = clearEnv ? {} : compat.env.toObject();
   for (const [key, value] of Object.entries(env)) {
     if (value == null) {
       delete result[key];
@@ -1305,7 +1312,7 @@ const SHELL_SIGNAL_CTOR_SYMBOL = Symbol();
 
 interface KillSignalState {
   abortedCode: number | undefined;
-  listeners: ((signal: Deno.Signal) => void)[];
+  listeners: ((signal: Signal) => void)[];
 }
 
 /** Similar to an AbortController, but for sending signals to commands. */
@@ -1330,15 +1337,15 @@ export class KillController {
    * to be considered "aborted" and will return a 124 exit code, while other
    * signals will just be forwarded to the commands.
    */
-  kill(signal: Deno.Signal = "SIGTERM") {
+  kill(signal: Signal = "SIGTERM") {
     sendSignalToState(this.#state, signal);
   }
 }
 
 /** Listener for when a KillSignal is killed. */
-export type KillSignalListener = (signal: Deno.Signal) => void;
+export type KillSignalListener = (signal: Signal) => void;
 
-/** Similar to `AbortSignal`, but for `Deno.Signal`.
+/** Similar to `AbortSignal`, but for OS signals.
  *
  * A `KillSignal` is considered aborted if its controller
  * receives SIGTERM, SIGKILL, SIGABRT, SIGQUIT, SIGINT, or SIGSTOP.
@@ -1373,7 +1380,7 @@ export class KillSignal {
    * signal receives a signal.
    */
   linkChild(killSignal: KillSignal): { unsubscribe(): void } {
-    const listener = (signal: Deno.Signal) => {
+    const listener = (signal: Signal) => {
       sendSignalToState(killSignal.#state, signal);
     };
     this.addListener(listener);
@@ -1409,7 +1416,7 @@ function killSignalFromAbortSignal(abortSignal: AbortSignal): KillSignal {
   return controller.signal;
 }
 
-function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
+function sendSignalToState(state: KillSignalState, signal: Signal) {
   const code = getSignalAbortCode(signal);
   if (code !== undefined) {
     state.abortedCode = code;
@@ -1419,7 +1426,7 @@ function sendSignalToState(state: KillSignalState, signal: Deno.Signal) {
   }
 }
 
-export function getSignalAbortCode(signal: Deno.Signal) {
+export function getSignalAbortCode(signal: Signal) {
   // consider the command aborted if the signal is any one of these
   switch (signal) {
     case "SIGTERM":

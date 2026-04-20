@@ -1,3 +1,5 @@
+import type { Signal } from "../compat.ts";
+
 export interface SpawnCommandOptions {
   args: string[];
   cwd: string;
@@ -12,7 +14,7 @@ export interface SpawnedChildProcess {
   stdin(): WritableStream;
   stdout(): ReadableStream;
   stderr(): ReadableStream;
-  kill(signo?: Deno.Signal): void;
+  kill(signo?: Signal): void;
   waitExitCode(): Promise<number>;
 }
 

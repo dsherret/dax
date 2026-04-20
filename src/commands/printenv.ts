@@ -1,11 +1,12 @@
 import type { CommandContext } from "../command_handler.ts";
+import { isWindows } from "../compat.ts";
 import { errorToString } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   // windows expects env vars to be upcased
   let args;
-  if (Deno.build.os === "windows") {
+  if (isWindows) {
     args = context.args.map((arg) => arg.toUpperCase());
   } else {
     args = context.args;
@@ -35,7 +36,6 @@ function handleError(context: CommandContext, err: any): ExecuteResult | Promise
  * - if no arguments are provided, return a string containing a list of the values of the provided env vars as `repeat(VALUE\n)`
  */
 function executePrintEnv(env: Record<string, string>, args: string[]) {
-  const isWindows = Deno.build.os === "windows";
   if (args.length === 0) {
     return Object.entries(env)
       // on windows, env vars are case insensitive

@@ -1,5 +1,5 @@
-import { existsSync } from "@std/fs/exists";
 import type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "../command_handler.ts";
+import { existsSync, isNotFoundError, isPermissionDeniedError, type Signal } from "../compat.ts";
 import { errorToString } from "../common.ts";
 import {
   pipeReadableToWriterSync,
@@ -8,7 +8,7 @@ import {
   type ShellPipeWriterKind,
 } from "../pipes.ts";
 import type { ExecuteResult } from "../result.ts";
-import { spawnCommand } from "../runtimes/process.deno.ts";
+import { spawnCommand } from "../runtimes/process.node.ts";
 import type { SpawnedChildProcess } from "../runtimes/process.common.ts";
 
 const neverAbortedSignal = new AbortController().signal;
@@ -41,7 +41,7 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
       // Deno throws this sync, Node.js throws it async
       throw checkMapCwdNotExistsError(cwd, err);
     }
-    const listener = (signal: Deno.Signal) => p.kill(signal);
+    const listener = (signal: Signal) => p.kill(signal);
     context.signal.addListener(listener);
     const completeController = new AbortController();
     const completeSignal = completeController.signal;
@@ -62,7 +62,7 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         try {
           p.kill("SIGKILL");
         } catch (err) {
-          if (!(err instanceof Deno.errors.PermissionDenied || err instanceof Deno.errors.NotFound)) {
+          if (!(isPermissionDeniedError(err) || isNotFoundError(err))) {
             throw err;
           }
         }

@@ -1,4 +1,5 @@
-import * as path from "@std/path";
+import * as path from "node:path";
+import * as compat from "./compat.ts";
 import { logger } from "./console/mod.ts";
 import type { Reader } from "./pipes.ts";
 
@@ -217,9 +218,9 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
 /** lstat that doesn't throw when the path is not found. */
 export async function safeLstat(path: string) {
   try {
-    return await Deno.lstat(path);
+    return await compat.lstat(path);
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if (compat.isNotFoundError(err)) {
       return undefined;
     } else {
       throw err;
@@ -242,7 +243,7 @@ export function getFileNameFromUrl(url: string | URL) {
  */
 export async function getExecutableShebangFromPath(path: string) {
   try {
-    const file = await Deno.open(path, { read: true });
+    const file = await compat.open(path, { read: true });
     try {
       return await getExecutableShebang(file);
     } finally {
@@ -253,7 +254,7 @@ export async function getExecutableShebangFromPath(path: string) {
       }
     }
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if (compat.isNotFoundError(err)) {
       return false;
     }
     throw err;

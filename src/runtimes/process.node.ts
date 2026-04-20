@@ -2,6 +2,7 @@ import * as cp from "node:child_process";
 import * as os from "node:os";
 import { Readable, Writable } from "node:stream";
 import { getSignalAbortCode } from "../command.ts";
+import type { Signal } from "../compat.ts";
 import type { SpawnCommand } from "./process.common.ts";
 
 function toNodeStdio(stdio: "inherit" | "null" | "piped") {
@@ -16,7 +17,7 @@ function toNodeStdio(stdio: "inherit" | "null" | "piped") {
 }
 
 export const spawnCommand: SpawnCommand = (path, options) => {
-  let receivedSignal: Deno.Signal | undefined;
+  let receivedSignal: Signal | undefined;
   // launching bat or cmd files in Node.js will error, so launch
   // via cmd.exe instead https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
   const isWindowsBatch = os.platform() === "win32" && /\.(cmd|bat)$/i.test(path);
@@ -49,7 +50,7 @@ export const spawnCommand: SpawnCommand = (path, options) => {
     stdin() {
       return Writable.toWeb(child.stdin!);
     },
-    kill(signo?: Deno.Signal) {
+    kill(signo?: Signal) {
       receivedSignal = signo;
       child.kill(signo as any);
     },

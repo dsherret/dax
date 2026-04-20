@@ -40,6 +40,7 @@ import {
 import { stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
+import * as compat from "./src/compat.ts";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { outdent } from "./src/vendor/outdent.ts";
 import { denoWhichRealEnv } from "./src/shell.ts";
@@ -837,7 +838,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
       if (typeofD !== "object" && typeofD !== "undefined") {
         return d;
       } else {
-        return Deno.inspect(d, { colors: true });
+        return compat.inspect(d, { colors: true });
       }
     }).join(" ");
     if (state.indentLevel.value === 0) {

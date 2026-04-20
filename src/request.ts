@@ -1,4 +1,5 @@
 import { Path } from "@david/path";
+import type { WriteFileOptions } from "./compat.ts";
 import { formatMillis, symbols } from "./common.ts";
 import { TimeoutError } from "./common.ts";
 import { type Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
@@ -354,7 +355,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
    *
    * @returns The path reference of the downloaded file.
    */
-  async pipeToPath(options?: Deno.WriteFileOptions): Promise<Path>;
+  async pipeToPath(options?: WriteFileOptions): Promise<Path>;
   /**
    * Pipes the response body to a file.
    *
@@ -365,11 +366,11 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
    */
   async pipeToPath(
     path?: string | URL | Path | undefined,
-    options?: Deno.WriteFileOptions,
+    options?: WriteFileOptions,
   ): Promise<Path>;
   async pipeToPath(
-    filePathOrOptions?: string | URL | Path | Deno.WriteFileOptions,
-    maybeOptions?: Deno.WriteFileOptions,
+    filePathOrOptions?: string | URL | Path | WriteFileOptions,
+    maybeOptions?: WriteFileOptions,
   ) {
     // Do not derive from the response url because that could cause the server
     // to be able to overwrite whatever file it wants locally, which would be
@@ -609,7 +610,7 @@ export class RequestResponse {
    *
    * @returns The path reference of the downloaded file
    */
-  async pipeToPath(options?: Deno.WriteFileOptions): Promise<Path>;
+  async pipeToPath(options?: WriteFileOptions): Promise<Path>;
   /**
    * Pipes the response body to a file.
    *
@@ -623,11 +624,11 @@ export class RequestResponse {
    */
   async pipeToPath(
     path?: string | URL | Path | undefined,
-    options?: Deno.WriteFileOptions,
+    options?: WriteFileOptions,
   ): Promise<Path>;
   async pipeToPath(
-    filePathOrOptions?: string | URL | Path | Deno.WriteFileOptions,
-    maybeOptions?: Deno.WriteFileOptions,
+    filePathOrOptions?: string | URL | Path | WriteFileOptions,
+    maybeOptions?: WriteFileOptions,
   ) {
     // resolve the file path using the original url because it would be a security issue
     // to allow the server to select which file path to save the file to if using the
@@ -809,12 +810,12 @@ export async function makeRequest(state: RequestBuilderState) {
 }
 
 function resolvePipeToPathParams(
-  pathOrOptions: string | URL | Path | Deno.WriteFileOptions | undefined,
-  maybeOptions: Deno.WriteFileOptions | undefined,
+  pathOrOptions: string | URL | Path | WriteFileOptions | undefined,
+  maybeOptions: WriteFileOptions | undefined,
   originalUrl: string | URL | undefined,
 ) {
   let filePath: Path | undefined;
-  let options: Deno.WriteFileOptions | undefined;
+  let options: WriteFileOptions | undefined;
   if (typeof pathOrOptions === "string" || pathOrOptions instanceof URL) {
     filePath = new Path(pathOrOptions).resolve();
     options = maybeOptions;

@@ -1,9 +1,10 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { Buffer } from "@std/io/buffer";
 import { toWritableStream } from "@std/io/to-writable-stream";
-import * as path from "@std/path";
+import * as path from "node:path";
 import { isNode } from "which_runtime";
 import $ from "../mod.ts";
+import * as compat from "./compat.ts";
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 
@@ -164,12 +165,12 @@ Deno.test("$.request", (t) => {
     });
 
     step("pipeToPath", async () => {
-      const testFilePath = await Deno.makeTempFile();
-      const originDir = Deno.cwd();
+      const testFilePath = await compat.makeTempFile();
+      const originDir = compat.cwd();
       try {
         {
           // ensure that a truncate happens
-          $.path(testFilePath).writeTextSync("text".repeat(1002));
+          $.path(testFilePath).writeSync("text".repeat(1002));
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -179,7 +180,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test default path
-          Deno.chdir(await Deno.makeTempDir()); // change path just to not download to the current dir
+          compat.chdir(await compat.makeTempDir()); // change path just to not download to the current dir
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -188,28 +189,24 @@ Deno.test("$.request", (t) => {
           assertEquals(downloadedFilePath.toString(), path.resolve("text-file"));
         }
         {
-          await assertRejects(
-            async () => {
-              await new RequestBuilder()
-                .url(new URL("/text-file", serverUrl))
-                .showProgress()
-                .pipeToPath({ createNew: true });
-            },
-            Deno.errors.AlreadyExists,
-          );
-          await assertRejects(
-            async () => {
-              await new RequestBuilder()
-                .url(new URL("/text-file", serverUrl))
-                .showProgress()
-                .pipeToPath(undefined, { createNew: true });
-            },
-            Deno.errors.AlreadyExists,
-          );
+          const alreadyExistsErr = await assertRejects(async () => {
+            await new RequestBuilder()
+              .url(new URL("/text-file", serverUrl))
+              .showProgress()
+              .pipeToPath({ createNew: true });
+          });
+          assert(compat.isAlreadyExistsError(alreadyExistsErr), `expected EEXIST, got ${alreadyExistsErr}`);
+          const alreadyExistsErr2 = await assertRejects(async () => {
+            await new RequestBuilder()
+              .url(new URL("/text-file", serverUrl))
+              .showProgress()
+              .pipeToPath(undefined, { createNew: true });
+          });
+          assert(compat.isAlreadyExistsError(alreadyExistsErr2), `expected EEXIST, got ${alreadyExistsErr2}`);
         }
         {
           // test downloading to a directory
-          const tempDir = await Deno.makeTempDir();
+          const tempDir = await compat.makeTempDir();
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -219,8 +216,8 @@ Deno.test("$.request", (t) => {
         }
       } finally {
         try {
-          Deno.chdir(originDir);
-          await Deno.remove(testFilePath);
+          compat.chdir(originDir);
+          await compat.remove(testFilePath);
         } catch {
           // do nothing
         }

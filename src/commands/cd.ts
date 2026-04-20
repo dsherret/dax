@@ -1,4 +1,5 @@
 import type { CommandContext } from "../command_handler.ts";
+import * as compat from "../compat.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
 
@@ -28,10 +29,10 @@ async function executeCd(cwd: string, args: string[]) {
 
 async function isDirectory(path: string) {
   try {
-    const info = await Deno.stat(path);
+    const info = await compat.stat(path);
     return info.isDirectory;
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if (compat.isNotFoundError(err)) {
       return false;
     } else {
       throw err;

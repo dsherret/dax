@@ -1,4 +1,5 @@
 import type { CommandContext } from "../command_handler.ts";
+import type { Signal } from "../compat.ts";
 import { errorToString } from "../common.ts";
 import { type ExecuteResult, getAbortedResult } from "../result.ts";
 
@@ -9,7 +10,7 @@ export async function sleepCommand(context: CommandContext): Promise<ExecuteResu
       const timeoutId = setTimeout(finish, ms);
       context.signal.addListener(signalListener);
 
-      function signalListener(_signal: Deno.Signal) {
+      function signalListener(_signal: Signal) {
         // finish if it was a signal that caused an abort, otherwise ignore
         if (context.signal.aborted) {
           finish();

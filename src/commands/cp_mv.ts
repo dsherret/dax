@@ -1,5 +1,6 @@
-import * as path from "@std/path";
+import * as path from "node:path";
 import type { CommandContext } from "../command_handler.ts";
+import * as compat from "../compat.ts";
 import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
@@ -75,20 +76,19 @@ async function doCopyOperation(
       throw Error("source was a directory; maybe specify -r");
     }
   } else {
-    await Deno.copyFile(from.path, to.path);
+    await compat.copyFile(from.path, to.path);
   }
 }
 
 async function copyDirRecursively(from: string, to: string) {
-  await Deno.mkdir(to, { recursive: true });
-  const readDir = Deno.readDir(from);
-  for await (const entry of readDir) {
+  await compat.mkdir(to, { recursive: true });
+  for await (const entry of compat.readDir(from)) {
     const newFrom = path.join(from, path.basename(entry.name));
     const newTo = path.join(to, path.basename(entry.name));
     if (entry.isDirectory) {
       await copyDirRecursively(newFrom, newTo);
     } else if (entry.isFile) {
-      await Deno.copyFile(newFrom, newTo);
+      await compat.copyFile(newFrom, newTo);
     }
   }
 }
@@ -111,7 +111,7 @@ interface MoveFlags {
 async function executeMove(cwd: string, args: string[]) {
   const flags = await parseMvArgs(cwd, args);
   for (const { from, to } of flags.operations) {
-    await Deno.rename(from.path, to.path);
+    await compat.rename(from.path, to.path);
   }
 }
 

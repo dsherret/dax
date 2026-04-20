@@ -1,4 +1,4 @@
-import * as path from "@std/path";
+import * as path from "node:path";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";

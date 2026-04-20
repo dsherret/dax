@@ -1,4 +1,5 @@
 import { Path } from "@david/path";
+import * as compat from "./compat.ts";
 
 /**
  * Creates a temporary directory, changes the cwd to this directory,
@@ -10,17 +11,17 @@ export async function withTempDir(action: (path: Path) => Promise<void> | void) 
 }
 
 export function usingTempDir(): Path & AsyncDisposable {
-  const originalDirPath = Deno.cwd();
-  const dirPath = Deno.makeTempDirSync();
-  Deno.chdir(dirPath);
+  const originalDirPath = compat.cwd();
+  const dirPath = compat.makeTempDirSync();
+  compat.chdir(dirPath);
   const pathRef = new Path(dirPath).resolve();
   (pathRef as any)[Symbol.asyncDispose] = async () => {
     try {
-      await Deno.remove(dirPath, { recursive: true });
+      await compat.remove(dirPath, { recursive: true });
     } catch {
       // ignore
     }
-    Deno.chdir(originalDirPath);
+    compat.chdir(originalDirPath);
   };
   return pathRef as Path & AsyncDisposable;
 }

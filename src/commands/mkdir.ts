@@ -1,4 +1,5 @@
 import type { CommandContext } from "../command_handler.ts";
+import * as compat from "../compat.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import { safeLstat } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -29,9 +30,9 @@ async function executeMkdir(cwd: string, args: string[]) {
       throw Error(`cannot create directory '${specifiedPath}': File exists`);
     }
     if (flags.parents) {
-      await Deno.mkdir(path, { recursive: true });
+      await compat.mkdir(path, { recursive: true });
     } else {
-      await Deno.mkdir(path);
+      await compat.mkdir(path);
     }
   }
 }

@@ -1,4 +1,5 @@
 import type { CommandContext } from "../command_handler.ts";
+import * as compat from "../compat.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
 import { type ArgKind, parseArgKinds } from "./args.ts";
@@ -34,8 +35,8 @@ async function executeRemove(cwd: string, args: string[]) {
       throw new Error("Cannot delete root directory. Maybe bug in dax? Please report this.");
     }
 
-    return Deno.remove(path, { recursive: flags.recursive }).catch((err) => {
-      if (flags.force && err instanceof Deno.errors.NotFound) {
+    return compat.remove(path, { recursive: flags.recursive }).catch((err) => {
+      if (flags.force && compat.isNotFoundError(err)) {
         return Promise.resolve();
       } else {
         return Promise.reject(err);
