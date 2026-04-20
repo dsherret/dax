@@ -7,6 +7,28 @@ import * as nodeUtil from "node:util";
 
 export const isWindows = process.platform === "win32";
 
+const openAsync = nodeUtil.promisify(fs.open);
+
+/**
+ * Writes the entire buffer synchronously, retrying on EAGAIN/EWOULDBLOCK
+ * and handling partial writes. `fs.writeSync` can surface these on
+ * non-blocking pipes (e.g. inherited from a spawned child).
+ */
+function writeSyncAll(fd: number, data: Uint8Array): number {
+  let offset = 0;
+  while (offset < data.length) {
+    try {
+      const n = fs.writeSync(fd, data, offset, data.length - offset);
+      if (n <= 0) break;
+      offset += n;
+    } catch (err: any) {
+      if (err?.code === "EAGAIN" || err?.code === "EWOULDBLOCK") continue;
+      throw err;
+    }
+  }
+  return offset;
+}
+
 /** Replaces `Deno.Signal`. */
 export type Signal =
   | "SIGABRT"
@@ -81,11 +103,11 @@ export class FsFile {
   }
 
   write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(fs.writeSync(this.#fd, p));
+    return Promise.resolve(writeSyncAll(this.#fd, p));
   }
 
   writeSync(p: Uint8Array): number {
-    return fs.writeSync(this.#fd, p);
+    return writeSyncAll(this.#fd, p);
   }
 
   close(): void {
@@ -100,7 +122,7 @@ export class FsFile {
     const fd = this.#fd;
     return new WritableStream({
       write(chunk) {
-        fs.writeSync(fd, chunk);
+        writeSyncAll(fd, chunk);
       },
     });
   }
@@ -131,13 +153,13 @@ function openOptionsToFlags(options: OpenOptions): string {
 /** Replaces `Deno.open()`. */
 export async function open(filePath: string, options: OpenOptions): Promise<FsFile> {
   const flags = openOptionsToFlags(options);
-  const fd = fs.openSync(filePath, flags);
+  const fd = await openAsync(filePath, flags);
   return new FsFile(fd);
 }
 
 /** Replaces `Deno.create()`. */
 export async function create(filePath: string): Promise<FsFile> {
-  const fd = fs.openSync(filePath, "w");
+  const fd = await openAsync(filePath, "w");
   return new FsFile(fd);
 }
 
@@ -163,10 +185,10 @@ export const stdin = {
 // stdout wrapper (replaces Deno.stdout)
 export const stdout = {
   write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(fs.writeSync(1, p));
+    return Promise.resolve(writeSyncAll(1, p));
   },
   writeSync(p: Uint8Array): number {
-    return fs.writeSync(1, p);
+    return writeSyncAll(1, p);
   },
   isTerminal(): boolean {
     return process.stdout.isTTY ?? false;
@@ -176,10 +198,10 @@ export const stdout = {
 // stderr wrapper (replaces Deno.stderr)
 export const stderr = {
   write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(fs.writeSync(2, p));
+    return Promise.resolve(writeSyncAll(2, p));
   },
   writeSync(p: Uint8Array): number {
-    return fs.writeSync(2, p);
+    return writeSyncAll(2, p);
   },
   isTerminal(): boolean {
     return process.stderr.isTTY ?? false;

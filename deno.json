@@ -18,7 +18,7 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["ban-types", "no-explicit-any", "no-this-alias"],
+      "exclude": ["ban-types", "no-explicit-any", "no-this-alias", "no-process-global"],
       "include": [
         "no-console",
         "no-sync-fn-in-async-fn"
