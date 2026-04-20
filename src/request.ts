@@ -1,5 +1,5 @@
 import { Path } from "@david/path";
-import type { WriteFileOptions } from "./compat.ts";
+import type { WriteFileOptions } from "./fs_file.ts";
 import { formatMillis, symbols } from "./common.ts";
 import { TimeoutError } from "./common.ts";
 import { type Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";

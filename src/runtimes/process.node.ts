@@ -2,7 +2,7 @@ import * as cp from "node:child_process";
 import * as os from "node:os";
 import { Readable, Writable } from "node:stream";
 import { getSignalAbortCode } from "../command.ts";
-import type { Signal } from "../compat.ts";
+import type { Signal } from "../signal.ts";
 import type { SpawnCommand } from "./process.common.ts";
 
 function toNodeStdio(stdio: "inherit" | "null" | "piped") {

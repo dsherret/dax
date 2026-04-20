@@ -1,5 +1,7 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { Path } from "@david/path";
-import * as compat from "./compat.ts";
 
 /**
  * Creates a temporary directory, changes the cwd to this directory,
@@ -11,17 +13,17 @@ export async function withTempDir(action: (path: Path) => Promise<void> | void) 
 }
 
 export function usingTempDir(): Path & AsyncDisposable {
-  const originalDirPath = compat.cwd();
-  const dirPath = compat.makeTempDirSync();
-  compat.chdir(dirPath);
+  const originalDirPath = process.cwd();
+  const dirPath = fs.mkdtempSync(path.join(os.tmpdir(), "dax-"));
+  process.chdir(dirPath);
   const pathRef = new Path(dirPath).resolve();
   (pathRef as any)[Symbol.asyncDispose] = async () => {
     try {
-      await compat.remove(dirPath, { recursive: true });
+      await fs.promises.rm(dirPath, { recursive: true });
     } catch {
       // ignore
     }
-    compat.chdir(originalDirPath);
+    process.chdir(originalDirPath);
   };
   return pathRef as Path & AsyncDisposable;
 }

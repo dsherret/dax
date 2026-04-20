@@ -1,6 +1,6 @@
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 import { maybeConsoleSize, stripAnsiCodes, type TextItem } from "@david/console-static-text";
-import * as compat from "../compat.ts";
+import { stderr, stdin } from "../streams.ts";
 
 const encoder = new TextEncoder();
 
@@ -15,10 +15,10 @@ export enum Keys {
 }
 
 export async function* readKeys() {
-  return yield* innerReadKeys(compat.stdin);
+  return yield* innerReadKeys(stdin);
 }
 
-export async function* innerReadKeys(reader: Pick<typeof compat.stdin, "read">) {
+export async function* innerReadKeys(reader: Pick<typeof stdin, "read">) {
   // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
   const decoder = new TextDecoder();
 
@@ -69,14 +69,14 @@ export async function* innerReadKeys(reader: Pick<typeof compat.stdin, "read">) 
 }
 
 export function hideCursor() {
-  compat.stderr.writeSync(encoder.encode("\x1B[?25l"));
+  stderr.writeSync(encoder.encode("\x1B[?25l"));
 }
 
 export function showCursor() {
-  compat.stderr.writeSync(encoder.encode("\x1B[?25h"));
+  stderr.writeSync(encoder.encode("\x1B[?25h"));
 }
 
-export let isOutputTty = maybeConsoleSize() != null && isTerminal(compat.stderr);
+export let isOutputTty = maybeConsoleSize() != null && isTerminal(stderr);
 
 export function setNotTtyForTesting() {
   isOutputTty = false;
@@ -92,7 +92,7 @@ function isTerminal(pipe: { isTerminal?(): boolean }) {
 
 export function resultOrExit<T>(result: T | undefined): T {
   if (result == null) {
-    compat.exit(130);
+    process.exit(130);
   } else {
     return result;
   }
@@ -106,7 +106,7 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  if (!isOutputTty || !isTerminal(compat.stdin)) {
+  if (!isOutputTty || !isTerminal(stdin)) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
   if (maybeConsoleSize() == null) {
@@ -118,7 +118,10 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
     for await (const key of readKeys()) {
       const keyResult = options.onKey(key);
       if (keyResult != null) {
-        const size = compat.consoleSize();
+        const size = {
+          columns: process.stdout.columns ?? 80,
+          rows: process.stdout.rows ?? 24,
+        };
         logger.setItems(LoggerRefreshItemKind.Selection, [], size);
         if (options.noClear) {
           logger.logOnce(options.render(), size);
@@ -144,11 +147,11 @@ function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
     }
     hideCursor();
     try {
-      compat.stdin.setRaw(true);
+      stdin.setRaw(true);
       try {
         return await action();
       } finally {
-        compat.stdin.setRaw(false);
+        stdin.setRaw(false);
       }
     } finally {
       showCursor();

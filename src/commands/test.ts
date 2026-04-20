@@ -8,11 +8,11 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     let result: boolean;
     switch (testFlag) {
       case "-f":
-        result = (await safeLstat(testPath))?.isFile ?? false;
+        result = (await safeLstat(testPath))?.isFile() ?? false;
         break;
 
       case "-d":
-        result = (await safeLstat(testPath))?.isDirectory ?? false;
+        result = (await safeLstat(testPath))?.isDirectory() ?? false;
         break;
 
       case "-e":
@@ -24,7 +24,7 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
         break;
 
       case "-L":
-        result = (await safeLstat(testPath))?.isSymlink ?? false;
+        result = (await safeLstat(testPath))?.isSymbolicLink() ?? false;
         break;
 
       default:

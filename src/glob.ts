@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as nodePath from "node:path";
-import { isWindows } from "./compat.ts";
+
+const isWindows = process.platform === "win32";
 
 export interface ExpandGlobOptions {
   /** Directory to resolve relative glob patterns against. */

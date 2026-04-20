@@ -1,6 +1,6 @@
 import type { CommandContext } from "../command_handler.ts";
-import * as compat from "../compat.ts";
 import { errorToString, resolvePath } from "../common.ts";
+import { open } from "../fs_file.ts";
 import type { ExecuteResult } from "../result.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
 
@@ -46,7 +46,7 @@ async function executeCat(context: CommandContext) {
     } else {
       let file;
       try {
-        file = await compat.open(resolvePath(context.cwd, path), { read: true });
+        file = await open(resolvePath(context.cwd, path), { read: true });
         while (!context.signal.aborted) {
           // NOTE: rust supports cancellation here
           const size = file.readSync(buf);

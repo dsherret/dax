@@ -1,4 +1,4 @@
-import type { Signal } from "../compat.ts";
+import type { Signal } from "../signal.ts";
 
 export interface SpawnCommandOptions {
   args: string[];

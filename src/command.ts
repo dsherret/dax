@@ -5,8 +5,10 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import type { CommandHandler } from "./command_handler.ts";
-import * as compat from "./compat.ts";
-import type { Signal } from "./compat.ts";
+import type { Signal } from "./signal.ts";
+import { stderr as stderrStream, stdout as stdoutStream } from "./streams.ts";
+
+const isWindows = process.platform === "win32";
 import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
@@ -438,7 +440,7 @@ export class CommandBuilder implements PromiseLike<CommandResult> {
     });
 
     function setEnv(state: CommandBuilderState, key: string, value: string | undefined) {
-      if (compat.isWindows) {
+      if (isWindows) {
         key = key.toUpperCase();
       }
       state.env[key] = value;
@@ -892,11 +894,11 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
   const [stdoutBuffer, stderrBuffer, combinedBuffer] = getBuffers();
   const stdout = new ShellPipeWriter(
     state.stdout.kind,
-    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? compat.stdout : stdoutBuffer,
+    stdoutBuffer === "null" ? new NullPipeWriter() : stdoutBuffer === "inherit" ? stdoutStream : stdoutBuffer,
   );
   const stderr = new ShellPipeWriter(
     state.stderr.kind,
-    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? compat.stderr : stderrBuffer,
+    stderrBuffer === "null" ? new NullPipeWriter() : stderrBuffer === "inherit" ? stderrStream : stderrBuffer,
   );
   const { text: commandText, fds } = state.command;
   const signal = killSignalController.signal;
@@ -911,7 +913,7 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
         stderr,
         env: buildEnv(state.env, state.clearEnv),
         commands: state.commands,
-        cwd: state.cwd ?? compat.cwd(),
+        cwd: state.cwd ?? process.cwd(),
         exportEnv: state.exportEnv,
         clearedEnv: state.clearEnv,
         signal,
@@ -1024,8 +1026,8 @@ export function parseAndSpawnCommand(state: CommandBuilderState) {
 
   function getBuffers() {
     const hasProgressBars = isShowingProgressBars();
-    const stdoutBuffer = getOutputBuffer(compat.stdout, state.stdout);
-    const stderrBuffer = getOutputBuffer(compat.stderr, state.stderr);
+    const stdoutBuffer = getOutputBuffer(stdoutStream, state.stdout);
+    const stderrBuffer = getOutputBuffer(stderrStream, state.stderr);
     if (state.combinedStdoutStderr) {
       if (typeof stdoutBuffer === "string" || typeof stderrBuffer === "string") {
         throw new Error("Internal programming error. Expected writers for stdout and stderr.");
@@ -1266,7 +1268,14 @@ export class CommandResult {
 }
 
 function buildEnv(env: Record<string, string | undefined>, clearEnv: boolean) {
-  const result = clearEnv ? {} : compat.env.toObject();
+  const result: Record<string, string> = {};
+  if (!clearEnv) {
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        result[key] = value;
+      }
+    }
+  }
   for (const [key, value] of Object.entries(env)) {
     if (value == null) {
       delete result[key];

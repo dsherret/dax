@@ -3,8 +3,11 @@ import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
 import { expandGlob } from "./glob.ts";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
-import * as compat from "./compat.ts";
 import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
+import { open } from "./fs_file.ts";
+import { stdin as stdinStream } from "./streams.ts";
+
+const isWindows = process.platform === "win32";
 import * as wasmInstance from "./lib/rs_lib.js";
 import {
   NullPipeReader,
@@ -167,27 +170,33 @@ interface Env {
 
 class RealEnv implements Env {
   setCwd(cwd: string) {
-    compat.chdir(cwd);
+    process.chdir(cwd);
   }
 
   getCwd() {
-    return compat.cwd();
+    return process.cwd();
   }
 
   setEnvVar(key: string, value: string | undefined) {
     if (value == null) {
-      compat.env.delete(key);
+      delete process.env[key];
     } else {
-      compat.env.set(key, value);
+      process.env[key] = value;
     }
   }
 
   getEnvVar(key: string) {
-    return compat.env.get(key);
+    return process.env[key];
   }
 
   getEnvVars() {
-    return compat.env.toObject();
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   clone(): Env {
@@ -218,7 +227,7 @@ class ShellEnv implements Env {
   }
 
   setEnvVar(key: string, value: string | undefined) {
-    if (compat.isWindows) {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (value == null) {
@@ -229,7 +238,7 @@ class ShellEnv implements Env {
   }
 
   getEnvVar(key: string) {
-    if (compat.isWindows) {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     return this.#envVars[key];
@@ -401,7 +410,7 @@ export class Context {
   }
 
   setEnvVar(key: string, value: string | undefined) {
-    if (compat.isWindows) {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (key === "PWD") {
@@ -415,7 +424,7 @@ export class Context {
   }
 
   setShellVar(key: string, value: string | undefined) {
-    if (compat.isWindows) {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (this.#env.getEnvVar(key) != null || key === "PWD") {
@@ -436,7 +445,7 @@ export class Context {
   }
 
   getVar(key: string): string | undefined {
-    if (compat.isWindows) {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (key === "PWD") {
@@ -908,7 +917,7 @@ async function resolveRedirectPipe(
       case "input": {
         const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
         try {
-          const file = await compat.open(outputPath, {
+          const file = await open(outputPath, {
             read: true,
           });
           return {
@@ -929,7 +938,7 @@ async function resolveRedirectPipe(
         }
         const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
         try {
-          const file = await compat.open(outputPath, {
+          const file = await open(outputPath, {
             write: true,
             create: true,
             append: redirect.op.value === "append",
@@ -957,7 +966,7 @@ async function resolveRedirectPipe(
 
 function getStdinReader(stdin: CommandPipeReader): Reader {
   if (stdin === "inherit") {
-    return compat.stdin;
+    return stdinStream;
   } else if (stdin === "null") {
     return new NullPipeReader();
   } else {
@@ -1077,7 +1086,7 @@ function pipeCommandPipeReaderToWriterSync(
 ) {
   switch (reader) {
     case "inherit":
-      return pipeReadableToWriterSync(compat.stdin.readable, writer, signal);
+      return pipeReadableToWriterSync(stdinStream.readable, writer, signal);
     case "null":
       return Promise.resolve();
     default: {
@@ -1105,7 +1114,7 @@ interface UnresolvedCommand {
 }
 
 async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Context): Promise<ResolvedCommand> {
-  if (unresolvedCommand.name.includes("/") || compat.isWindows && unresolvedCommand.name.includes("\\")) {
+  if (unresolvedCommand.name.includes("/") || isWindows && unresolvedCommand.name.includes("\\")) {
     const commandPath = path.isAbsolute(unresolvedCommand.name)
       ? unresolvedCommand.name
       : path.resolve(unresolvedCommand.baseDir, unresolvedCommand.name);
@@ -1157,7 +1166,7 @@ export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
   return await which(commandName, {
-    isWindows: compat.buildOs() === "windows",
+    isWindows,
     stat: denoWhichRealEnv.stat,
     env(key) {
       return context.getVar(key);
@@ -1310,7 +1319,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
     const questionGlob = context.getShellOptions().questionGlob;
     if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value, questionGlob))) {
       let currentText = "";
-      const globEscapeChar = compat.isWindows ? "`" : "\\";
+      const globEscapeChar = isWindows ? "`" : "\\";
       for (const textPart of textParts) {
         switch (textPart.kind) {
           case "quoted":
@@ -1431,7 +1440,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         continue;
       }
       case "tilde": {
-        const envVarName = compat.isWindows ? "USERPROFILE" : "HOME";
+        const envVarName = isWindows ? "USERPROFILE" : "HOME";
         const homeDirEnv = context.getVar(envVarName);
         if (homeDirEnv == null) {
           throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set).`);

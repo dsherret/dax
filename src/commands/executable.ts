@@ -1,6 +1,7 @@
+import * as fs from "node:fs";
 import type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "../command_handler.ts";
-import { existsSync, isNotFoundError, isPermissionDeniedError, type Signal } from "../compat.ts";
 import { errorToString } from "../common.ts";
+import type { Signal } from "../signal.ts";
 import {
   pipeReadableToWriterSync,
   pipeReaderToWritable,
@@ -62,7 +63,8 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         try {
           p.kill("SIGKILL");
         } catch (err) {
-          if (!(isPermissionDeniedError(err) || isNotFoundError(err))) {
+          const code = (err as any)?.code;
+          if (code !== "EACCES" && code !== "EPERM" && code !== "ENOENT") {
             throw err;
           }
         }
@@ -134,7 +136,7 @@ function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
 }
 
 function checkMapCwdNotExistsError(cwd: string, err: unknown) {
-  if ((err as any).code === "ENOENT" && !existsSync(cwd)) {
+  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
     throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
       cause: err,
     });

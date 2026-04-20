@@ -1,5 +1,6 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
-import * as compat from "./compat.ts";
+import { open } from "./fs_file.ts";
 import { logger } from "./console/mod.ts";
 import type { Reader } from "./pipes.ts";
 
@@ -216,11 +217,11 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
 }
 
 /** lstat that doesn't throw when the path is not found. */
-export async function safeLstat(path: string) {
+export async function safeLstat(path: string): Promise<fs.Stats | undefined> {
   try {
-    return await compat.lstat(path);
+    return await fs.promises.lstat(path);
   } catch (err) {
-    if (compat.isNotFoundError(err)) {
+    if ((err as any)?.code === "ENOENT") {
       return undefined;
     } else {
       throw err;
@@ -243,7 +244,7 @@ export function getFileNameFromUrl(url: string | URL) {
  */
 export async function getExecutableShebangFromPath(path: string) {
   try {
-    const file = await compat.open(path, { read: true });
+    const file = await open(path, { read: true });
     try {
       return await getExecutableShebang(file);
     } finally {
@@ -254,7 +255,7 @@ export async function getExecutableShebangFromPath(path: string) {
       }
     }
   } catch (err) {
-    if (compat.isNotFoundError(err)) {
+    if ((err as any)?.code === "ENOENT") {
       return false;
     }
     throw err;

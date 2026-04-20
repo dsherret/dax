@@ -15,7 +15,9 @@ import $, {
   Path,
   PathRef,
 } from "./mod.ts";
-import * as compat from "./src/compat.ts";
+import * as fs from "node:fs";
+import type { Signal } from "./src/signal.ts";
+import { create } from "./src/fs_file.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
 import { usingTempDir, withTempDir } from "./src/with_temp_dir.ts";
 import { createExecutableCommand } from "./src/commands/executable.ts";
@@ -558,10 +560,10 @@ Deno.test("sleep command", async () => {
 });
 
 Deno.test("test command", async (t) => {
-  await compat.writeFile("zero.dat", new Uint8Array());
-  await compat.writeFile("non-zero.dat", new Uint8Array([242]));
-  if (compat.buildOs() !== "windows") {
-    await compat.symlink("zero.dat", "linked.dat");
+  await fs.promises.writeFile("zero.dat", new Uint8Array());
+  await fs.promises.writeFile("non-zero.dat", new Uint8Array([242]));
+  if (process.platform !== "win32") {
+    await fs.promises.symlink("zero.dat", "linked.dat");
   }
 
   await t.step("test -e", async () => {
@@ -573,13 +575,13 @@ Deno.test("test command", async (t) => {
     assertEquals(result.code, 0, "should be a file");
   });
   await t.step("test -f on non-file", async () => {
-    const result = await $`test -f ${compat.cwd()}`.noThrow().stderr("piped");
+    const result = await $`test -f ${process.cwd()}`.noThrow().stderr("piped");
     assertEquals(result.code, 1, "should not be a file");
     assertEquals(result.stderr, "");
   });
   await t.step("test -d", async () => {
-    const result = await $`test -d ${compat.cwd()}`.noThrow();
-    assertEquals(result.code, 0, `${compat.cwd()} should be a directory`);
+    const result = await $`test -d ${process.cwd()}`.noThrow();
+    assertEquals(result.code, 0, `${process.cwd()} should be a directory`);
   });
   await t.step("test -d on non-directory", async () => {
     const result = await $`test -d zero.dat`.noThrow().stderr("piped");
@@ -596,7 +598,7 @@ Deno.test("test command", async (t) => {
     assertEquals(result.code, 1, "should fail as file is zero-sized");
     assertEquals(result.stderr, "");
   });
-  if (compat.buildOs() !== "windows") {
+  if (process.platform !== "win32") {
     await t.step("test -L", async () => {
       const result = await $`test -L linked.dat`.noThrow();
       assertEquals(result.code, 0, "should be a symlink");
@@ -628,7 +630,7 @@ Deno.test("test command", async (t) => {
     assertEquals(result.stdout, "yup\n");
   });
   await t.step("should work with boolean: fail && ..", async () => {
-    const result = await $`test -f ${compat.cwd()} && echo nope`.noThrow().stdout("piped");
+    const result = await $`test -f ${process.cwd()} && echo nope`.noThrow().stdout("piped");
     assertEquals(result.code, 1), "should have exit code 1";
     assertEquals(result.stdout, "");
   });
@@ -638,16 +640,16 @@ Deno.test("test command", async (t) => {
     assertEquals(result.stdout, "");
   });
   await t.step("should work with boolean: fail || ..", async () => {
-    const result = await $`test -f ${compat.cwd()} || echo yup`.noThrow().stdout("piped");
+    const result = await $`test -f ${process.cwd()} || echo yup`.noThrow().stdout("piped");
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "yup\n");
   });
 
-  if (compat.buildOs() !== "windows") {
-    await compat.remove("linked.dat");
+  if (process.platform !== "win32") {
+    await fs.promises.rm("linked.dat");
   }
-  await compat.remove("zero.dat");
-  await compat.remove("non-zero.dat");
+  await fs.promises.rm("zero.dat");
+  await fs.promises.rm("non-zero.dat");
 });
 
 Deno.test("exit command", async () => {
@@ -706,31 +708,31 @@ Deno.test("should provide result from one command to another", async () => {
 });
 
 Deno.test("should actually change the environment when using .exportEnv()", async () => {
-  const originalDir = compat.cwd();
+  const originalDir = process.cwd();
   try {
     const srcDir = path.resolve("./src");
     await $`cd src && export SOME_VALUE=5 && OTHER_VALUE=6`.exportEnv();
-    assertEquals(compat.cwd(), srcDir);
-    assertEquals(compat.env.get("SOME_VALUE"), "5");
-    assertEquals(compat.env.get("OTHER_VALUE"), undefined);
+    assertEquals(process.cwd(), srcDir);
+    assertEquals(process.env.SOME_VALUE, "5");
+    assertEquals(process.env.OTHER_VALUE, undefined);
   } finally {
-    compat.chdir(originalDir);
+    process.chdir(originalDir);
   }
 });
 
 Deno.test("exporting env should modify real environment when something changed via the api", async () => {
-  const previousCwd = compat.cwd();
+  const previousCwd = process.cwd();
   const envName = "DAX_TEST_ENV_SET";
   try {
     await $`echo 2`
       .cwd("./src")
       .env(envName, "123")
       .exportEnv();
-    assertEquals(compat.env.get(envName), "123");
-    assertEquals(compat.cwd().slice(-3), "src");
+    assertEquals(process.env[envName], "123");
+    assertEquals(process.cwd().slice(-3), "src");
   } finally {
-    compat.env.delete(envName);
-    compat.chdir(previousCwd);
+    delete process.env[envName];
+    process.chdir(previousCwd);
   }
 });
 
@@ -741,7 +743,7 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
   }
   const denoPath = await $.which("deno");
   if (denoPath == null) throw new Error("deno binary not found on PATH");
-  compat.env.set("DAX_TVAR", "123");
+  process.env.DAX_TVAR = "123";
   try {
     const text = await $`deno eval --no-config 'console.log("DAX_TVAR: " + Deno.env.get("DAX_TVAR"))'`
       .clearEnv()
@@ -749,14 +751,14 @@ Deno.test("env should be clean slate when clearEnv is set", async () => {
       .text();
     assertEquals(text, "DAX_TVAR: undefined");
   } finally {
-    compat.env.delete("DAX_TVAR");
+    delete process.env.DAX_TVAR;
   }
 });
 
 Deno.test("clearEnv + exportEnv should not clear out real environment", async () => {
   const denoPath = await $.which("deno");
   if (denoPath == null) throw new Error("deno binary not found on PATH");
-  compat.env.set("DAX_TVAR", "123");
+  process.env.DAX_TVAR = "123";
   try {
     const text =
       await $`deno eval --no-config 'console.log("VAR: " + Deno.env.get("DAX_TVAR") + " VAR2: " + Deno.env.get("DAX_TVAR2"))'`
@@ -766,10 +768,10 @@ Deno.test("clearEnv + exportEnv should not clear out real environment", async ()
         .exportEnv()
         .text();
     assertEquals(text, "VAR: undefined VAR2: shake it shake");
-    assertEquals(compat.env.get("DAX_TVAR2"), "shake it shake");
+    assertEquals(process.env.DAX_TVAR2, "shake it shake");
   } finally {
-    compat.env.delete("DAX_TVAR");
-    compat.env.delete("DAX_TVAR2");
+    delete process.env.DAX_TVAR;
+    delete process.env.DAX_TVAR2;
   }
 });
 
@@ -830,7 +832,7 @@ Deno.test("cwd should be resolved based on cwd at time of method call and not ex
   await withTempDir(async (tempDir) => {
     await tempDir.join("./src/rs_lib").ensureDir();
     const command = $`echo $PWD`.cwd("./src");
-    compat.chdir("./src/rs_lib");
+    process.chdir("./src/rs_lib");
     const result = await command.text();
     assertEquals(result.slice(-3), "src");
   });
@@ -850,7 +852,7 @@ Deno.test("should handle the PWD variable", async () => {
 });
 
 Deno.test("tilde expansion", async () => {
-  const envVarName = compat.buildOs() === "windows" ? "USERPROFILE" : "HOME";
+  const envVarName = process.platform === "win32" ? "USERPROFILE" : "HOME";
   {
     const text = await $`echo ~/home`.env(envVarName, "/var").text();
     assertEquals(text, `/var/home`);
@@ -1735,24 +1737,24 @@ Deno.test("printCommand", async () => {
 
 Deno.test("environment should be evaluated at command execution", async () => {
   const envName = "DAX_TEST_ENV_SET";
-  compat.env.set(envName, "1");
+  process.env[envName] = "1";
   try {
     const result = await $.raw`echo $${envName}`.text();
     assertEquals(result, "1");
   } finally {
-    compat.env.delete(envName);
+    delete process.env[envName];
   }
   const result = await $.raw`echo $${envName}`.text();
   assertEquals(result, "");
 
   // check cwd
-  const previousCwd = compat.cwd();
+  const previousCwd = process.cwd();
   try {
-    compat.chdir("./src");
+    process.chdir("./src");
     const result = await $`echo $PWD`.text();
     assertEquals(result.slice(-3), "src");
   } finally {
-    compat.chdir(previousCwd);
+    process.chdir(previousCwd);
   }
 });
 
@@ -1894,7 +1896,7 @@ Deno.test("cp test2", async () => {
   await withTempDir(async (dir) => {
     await $`mkdir -p a/d1`;
     await $`mkdir -p a/d2`;
-    await compat.create("a/d1/f").then((f) => f.close());
+    await create("a/d1/f").then((f) => f.close());
     await $`cp a/d1/f a/d2`;
     assert(dir.join("a/d2/f").existsSync());
   });
@@ -1937,7 +1939,7 @@ Deno.test("move test", async () => {
 });
 
 Deno.test("pwd: pwd", async () => {
-  assertEquals(await $`pwd`.text(), compat.cwd());
+  assertEquals(await $`pwd`.text(), process.cwd());
 });
 
 Deno.test("progress", () => {
@@ -2035,7 +2037,7 @@ Deno.test("touch test", async () => {
 
 Deno.test("cat", async () => {
   await withTempDir(async (tempDir) => {
-    await compat.writeTextFile("hello", "hello world");
+    await fs.promises.writeFile("hello", "hello world");
     assertEquals(
       await $`cat hello`.text(),
       "hello world",
@@ -2045,7 +2047,7 @@ Deno.test("cat", async () => {
       await $`cat ${tempDir.join("hello")}`.text(),
       "hello world",
     );
-    await compat.writeTextFile("hello2", "hello world2");
+    await fs.promises.writeFile("hello2", "hello world2");
     assertEquals(
       await $`cat hello hello2`.text(),
       "hello worldhello world2",
@@ -2078,7 +2080,7 @@ Deno.test("cat", async () => {
 Deno.test("printenv", async () => {
   {
     const result = await $`printenv`.env("hello", "world").env("ab", "cd").text();
-    if (compat.buildOs() === "windows") {
+    if (process.platform === "win32") {
       assertMatch(result, /HELLO=world/);
       assertMatch(result, /AB=cd/);
     } else {
@@ -2091,7 +2093,7 @@ Deno.test("printenv", async () => {
     assertEquals(result.code, 0);
     assertEquals(result.stdout, "world\ncd\n");
   }
-  if (compat.buildOs() === "windows") {
+  if (process.platform === "win32") {
     // windows is case insensitive
     const result = await $`printenv HeLlO aB`.env("hello", "world").env("ab", "cd").stdout("piped");
     assertEquals(result.code, 0);
@@ -2124,7 +2126,7 @@ Deno.test("should error creating a command signal", () => {
   );
 });
 
-Deno.test("should receive signal when listening", { ignore: compat.buildOs() !== "linux" }, async () => {
+Deno.test("should receive signal when listening", { ignore: process.platform !== "linux" }, async () => {
   const p =
     $`deno eval 'Deno.addSignalListener("SIGINT", () => console.log("RECEIVED SIGINT")); console.log("started"); setTimeout(() => {}, 10_000)'`
       .noThrow()
@@ -2141,7 +2143,7 @@ Deno.test("should receive signal when listening", { ignore: compat.buildOs() !==
 Deno.test("signal listening in registered commands", async () => {
   const commandBuilder = new CommandBuilder().noThrow().registerCommand("listen", (handler) => {
     return new Promise((resolve) => {
-      function listener(signal: compat.Signal) {
+      function listener(signal: Signal) {
         if (signal === "SIGKILL") {
           resolve({
             code: 135,
@@ -2501,7 +2503,7 @@ Deno.test("which uses same as $.which", async () => {
   {
     const whichFnOutput = await $.which("deno");
     const whichShellOutput = await $`which deno`.text();
-    if (compat.buildOs() === "windows") {
+    if (process.platform === "win32") {
       // windows is case insensitive
       assertEquals(whichFnOutput?.toLowerCase(), whichShellOutput.toLowerCase());
     } else {
@@ -2558,7 +2560,7 @@ Deno.test("resolve command by path", async () => {
   assert(typeof version === "string");
 });
 
-Deno.test("windows cmd file", { ignore: compat.buildOs() !== "windows" }, async () => {
+Deno.test("windows cmd file", { ignore: process.platform !== "win32" }, async () => {
   await withTempDir(async (tempDir) => {
     tempDir.join("script.cmd").writeSync("@echo off\ndeno %*\n");
     const result = await $`./script.cmd eval "console.log(1); console.log(2)"`.lines("combined");

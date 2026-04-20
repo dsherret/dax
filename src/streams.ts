@@ -1,0 +1,45 @@
+import * as fs from "node:fs";
+import { Readable } from "node:stream";
+import { writeSyncAll } from "./fs_file.ts";
+
+export const stdin = {
+  read(p: Uint8Array): Promise<number | null> {
+    const bytesRead = fs.readSync(0, p);
+    return Promise.resolve(bytesRead === 0 ? null : bytesRead);
+  },
+  get readable(): ReadableStream<Uint8Array> {
+    return Readable.toWeb(process.stdin) as ReadableStream<Uint8Array>;
+  },
+  setRaw(mode: boolean): void {
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(mode);
+    }
+  },
+  isTerminal(): boolean {
+    return process.stdin.isTTY ?? false;
+  },
+};
+
+export const stdout = {
+  write(p: Uint8Array): Promise<number> {
+    return Promise.resolve(writeSyncAll(1, p));
+  },
+  writeSync(p: Uint8Array): number {
+    return writeSyncAll(1, p);
+  },
+  isTerminal(): boolean {
+    return process.stdout.isTTY ?? false;
+  },
+};
+
+export const stderr = {
+  write(p: Uint8Array): Promise<number> {
+    return Promise.resolve(writeSyncAll(2, p));
+  },
+  writeSync(p: Uint8Array): number {
+    return writeSyncAll(2, p);
+  },
+  isTerminal(): boolean {
+    return process.stderr.isTTY ?? false;
+  },
+};

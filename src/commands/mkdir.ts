@@ -1,5 +1,5 @@
+import * as fs from "node:fs";
 import type { CommandContext } from "../command_handler.ts";
-import * as compat from "../compat.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import { safeLstat } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -26,13 +26,13 @@ async function executeMkdir(cwd: string, args: string[]) {
   for (const specifiedPath of flags.paths) {
     const path = resolvePath(cwd, specifiedPath);
     const info = await safeLstat(path);
-    if (info?.isFile || (!flags.parents && info?.isDirectory)) {
+    if (info?.isFile() || (!flags.parents && info?.isDirectory())) {
       throw Error(`cannot create directory '${specifiedPath}': File exists`);
     }
     if (flags.parents) {
-      await compat.mkdir(path, { recursive: true });
+      await fs.promises.mkdir(path, { recursive: true });
     } else {
-      await compat.mkdir(path);
+      await fs.promises.mkdir(path);
     }
   }
 }

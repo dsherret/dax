@@ -4,7 +4,9 @@ import { toWritableStream } from "@std/io/to-writable-stream";
 import * as path from "node:path";
 import { isNode } from "which_runtime";
 import $ from "../mod.ts";
-import * as compat from "./compat.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as nodePath from "node:path";
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 
@@ -165,8 +167,10 @@ Deno.test("$.request", (t) => {
     });
 
     step("pipeToPath", async () => {
-      const testFilePath = await compat.makeTempFile();
-      const originDir = compat.cwd();
+      const tempRoot = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
+      const testFilePath = nodePath.join(tempRoot, "tmp");
+      await fs.promises.writeFile(testFilePath, "");
+      const originDir = process.cwd();
       try {
         {
           // ensure that a truncate happens
@@ -180,7 +184,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test default path
-          compat.chdir(await compat.makeTempDir()); // change path just to not download to the current dir
+          process.chdir(await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"))); // change path just to not download to the current dir
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -195,18 +199,18 @@ Deno.test("$.request", (t) => {
               .showProgress()
               .pipeToPath({ createNew: true });
           });
-          assert(compat.isAlreadyExistsError(alreadyExistsErr), `expected EEXIST, got ${alreadyExistsErr}`);
+          assert((alreadyExistsErr as any)?.code === "EEXIST", `expected EEXIST, got ${alreadyExistsErr}`);
           const alreadyExistsErr2 = await assertRejects(async () => {
             await new RequestBuilder()
               .url(new URL("/text-file", serverUrl))
               .showProgress()
               .pipeToPath(undefined, { createNew: true });
           });
-          assert(compat.isAlreadyExistsError(alreadyExistsErr2), `expected EEXIST, got ${alreadyExistsErr2}`);
+          assert((alreadyExistsErr2 as any)?.code === "EEXIST", `expected EEXIST, got ${alreadyExistsErr2}`);
         }
         {
           // test downloading to a directory
-          const tempDir = await compat.makeTempDir();
+          const tempDir = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -216,8 +220,8 @@ Deno.test("$.request", (t) => {
         }
       } finally {
         try {
-          compat.chdir(originDir);
-          await compat.remove(testFilePath);
+          process.chdir(originDir);
+          await fs.promises.rm(testFilePath);
         } catch {
           // do nothing
         }
