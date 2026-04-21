@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
-import type { Signal } from "../signal.ts";
 import {
   pipeReadableToWriterSync,
   pipeReaderToWritable,
@@ -9,8 +8,8 @@ import {
   type ShellPipeWriterKind,
 } from "../pipes.ts";
 import type { ExecuteResult } from "../result.ts";
-import { spawnCommand } from "../runtimes/process.node.ts";
-import type { SpawnedChildProcess } from "../runtimes/process.common.ts";
+import type { Signal } from "../signal.ts";
+import { spawnCommand, type SpawnedChildProcess } from "../spawn.ts";
 
 const neverAbortedSignal = new AbortController().signal;
 
@@ -39,7 +38,6 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         ...pipeStringVals,
       });
     } catch (err) {
-      // Deno throws this sync, Node.js throws it async
       throw checkMapCwdNotExistsError(cwd, err);
     }
     const listener = (signal: Signal) => p.kill(signal);
@@ -80,7 +78,6 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         : Promise.resolve();
       const [exitCode] = await Promise.all([
         p.waitExitCode()
-          // for node.js, which throws this async
           .catch((err) => Promise.reject(checkMapCwdNotExistsError(cwd, err))),
         readStdoutTask,
         readStderrTask,

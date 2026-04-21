@@ -1,22 +1,28 @@
 import * as cp from "node:child_process";
 import * as os from "node:os";
 import { Readable, Writable } from "node:stream";
-import { getSignalAbortCode } from "../command.ts";
-import type { Signal } from "../signal.ts";
-import type { SpawnCommand } from "./process.common.ts";
+import { getSignalAbortCode } from "./command.ts";
+import type { Signal } from "./signal.ts";
 
-function toNodeStdio(stdio: "inherit" | "null" | "piped") {
-  switch (stdio) {
-    case "inherit":
-      return "inherit";
-    case "null":
-      return "ignore";
-    case "piped":
-      return "pipe";
-  }
+export interface SpawnCommandOptions {
+  args: string[];
+  cwd: string;
+  env: Record<string, string>;
+  clearEnv: boolean;
+  stdin: "inherit" | "null" | "piped";
+  stdout: "inherit" | "null" | "piped";
+  stderr: "inherit" | "null" | "piped";
 }
 
-export const spawnCommand: SpawnCommand = (path, options) => {
+export interface SpawnedChildProcess {
+  stdin(): WritableStream;
+  stdout(): ReadableStream;
+  stderr(): ReadableStream;
+  kill(signo?: Signal): void;
+  waitExitCode(): Promise<number>;
+}
+
+export function spawnCommand(path: string, options: SpawnCommandOptions): SpawnedChildProcess {
   let receivedSignal: Signal | undefined;
   // launching bat or cmd files in Node.js will error, so launch
   // via cmd.exe instead https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
@@ -64,4 +70,15 @@ export const spawnCommand: SpawnCommand = (path, options) => {
       return Readable.toWeb(child.stderr!) as ReadableStream;
     },
   };
-};
+}
+
+function toNodeStdio(stdio: "inherit" | "null" | "piped") {
+  switch (stdio) {
+    case "inherit":
+      return "inherit";
+    case "null":
+      return "ignore";
+    case "piped":
+      return "pipe";
+  }
+}

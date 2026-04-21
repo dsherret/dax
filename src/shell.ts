@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
+import { RealEnvironment, which } from "which";
 import { expandGlob } from "./glob.ts";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
@@ -1155,23 +1155,29 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
   };
 }
 
-class WhichEnv extends DenoWhichRealEnvironment {
-  requestPermission(_folderPath: string) {
-    // no-op in Node.js (no permissions API)
+class WhichEnv extends RealEnvironment {
+  requestPermission(folderPath: string) {
+    // only relevant under Deno — Node has no permissions API
+    // dnt-shim-ignore
+    const denoGlobal = (globalThis as any).Deno;
+    denoGlobal?.permissions?.requestSync?.({
+      name: "read",
+      path: folderPath,
+    });
   }
 }
-export const denoWhichRealEnv = new WhichEnv();
+export const whichRealEnv = new WhichEnv();
 
 export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
   return await which(commandName, {
     isWindows,
-    stat: denoWhichRealEnv.stat,
+    stat: whichRealEnv.stat,
     env(key) {
       return context.getVar(key);
     },
-    requestPermission: denoWhichRealEnv.requestPermission,
+    requestPermission: whichRealEnv.requestPermission,
   });
 }
 
