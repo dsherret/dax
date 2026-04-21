@@ -8,8 +8,7 @@
     "lineWidth": 120
   },
   "excludes": [
-    "npm",
-    "**/*.generated.js"
+    "npm"
   ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.95.15.wasm",

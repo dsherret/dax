@@ -6,20 +6,17 @@
     "jsr:@david/path@0.3": "0.3.1",
     "jsr:@david/path@~0.3.1": "0.3.1",
     "jsr:@david/shell@0.1": "0.1.0",
-    "jsr:@david/temp@0.2": "0.2.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@~0.5.1": "0.5.1",
     "jsr:@david/which@~0.5.2": "0.5.2",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/async@1": "1.0.16",
-    "jsr:@std/bytes@^1.0.5": "1.0.6",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/fmt@1": "1.0.10",
     "jsr:@std/fs@1": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@std/io@0.225": "0.225.3",
-    "jsr:@std/path@*": "1.1.4",
     "jsr:@std/path@1": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.4",
     "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
@@ -45,12 +42,6 @@
         "jsr:@std/fmt",
         "jsr:@std/io",
         "jsr:@std/path@1"
-      ]
-    },
-    "@david/temp@0.2.0": {
-      "integrity": "1759b3237a3f83d42b2ef44b9d7184eb5a7b825c7d7c9d17ae5fba0c4ed9b147",
-      "dependencies": [
-        "jsr:@david/path@0.3"
       ]
     },
     "@david/which@0.5.1": {
@@ -112,16 +103,10 @@
     "@std/internal@1.0.13": {
       "integrity": "2f9546691d4ac2d32859c82dff284aaeac980ddeca38430d07941e7e288725c0"
     },
-    "@std/io@0.225.2": {
-      "integrity": "3c740cd4ee4c082e6cfc86458f47e2ab7cb353dc6234d5e9b1f91a2de5f4d6c7",
-      "dependencies": [
-        "jsr:@std/bytes@^1.0.5"
-      ]
-    },
     "@std/io@0.225.3": {
       "integrity": "27b07b591384d12d7b568f39e61dff966b8230559122df1e9fd11cc068f7ddd1",
       "dependencies": [
-        "jsr:@std/bytes@^1.0.6"
+        "jsr:@std/bytes"
       ]
     },
     "@std/path@1.1.2": {
@@ -308,7 +293,6 @@
       "jsr:@david/console-static-text@~0.3.1",
       "jsr:@david/path@~0.3.1",
       "jsr:@david/shell@0.1",
-      "jsr:@david/temp@0.2",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
       "jsr:@deno/dnt@~0.42.3",
