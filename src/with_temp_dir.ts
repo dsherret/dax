@@ -18,12 +18,13 @@ export function usingTempDir(): Path & AsyncDisposable {
   process.chdir(dirPath);
   const pathRef = new Path(dirPath).resolve();
   (pathRef as any)[Symbol.asyncDispose] = async () => {
+    // restore the cwd first — on Windows, rm-ing the current cwd fails with EBUSY/EPERM
+    process.chdir(originalDirPath);
     try {
       await fs.promises.rm(dirPath, { recursive: true });
     } catch {
       // ignore
     }
-    process.chdir(originalDirPath);
   };
   return pathRef as Path & AsyncDisposable;
 }

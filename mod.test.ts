@@ -637,7 +637,7 @@ Deno.test("test command", async (t) => {
   });
   await t.step("should work with boolean: fail && ..", async () => {
     const result = await $`test -f ${process.cwd()} && echo nope`.noThrow().stdout("piped");
-    assertEquals(result.code, 1), "should have exit code 1";
+    assertEquals(result.code, 1, "should have exit code 1");
     assertEquals(result.stdout, "");
   });
   await t.step("should work with boolean: pass || ..", async () => {

@@ -167,7 +167,13 @@ Deno.test("$.request", (t) => {
     });
 
     step("pipeToPath", async () => {
-      const tempRoot = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
+      const tempDirs: string[] = [];
+      const mkTempDir = async () => {
+        const dir = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
+        tempDirs.push(dir);
+        return dir;
+      };
+      const tempRoot = await mkTempDir();
       const testFilePath = nodePath.join(tempRoot, "tmp");
       await fs.promises.writeFile(testFilePath, "");
       const originDir = process.cwd();
@@ -184,7 +190,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test default path
-          process.chdir(await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"))); // change path just to not download to the current dir
+          process.chdir(await mkTempDir()); // change path just to not download to the current dir
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -210,7 +216,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test downloading to a directory
-          const tempDir = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
+          const tempDir = await mkTempDir();
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -219,11 +225,10 @@ Deno.test("$.request", (t) => {
           assertEquals(downloadedFilePath.toString(), path.join(tempDir, "text-file"));
         }
       } finally {
-        try {
-          process.chdir(originDir);
-          await fs.promises.rm(testFilePath);
-        } catch {
-          // do nothing
+        // restore the cwd before cleaning up temp dirs (Windows can't rm the current cwd)
+        process.chdir(originDir);
+        for (const dir of tempDirs) {
+          await fs.promises.rm(dir, { recursive: true, force: true });
         }
       }
     });
