@@ -255,6 +255,12 @@ Deno.test("should change the cwd, but only in the shell", async () => {
   assertEquals(standardizedOutput.endsWith("src"), true, standardizedOutput);
 });
 
+Deno.test("cwd accepts a file URL", async () => {
+  const srcUrl = new URL("./src/", import.meta.url);
+  const output = (await $`pwd`.cwd(srcUrl).text()).replace(/\\/g, "/").replace(/\/$/, "");
+  assert(output.endsWith("/src"), output);
+});
+
 Deno.test("allow setting env", async () => {
   const output = await $`echo $test`.env("test", "123").text();
   assertEquals(output, "123");

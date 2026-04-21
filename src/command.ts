@@ -1,14 +1,10 @@
 import { FsFileWrapper, Path } from "@david/path";
 import * as colors from "@std/fmt/colors";
 import { Buffer } from "@std/io/buffer";
+import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readerFromStreamReader } from "@std/io/reader-from-stream-reader";
 import type { CommandHandler } from "./command_handler.ts";
-import type { Signal } from "./signal.ts";
-import { stderr as stderrStream, stdout as stdoutStream } from "./streams.ts";
-
-const isWindows = process.platform === "win32";
 import { catCommand } from "./commands/cat.ts";
 import { cdCommand } from "./commands/cd.ts";
 import { cpCommand, mvCommand } from "./commands/cp_mv.ts";
@@ -28,6 +24,10 @@ import { unsetCommand } from "./commands/unset.ts";
 import { whichCommand } from "./commands/which.ts";
 import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
 import type { Delay } from "./common.ts";
+import type { Signal } from "./signal.ts";
+import { stderr as stderrStream, stdout as stdoutStream } from "./streams.ts";
+
+const isWindows = process.platform === "win32";
 import { symbols } from "./common.ts";
 import { isShowingProgressBars } from "./console/progress.ts";
 import {

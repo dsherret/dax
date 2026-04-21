@@ -1,13 +1,11 @@
 import * as path from "node:path";
 import { RealEnvironment, which } from "which";
-import { expandGlob } from "./glob.ts";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
+import { createExecutableCommand } from "./commands/executable.ts";
 import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
 import { open } from "./fs_file.ts";
-import { stdin as stdinStream } from "./streams.ts";
-
-const isWindows = process.platform === "win32";
+import { expandGlob } from "./glob.ts";
 import * as wasmInstance from "./lib/rs_lib.js";
 import {
   NullPipeReader,
@@ -19,7 +17,9 @@ import {
   ShellPipeWriter,
 } from "./pipes.ts";
 import { type EnvChange, type ExecuteResult, getAbortedResult, type ShellOption } from "./result.ts";
-import { createExecutableCommand } from "./commands/executable.ts";
+import { stdin as stdinStream } from "./streams.ts";
+
+const isWindows = process.platform === "win32";
 
 class ShellEvaluateError extends Error {
 }
