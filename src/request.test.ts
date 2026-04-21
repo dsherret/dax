@@ -251,7 +251,7 @@ Deno.test("$.request", (t) => {
     step("404", async () => {
       const request404 = new RequestBuilder()
         .url(new URL("/code/404", serverUrl));
-      assertRejects(
+      await assertRejects(
         async () => {
           await request404.text();
         },
@@ -269,7 +269,7 @@ Deno.test("$.request", (t) => {
     step("500", async () => {
       const request500 = new RequestBuilder()
         .url(new URL("/code/500", serverUrl));
-      assertRejects(
+      await assertRejects(
         async () => {
           await request500.text();
         },

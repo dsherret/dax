@@ -1,8 +1,7 @@
 import { Path } from "@david/path";
-import type { WriteFileOptions } from "./fs_file.ts";
-import { formatMillis, symbols } from "./common.ts";
-import { TimeoutError } from "./common.ts";
-import { type Delay, delayToMs, filterEmptyRecordValues, getFileNameFromUrl } from "./common.ts";
+import { type Delay, delayToMs, type WriteFileOptions } from "@david/shell";
+import { symbols } from "@david/shell/internal";
+import { filterEmptyRecordValues, formatMillis, getFileNameFromUrl, TimeoutError } from "./common.ts";
 import type { ProgressBar } from "./console/mod.ts";
 
 interface RequestBuilderState {

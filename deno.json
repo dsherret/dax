@@ -8,8 +8,7 @@
   },
   "tasks": {
     "dnt": "deno run -A ./scripts/build_npm.ts",
-    "test": "deno test -A",
-    "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.19.2 --inline --out ./src/lib"
+    "test": "deno test -A"
   },
   "fmt": {
     "proseWrap": "preserve",
@@ -26,19 +25,15 @@
     }
   },
   "exclude": [
-    ".gitattributes",
     ".gitignore",
     ".github",
-    ".rustfmt.toml",
     ".vscode",
-    "Cargo.toml",
-    "Cargo.lock",
-    "npm/",
-    "target/"
+    "npm/"
   ],
   "exports": "./mod.ts",
   "imports": {
     "@david/console-static-text": "jsr:@david/console-static-text@^0.3.1",
+    "@david/shell": "jsr:@david/shell@^0.1",
     "@deno/dnt": "jsr:@deno/dnt@^0.42.3",
     "@david/path": "jsr:@david/path@^0.3.1",
     "@std/assert": "jsr:@std/assert@1",

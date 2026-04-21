@@ -1,6 +1,6 @@
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 import { maybeConsoleSize, stripAnsiCodes, type TextItem } from "@david/console-static-text";
-import { stderr, stdin } from "../streams.ts";
+import { stderr, stdin } from "@david/shell";
 
 const encoder = new TextEncoder();
 

@@ -2,28 +2,31 @@ import * as colors from "@std/fmt/colors";
 import { which, whichSync } from "which";
 import {
   CommandBuilder,
+  type Delay,
+  delayToMs,
   escapeArg,
-  getRegisteredCommandNamesSymbol,
+  type RawArg,
   rawArg,
-  setCommandTextStateSymbol,
-  template,
-  templateRaw,
-} from "./src/command.ts";
-import type { RawArg, TemplateExpr } from "./src/command.ts";
+  type TemplateExpr,
+  whichRealEnv,
+} from "@david/shell";
 import {
   Box,
-  type Delay,
-  type DelayIterator,
-  delayToIterator,
-  delayToMs,
-  formatMillis,
+  getRegisteredCommandNamesSymbol,
   LoggerTreeBox,
+  setCommandTextStateSymbol,
+  setHasStaticText,
+  setStaticTextClear,
   symbols,
+  template,
+  templateRaw,
   TreeBox,
-} from "./src/common.ts";
+} from "@david/shell/internal";
+import { type DelayIterator, delayToIterator, formatMillis } from "./src/common.ts";
 import {
   confirm,
   type ConfirmOptions,
+  isShowingProgressBars,
   maybeConfirm,
   maybeMultiSelect,
   maybePrompt,
@@ -37,32 +40,56 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import { stripAnsiCodes } from "@david/console-static-text";
+import { staticText, stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
 import { inspect as nodeInspect } from "node:util";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { outdent } from "./src/vendor/outdent.ts";
-import { whichRealEnv } from "./src/shell.ts";
+
+// wire shell into the host's static-text rendering so progress bars and
+// command output don't clobber each other
+setStaticTextClear((action) => staticText.withTempClear(action));
+setHasStaticText(isShowingProgressBars);
 
 export { type DirEntry, FsFileWrapper, Path, type SymlinkOptions } from "@david/path";
-export type { Delay, DelayIterator } from "./src/common.ts";
-export { TimeoutError } from "./src/common.ts";
-/** @deprecated Import `Path` instead. */
-const PathRef = Path;
-// bug in deno: https://github.com/denoland/deno_lint/pull/1262
-export { PathRef };
 export {
+  type CdChange,
+  type Closer,
   CommandBuilder,
   CommandChild,
+  type CommandContext,
+  type CommandHandler,
+  type CommandPipeReader,
+  type CommandPipeWriter,
   CommandResult,
+  type ContinueExecuteResult,
+  createExecutableCommand,
+  type Delay,
+  type EnvChange,
+  type ExecuteResult,
+  type ExitExecuteResult,
   KillController,
   KillSignal,
   type KillSignalListener,
   RawArg,
+  type Reader,
+  type SetEnvVarChange,
+  type SetOptionChange,
+  type SetShellVarChange,
+  type ShellOption,
+  type ShellOptionsState,
+  type ShellPipeReaderKind,
+  type ShellPipeWriterKind,
   type TemplateExpr,
-} from "./src/command.ts";
-export type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "./src/command_handler.ts";
+  type UnsetVarChange,
+  type WriterSync,
+} from "@david/shell";
+export { type DelayIterator, TimeoutError } from "./src/common.ts";
+/** @deprecated Import `Path` instead. */
+const PathRef = Path;
+// bug in deno: https://github.com/denoland/deno_lint/pull/1262
+export { PathRef };
 export type {
   ConfirmOptions,
   MultiSelectOption,
@@ -73,23 +100,7 @@ export type {
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
-export type { Closer, Reader, ShellPipeReaderKind, ShellPipeWriterKind, WriterSync } from "./src/pipes.ts";
 export { RequestBuilder, RequestResponse } from "./src/request.ts";
-// these are used when registering commands
-export {
-  type CdChange,
-  type ContinueExecuteResult,
-  type EnvChange,
-  type ExecuteResult,
-  type ExitExecuteResult,
-  type SetEnvVarChange,
-  type SetOptionChange,
-  type SetShellVarChange,
-  type ShellOption,
-  type UnsetVarChange,
-} from "./src/result.ts";
-export type { ShellOptionsState } from "./src/shell.ts";
-export { createExecutableCommand } from "./src/commands/executable.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
