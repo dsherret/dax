@@ -7,8 +7,9 @@ import type { Signal } from "./signal.ts";
 export interface SpawnCommandOptions {
   args: string[];
   cwd: string;
+  /** The complete environment for the child — Node's `cp.spawn` does not
+   * merge with `process.env` when this is passed. */
   env: Record<string, string>;
-  clearEnv: boolean;
   stdin: "inherit" | "null" | "piped";
   stdout: "inherit" | "null" | "piped";
   stderr: "inherit" | "null" | "piped";
@@ -32,7 +33,6 @@ export function spawnCommand(path: string, options: SpawnCommandOptions): Spawne
     isWindowsBatch ? ["/d", "/s", "/c", path, ...options.args] : options.args,
     {
       cwd: options.cwd,
-      // todo: clearEnv on node?
       env: options.env,
       stdio: [
         toNodeStdio(options.stdin),

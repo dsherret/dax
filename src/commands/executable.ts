@@ -34,7 +34,6 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         args: context.args,
         cwd,
         env: context.env,
-        clearEnv: true,
         ...pipeStringVals,
       });
     } catch (err) {

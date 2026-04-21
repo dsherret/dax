@@ -29,8 +29,12 @@ export class FsFile {
   }
 
   read(p: Uint8Array): Promise<number | null> {
-    const bytesRead = fs.readSync(this.#fd, p);
-    return Promise.resolve(bytesRead === 0 ? null : bytesRead);
+    return new Promise((resolve, reject) => {
+      fs.read(this.#fd, p, 0, p.length, null, (err, bytesRead) => {
+        if (err) reject(err);
+        else resolve(bytesRead === 0 ? null : bytesRead);
+      });
+    });
   }
 
   readSync(p: Uint8Array): number | null {
@@ -80,10 +84,7 @@ export async function create(filePath: string): Promise<FsFile> {
 }
 
 function openOptionsToFlags(options: OpenOptions): string {
-  if (options.read && !options.write) return "r";
-  if (options.write && options.append && options.create) return "a";
   if (options.write && options.append) return "a";
-  if (options.write && options.create && options.truncate) return "w";
   if (options.write && options.create) return "w";
   if (options.write) return "r+";
   return "r";
