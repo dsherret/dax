@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as nodePath from "node:path";
+import { globToRegExp } from "@std/path/glob-to-regexp";
 import { isWindows } from "./common.ts";
 
 export interface ExpandGlobOptions {
@@ -29,11 +30,11 @@ interface ResolvedOptions {
 /**
  * Expands a glob pattern into matching filesystem entries.
  *
- * Handles `*`, `?`, `[...]` character classes, and (when `globstar` is enabled) `**`.
- * `\` on non-Windows and `` ` `` on Windows escape the following character.
+ * Segment conversion (`*`, `?`, `[...]`, and `**`) is delegated to
+ * `@std/path/glob-to-regexp`.
  */
 export async function* expandGlob(pattern: string, options: ExpandGlobOptions): AsyncGenerator<GlobEntry> {
-  const opts = {
+  const opts: ResolvedOptions = {
     caseInsensitive: options.caseInsensitive ?? false,
     globstar: options.globstar ?? true,
     followSymlinks: options.followSymlinks ?? false,
@@ -51,7 +52,7 @@ export async function* expandGlob(pattern: string, options: ExpandGlobOptions): 
     remaining = pattern;
   }
 
-  const segments = splitSegments(remaining).filter((s) => s.length > 0);
+  const segments = remaining.split(/[/\\]/).filter((s) => s.length > 0);
   yield* walkSegments(startDir, segments, 0, opts);
 }
 
@@ -87,10 +88,8 @@ async function* walkSegments(
   }
 
   if (!hasGlobChar(segment)) {
-    const literal = unescapeGlob(segment);
-    const nextPath = nodePath.join(dir, literal);
-    // try the exact-case lookup first — the common case is the caller passed
-    // the right case, and lstat is much cheaper than reading the whole dir.
+    const nextPath = nodePath.join(dir, segment);
+    // literal segment — lstat-first avoids reading the whole directory
     let stat: fs.Stats | undefined;
     try {
       stat = opts.followSymlinks ? await fs.promises.stat(nextPath) : await fs.promises.lstat(nextPath);
@@ -98,15 +97,14 @@ async function* walkSegments(
       if (err?.code !== "ENOENT" || !opts.caseInsensitive || isWindows) {
         return;
       }
-      // not found and we need case-insensitive matching on a case-sensitive
-      // filesystem — fall back to scanning the directory.
+      // case-insensitive match requested on a case-sensitive fs — fall back to dir scan
       let entries: fs.Dirent[];
       try {
         entries = await fs.promises.readdir(dir, { withFileTypes: true });
       } catch {
         return;
       }
-      const lowered = literal.toLowerCase();
+      const lowered = segment.toLowerCase();
       for (const entry of entries) {
         if (entry.name.toLowerCase() !== lowered) continue;
         yield* yieldOrDescend(nodePath.join(dir, entry.name), entry, segments, index, isLast, opts);
@@ -123,7 +121,10 @@ async function* walkSegments(
     return;
   }
 
-  const regex = globSegmentToRegex(segment, opts.caseInsensitive);
+  const regex = globToRegExp(segment, {
+    caseInsensitive: opts.caseInsensitive,
+    globstar: opts.globstar,
+  });
   let entries: fs.Dirent[];
   try {
     entries = await fs.promises.readdir(dir, { withFileTypes: true });
@@ -181,105 +182,10 @@ async function isDirectory(entry: fs.Dirent, entryPath: string, followSymlinks: 
   return false;
 }
 
-function splitSegments(pattern: string): string[] {
-  const escape = escapeChar();
-  const segments: string[] = [];
-  let current = "";
-  for (let i = 0; i < pattern.length; i++) {
-    const ch = pattern[i];
-    if (ch === escape && i + 1 < pattern.length) {
-      current += ch + pattern[i + 1];
-      i++;
-    } else if (ch === "/" || (isWindows && ch === "\\")) {
-      segments.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  segments.push(current);
-  return segments;
-}
-
-function hasGlobChar(pattern: string): boolean {
-  const escape = escapeChar();
-  for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === escape && i + 1 < pattern.length) {
-      i++;
-      continue;
-    }
-    const ch = pattern[i];
-    if (ch === "*" || ch === "?" || ch === "[") {
-      return true;
-    }
+function hasGlobChar(segment: string): boolean {
+  for (let i = 0; i < segment.length; i++) {
+    const ch = segment[i];
+    if (ch === "*" || ch === "?" || ch === "[") return true;
   }
   return false;
-}
-
-function unescapeGlob(pattern: string): string {
-  const escape = escapeChar();
-  let result = "";
-  for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === escape && i + 1 < pattern.length) {
-      result += pattern[i + 1];
-      i++;
-    } else {
-      result += pattern[i];
-    }
-  }
-  return result;
-}
-
-function globSegmentToRegex(pattern: string, caseInsensitive: boolean): RegExp {
-  const escape = escapeChar();
-  let regex = "^";
-  let i = 0;
-  while (i < pattern.length) {
-    const ch = pattern[i];
-    if (ch === escape && i + 1 < pattern.length) {
-      regex += regexEscape(pattern[i + 1]);
-      i += 2;
-    } else if (ch === "*") {
-      regex += ".*";
-      i++;
-    } else if (ch === "?") {
-      regex += ".";
-      i++;
-    } else if (ch === "[") {
-      // find matching closing bracket, accounting for leading `!`/`^` and a literal `]` right after
-      let j = i + 1;
-      if (j < pattern.length && (pattern[j] === "!" || pattern[j] === "^")) {
-        j++;
-      }
-      if (j < pattern.length && pattern[j] === "]") {
-        j++;
-      }
-      while (j < pattern.length && pattern[j] !== "]") {
-        j++;
-      }
-      if (j >= pattern.length) {
-        regex += regexEscape("[");
-        i++;
-      } else {
-        let inner = pattern.slice(i + 1, j);
-        const negated = inner.startsWith("!") || inner.startsWith("^");
-        if (negated) inner = inner.slice(1);
-        regex += "[" + (negated ? "^" : "") + inner.replace(/\\/g, "\\\\") + "]";
-        i = j + 1;
-      }
-    } else {
-      regex += regexEscape(ch);
-      i++;
-    }
-  }
-  regex += "$";
-  return new RegExp(regex, caseInsensitive ? "i" : "");
-}
-
-function regexEscape(ch: string): string {
-  return ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function escapeChar(): string {
-  return isWindows ? "`" : "\\";
 }

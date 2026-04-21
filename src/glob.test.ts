@@ -139,6 +139,97 @@ Deno.test("expandGlob: excludes directories when includeDirs is false", async ()
   });
 });
 
+Deno.test("expandGlob: multi-segment literal descends through directories", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.mkdirSync(path.join(root, "a", "b"), { recursive: true });
+    fs.writeFileSync(path.join(root, "a", "b", "c.txt"), "");
+    fs.writeFileSync(path.join(root, "a", "other.txt"), "");
+    assertEquals(await collect("a/b/c.txt", root), ["a/b/c.txt"]);
+  });
+});
+
+Deno.test("expandGlob: mid-path glob segment", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.mkdirSync(path.join(root, "x"), { recursive: true });
+    fs.mkdirSync(path.join(root, "y"), { recursive: true });
+    fs.mkdirSync(path.join(root, "z"), { recursive: true });
+    fs.writeFileSync(path.join(root, "x", "file.txt"), "");
+    fs.writeFileSync(path.join(root, "y", "file.txt"), "");
+    fs.writeFileSync(path.join(root, "z", "other.md"), "");
+    assertEquals(await collect("*/file.txt", root), ["x/file.txt", "y/file.txt"]);
+  });
+});
+
+Deno.test("expandGlob: absolute pattern resolves against filesystem root", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.writeFileSync(path.join(root, "abs.txt"), "");
+    // root-ignoring option value — the pattern is absolute, so `root` is unused
+    const pattern = path.join(root, "abs.txt");
+    const result: string[] = [];
+    for await (const entry of expandGlob(pattern, { root: "/nonexistent-root" })) {
+      result.push(entry.path);
+    }
+    assertEquals(result, [path.join(root, "abs.txt")]);
+  });
+});
+
+Deno.test("expandGlob: absolute pattern with glob segment", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.writeFileSync(path.join(root, "a.txt"), "");
+    fs.writeFileSync(path.join(root, "b.txt"), "");
+    const pattern = path.join(root, "*.txt");
+    const result: string[] = [];
+    for await (const entry of expandGlob(pattern, { root: "/nonexistent-root" })) {
+      result.push(path.relative(root, entry.path).split(path.sep).join("/"));
+    }
+    assertEquals(result.sort(), ["a.txt", "b.txt"]);
+  });
+});
+
+Deno.test("expandGlob: literal missing intermediate directory yields nothing", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.writeFileSync(path.join(root, "a.txt"), "");
+    assertEquals(await collect("missing/a.txt", root), []);
+  });
+});
+
+Deno.test("expandGlob: `**/*` yields files and dirs recursively", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.mkdirSync(path.join(root, "a", "b"), { recursive: true });
+    fs.writeFileSync(path.join(root, "a", "f.txt"), "");
+    fs.writeFileSync(path.join(root, "a", "b", "g.txt"), "");
+    assertEquals(
+      await collect("**/*", root),
+      ["a", "a/b", "a/b/g.txt", "a/f.txt"],
+    );
+  });
+});
+
+Deno.test("expandGlob: unmatched `[` is treated as a literal", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    // on Windows `[` is permitted in filenames; skip there to keep the test portable
+    if (process.platform === "win32") return;
+    fs.writeFileSync(path.join(root, "[a.txt"), "");
+    fs.writeFileSync(path.join(root, "b.txt"), "");
+    assertEquals(await collect("[a.txt", root), ["[a.txt"]);
+  });
+});
+
+Deno.test("expandGlob: leading `./` is treated the same as no prefix", async () => {
+  await withTempDir(async (dir) => {
+    const root = dir.toString();
+    fs.writeFileSync(path.join(root, "a.txt"), "");
+    assertEquals(await collect("./a.txt", root), ["a.txt"]);
+  });
+});
+
 Deno.test("expandGlob: escape character makes a glob char literal", async () => {
   await withTempDir(async (dir) => {
     const root = dir.toString();
