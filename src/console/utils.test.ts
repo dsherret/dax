@@ -59,6 +59,14 @@ Deno.test("should handle controls", async () => {
   reader.write(new Uint8Array([27, 91, 68]));
   assertEquals((await gen.next()).value, Keys.Left);
 
+  // ctrl+n -> Down
+  reader.write(new Uint8Array([14]));
+  assertEquals((await gen.next()).value, Keys.Down);
+
+  // ctrl+p -> Up
+  reader.write(new Uint8Array([16]));
+  assertEquals((await gen.next()).value, Keys.Up);
+
   reader.write(new Uint8Array([3]));
   assertEquals((await gen.next()).done, true);
 });
