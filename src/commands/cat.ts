@@ -49,7 +49,7 @@ async function executeCat(context: CommandContext) {
         file = await open(resolvePath(context.cwd, path), { read: true });
         while (!context.signal.aborted) {
           // NOTE: rust supports cancellation here
-          const size = file.readSync(buf);
+          const size = await file.read(buf);
           if (!size || size === 0) {
             break;
           } else {

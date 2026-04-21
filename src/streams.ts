@@ -29,9 +29,6 @@ export const stdin = {
 };
 
 export const stdout = {
-  write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(writeSyncAll(1, p));
-  },
   writeSync(p: Uint8Array): number {
     return writeSyncAll(1, p);
   },
@@ -41,9 +38,6 @@ export const stdout = {
 };
 
 export const stderr = {
-  write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(writeSyncAll(2, p));
-  },
   writeSync(p: Uint8Array): number {
     return writeSyncAll(2, p);
   },

@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { setImmediate } from "node:timers";
 import * as nodeUtil from "node:util";
 
 const openAsync = nodeUtil.promisify(fs.open);
@@ -42,19 +43,8 @@ export class FsFile {
     return bytesRead === 0 ? null : bytesRead;
   }
 
-  async write(p: Uint8Array): Promise<number> {
-    let offset = 0;
-    while (offset < p.length) {
-      const n = await new Promise<number>((resolve, reject) => {
-        fs.write(this.#fd, p, offset, p.length - offset, null, (err, bytesWritten) => {
-          if (err) reject(err);
-          else resolve(bytesWritten);
-        });
-      });
-      if (n <= 0) break;
-      offset += n;
-    }
-    return offset;
+  write(p: Uint8Array): Promise<number> {
+    return writeAll(this.#fd, p);
   }
 
   writeSync(p: Uint8Array): number {
@@ -123,4 +113,32 @@ export function writeSyncAll(fd: number, data: Uint8Array): number {
     }
   }
   return offset;
+}
+
+/** Async equivalent of {@link writeSyncAll}. */
+export async function writeAll(fd: number, data: Uint8Array): Promise<number> {
+  let offset = 0;
+  while (offset < data.length) {
+    const n = await writeOnce(fd, data, offset);
+    if (n <= 0) break;
+    offset += n;
+  }
+  return offset;
+}
+
+function writeOnce(fd: number, data: Uint8Array, offset: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      fs.write(fd, data, offset, data.length - offset, null, (err, bytesWritten) => {
+        if (err) {
+          // re-queue on non-blocking-pipe signals so we yield to the event loop instead of spinning
+          if (err.code === "EAGAIN" || err.code === "EWOULDBLOCK") setImmediate(attempt);
+          else reject(err);
+        } else {
+          resolve(bytesWritten);
+        }
+      });
+    };
+    attempt();
+  });
 }
