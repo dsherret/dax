@@ -1393,6 +1393,8 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         root: cwd,
         includeDirs: false,
       }));
+      // sort so output is deterministic across runtimes / filesystems (matches bash)
+      entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
       if (entries.length === 0) {
         if (shellOptions.failglob) {
           // failglob - error when set

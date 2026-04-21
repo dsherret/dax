@@ -52,7 +52,9 @@ export async function* expandGlob(pattern: string, options: ExpandGlobOptions): 
     remaining = pattern;
   }
 
-  const segments = remaining.split(/[/\\]/).filter((s) => s.length > 0);
+  // only treat `\` as a path separator on Windows — on POSIX it's part of a filename (and the glob escape char)
+  const sepRe = isWindows ? /[/\\]/ : /\//;
+  const segments = remaining.split(sepRe).filter((s) => s.length > 0);
   yield* walkSegments(startDir, segments, 0, opts);
 }
 
@@ -89,10 +91,11 @@ async function* walkSegments(
 
   if (!hasGlobChar(segment)) {
     const nextPath = nodePath.join(dir, segment);
-    // literal segment — lstat-first avoids reading the whole directory
+    // always stat (follow symlinks) for literal segments — otherwise intermediate symlinked
+    // directories (e.g. macOS `/var` → `/private/var`) would abort traversal.
     let stat: fs.Stats | undefined;
     try {
-      stat = opts.followSymlinks ? await fs.promises.stat(nextPath) : await fs.promises.lstat(nextPath);
+      stat = await fs.promises.stat(nextPath);
     } catch (err: any) {
       if (err?.code !== "ENOENT" || !opts.caseInsensitive || isWindows) {
         return;
@@ -112,7 +115,7 @@ async function* walkSegments(
       return;
     }
     if (isLast) {
-      if (stat.isFile() || stat.isSymbolicLink() || (stat.isDirectory() && opts.includeDirs)) {
+      if (stat.isFile() || (stat.isDirectory() && opts.includeDirs)) {
         yield { path: nextPath };
       }
     } else if (stat.isDirectory()) {
