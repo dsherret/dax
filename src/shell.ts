@@ -1,9 +1,11 @@
-import * as path from "@std/path";
-import { expandGlob } from "@std/fs/expand-glob";
-import { RealEnvironment as DenoWhichRealEnvironment, which } from "which";
+import * as path from "node:path";
+import { RealEnvironment, which } from "which";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
-import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
+import { createExecutableCommand } from "./commands/executable.ts";
+import { errorToString, getExecutableShebangFromPath, getRealEnvVars, isWindows, type ShebangInfo } from "./common.ts";
+import { open } from "./fs_file.ts";
+import { expandGlob } from "./glob.ts";
 import * as wasmInstance from "./lib/rs_lib.js";
 import {
   NullPipeReader,
@@ -15,7 +17,7 @@ import {
   ShellPipeWriter,
 } from "./pipes.ts";
 import { type EnvChange, type ExecuteResult, getAbortedResult, type ShellOption } from "./result.ts";
-import { createExecutableCommand } from "./commands/executable.ts";
+import { stdin as stdinStream } from "./streams.ts";
 
 class ShellEvaluateError extends Error {
 }
@@ -166,27 +168,27 @@ interface Env {
 
 class RealEnv implements Env {
   setCwd(cwd: string) {
-    Deno.chdir(cwd);
+    process.chdir(cwd);
   }
 
   getCwd() {
-    return Deno.cwd();
+    return process.cwd();
   }
 
   setEnvVar(key: string, value: string | undefined) {
     if (value == null) {
-      Deno.env.delete(key);
+      delete process.env[key];
     } else {
-      Deno.env.set(key, value);
+      process.env[key] = value;
     }
   }
 
   getEnvVar(key: string) {
-    return Deno.env.get(key);
+    return process.env[key];
   }
 
   getEnvVars() {
-    return Deno.env.toObject();
+    return getRealEnvVars();
   }
 
   clone(): Env {
@@ -217,7 +219,7 @@ class ShellEnv implements Env {
   }
 
   setEnvVar(key: string, value: string | undefined) {
-    if (Deno.build.os === "windows") {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (value == null) {
@@ -228,7 +230,7 @@ class ShellEnv implements Env {
   }
 
   getEnvVar(key: string) {
-    if (Deno.build.os === "windows") {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     return this.#envVars[key];
@@ -400,7 +402,7 @@ export class Context {
   }
 
   setEnvVar(key: string, value: string | undefined) {
-    if (Deno.build.os === "windows") {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (key === "PWD") {
@@ -414,7 +416,7 @@ export class Context {
   }
 
   setShellVar(key: string, value: string | undefined) {
-    if (Deno.build.os === "windows") {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (this.#env.getEnvVar(key) != null || key === "PWD") {
@@ -435,7 +437,7 @@ export class Context {
   }
 
   getVar(key: string): string | undefined {
-    if (Deno.build.os === "windows") {
+    if (isWindows) {
       key = key.toUpperCase();
     }
     if (key === "PWD") {
@@ -907,7 +909,7 @@ async function resolveRedirectPipe(
       case "input": {
         const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
         try {
-          const file = await Deno.open(outputPath, {
+          const file = await open(outputPath, {
             read: true,
           });
           return {
@@ -928,7 +930,7 @@ async function resolveRedirectPipe(
         }
         const outputPath = path.isAbsolute(words[0]) ? words[0] : path.join(context.getCwd(), words[0]);
         try {
-          const file = await Deno.open(outputPath, {
+          const file = await open(outputPath, {
             write: true,
             create: true,
             append: redirect.op.value === "append",
@@ -956,7 +958,7 @@ async function resolveRedirectPipe(
 
 function getStdinReader(stdin: CommandPipeReader): Reader {
   if (stdin === "inherit") {
-    return Deno.stdin;
+    return stdinStream;
   } else if (stdin === "null") {
     return new NullPipeReader();
   } else {
@@ -1076,7 +1078,7 @@ function pipeCommandPipeReaderToWriterSync(
 ) {
   switch (reader) {
     case "inherit":
-      return pipeReadableToWriterSync(Deno.stdin.readable, writer, signal);
+      return pipeReadableToWriterSync(stdinStream.readable, writer, signal);
     case "null":
       return Promise.resolve();
     default: {
@@ -1104,7 +1106,7 @@ interface UnresolvedCommand {
 }
 
 async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Context): Promise<ResolvedCommand> {
-  if (unresolvedCommand.name.includes("/") || Deno.build.os === "windows" && unresolvedCommand.name.includes("\\")) {
+  if (unresolvedCommand.name.includes("/") || isWindows && unresolvedCommand.name.includes("\\")) {
     const commandPath = path.isAbsolute(unresolvedCommand.name)
       ? unresolvedCommand.name
       : path.resolve(unresolvedCommand.baseDir, unresolvedCommand.name);
@@ -1145,26 +1147,29 @@ async function resolveCommand(unresolvedCommand: UnresolvedCommand, context: Con
   };
 }
 
-class WhichEnv extends DenoWhichRealEnvironment {
+class WhichEnv extends RealEnvironment {
   requestPermission(folderPath: string) {
-    Deno.permissions.requestSync({
+    // only relevant under Deno — Node has no permissions API
+    // dnt-shim-ignore
+    const denoGlobal = (globalThis as any).Deno;
+    denoGlobal?.permissions?.requestSync?.({
       name: "read",
       path: folderPath,
     });
   }
 }
-export const denoWhichRealEnv = new WhichEnv();
+export const whichRealEnv = new WhichEnv();
 
 export async function whichFromContext(commandName: string, context: {
   getVar(key: string): string | undefined;
 }) {
   return await which(commandName, {
-    os: Deno.build.os,
-    stat: denoWhichRealEnv.stat,
+    isWindows,
+    stat: whichRealEnv.stat,
     env(key) {
       return context.getVar(key);
     },
-    requestPermission: denoWhichRealEnv.requestPermission,
+    requestPermission: whichRealEnv.requestPermission,
   });
 }
 
@@ -1312,7 +1317,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
     const questionGlob = context.getShellOptions().questionGlob;
     if (!isQuoted && textParts.some((part) => part.kind === "text" && hasGlobChar(part.value, questionGlob))) {
       let currentText = "";
-      const globEscapeChar = Deno.build.os === "windows" ? "`" : "\\";
+      const globEscapeChar = isWindows ? "`" : "\\";
       for (const textPart of textParts) {
         switch (textPart.kind) {
           case "quoted":
@@ -1379,18 +1384,17 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         }
       }
 
-      const pattern = isAbsolute ? patternText : path.joinGlobs([cwd, patternText]);
+      const pattern = isAbsolute ? patternText : path.join(cwd, patternText);
       const entries = await Array.fromAsync(expandGlob(pattern, {
-        canonicalize: false,
         // be the same on all operating systems
         caseInsensitive: true,
         followSymlinks: false,
-        exclude: [],
-        extended: false,
         globstar: shellOptions.globstar,
         root: cwd,
         includeDirs: false,
       }));
+      // sort so output is deterministic across runtimes / filesystems (matches bash)
+      entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
       if (entries.length === 0) {
         if (shellOptions.failglob) {
           // failglob - error when set
@@ -1436,7 +1440,7 @@ async function evaluateWordParts(wordParts: WordPart[], context: Context, quoted
         continue;
       }
       case "tilde": {
-        const envVarName = Deno.build.os === "windows" ? "USERPROFILE" : "HOME";
+        const envVarName = isWindows ? "USERPROFILE" : "HOME";
         const homeDirEnv = context.getVar(envVarName);
         if (homeDirEnv == null) {
           throw new Error(`Failed resolving home directory for tilde expansion ('${envVarName}' env var not set).`);

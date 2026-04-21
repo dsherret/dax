@@ -1,6 +1,21 @@
-import * as path from "@std/path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { logger } from "./console/mod.ts";
+import { open } from "./fs_file.ts";
 import type { Reader } from "./pipes.ts";
+
+export const isWindows: boolean = process.platform === "win32";
+
+/** A snapshot of `process.env` with `undefined` values filtered out. */
+export function getRealEnvVars(): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
 
 interface Symbols {
   /** Use this symbol to enable the provided object to be written to in
@@ -215,11 +230,11 @@ export class LoggerTreeBox extends TreeBox<(...args: any[]) => void> {
 }
 
 /** lstat that doesn't throw when the path is not found. */
-export async function safeLstat(path: string) {
+export async function safeLstat(path: string): Promise<fs.Stats | undefined> {
   try {
-    return await Deno.lstat(path);
+    return await fs.promises.lstat(path);
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if ((err as any)?.code === "ENOENT") {
       return undefined;
     } else {
       throw err;
@@ -242,7 +257,7 @@ export function getFileNameFromUrl(url: string | URL) {
  */
 export async function getExecutableShebangFromPath(path: string) {
   try {
-    const file = await Deno.open(path, { read: true });
+    const file = await open(path, { read: true });
     try {
       return await getExecutableShebang(file);
     } finally {
@@ -253,7 +268,7 @@ export async function getExecutableShebangFromPath(path: string) {
       }
     }
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if ((err as any)?.code === "ENOENT") {
       return false;
     }
     throw err;
@@ -340,21 +355,10 @@ export function abortSignalToPromise(signal: AbortSignal) {
   };
 }
 
-const nodeENotEmpty = "ENOTEMPTY: ";
-const nodeENOENT = "ENOENT: ";
+// matches Node's libuv error prefix — "ENOENT: ...", "EISDIR: ...", etc.
+const nodeErrorPrefix = /^E[A-Z0-9_]+: /;
 
 export function errorToString(err: unknown) {
-  let message: string;
-  if (err instanceof Error) {
-    message = err.message;
-  } else {
-    message = String(err);
-  }
-  if (message.startsWith(nodeENotEmpty)) {
-    return message.slice(nodeENotEmpty.length);
-  } else if (message.startsWith(nodeENOENT)) {
-    return message.slice(nodeENOENT.length);
-  } else {
-    return message;
-  }
+  const message = err instanceof Error ? err.message : String(err);
+  return message.replace(nodeErrorPrefix, "");
 }

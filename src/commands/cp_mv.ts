@@ -1,4 +1,5 @@
-import * as path from "@std/path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -59,37 +60,23 @@ async function doCopyOperation(
   // These are racy with the file system, but that's ok.
   // They only exists to give better error messages.
   const fromInfo = await safeLstat(from.path);
-  if (fromInfo?.isDirectory) {
+  if (fromInfo?.isDirectory()) {
     if (flags.recursive) {
       const toInfo = await safeLstat(to.path);
-      if (toInfo?.isFile) {
+      if (toInfo?.isFile()) {
         throw Error("destination was a file");
-      } else if (toInfo?.isSymlink) {
+      } else if (toInfo?.isSymbolicLink()) {
         throw Error("no support for copying to symlinks");
-      } else if (fromInfo.isSymlink) {
+      } else if (fromInfo.isSymbolicLink()) {
         throw Error("no support for copying from symlinks");
       } else {
-        await copyDirRecursively(from.path, to.path);
+        await fs.promises.cp(from.path, to.path, { recursive: true });
       }
     } else {
       throw Error("source was a directory; maybe specify -r");
     }
   } else {
-    await Deno.copyFile(from.path, to.path);
-  }
-}
-
-async function copyDirRecursively(from: string, to: string) {
-  await Deno.mkdir(to, { recursive: true });
-  const readDir = Deno.readDir(from);
-  for await (const entry of readDir) {
-    const newFrom = path.join(from, path.basename(entry.name));
-    const newTo = path.join(to, path.basename(entry.name));
-    if (entry.isDirectory) {
-      await copyDirRecursively(newFrom, newTo);
-    } else if (entry.isFile) {
-      await Deno.copyFile(newFrom, newTo);
-    }
+    await fs.promises.copyFile(from.path, to.path);
   }
 }
 
@@ -111,7 +98,7 @@ interface MoveFlags {
 async function executeMove(cwd: string, args: string[]) {
   const flags = await parseMvArgs(cwd, args);
   for (const { from, to } of flags.operations) {
-    await Deno.rename(from.path, to.path);
+    await fs.promises.rename(from.path, to.path);
   }
 }
 
@@ -139,7 +126,7 @@ async function getCopyAndMoveOperations(
   const fromArgs = paths;
   const operations = [];
   if (fromArgs.length > 1) {
-    if (!await safeLstat(destination).then((p) => p?.isDirectory)) {
+    if (!await safeLstat(destination).then((p) => p?.isDirectory())) {
       throw Error(`target '${specified_destination}' is not a directory`);
     }
     for (const from of fromArgs) {
@@ -161,7 +148,7 @@ async function getCopyAndMoveOperations(
   } else {
     const fromPath = resolvePath(cwd, fromArgs[0]);
 
-    const toPath = await safeLstat(destination).then((p) => p?.isDirectory)
+    const toPath = await safeLstat(destination).then((p) => p?.isDirectory())
       ? calculateDestinationPath(destination, fromPath)
       : destination;
 

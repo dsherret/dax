@@ -1,7 +1,8 @@
+import { join } from "node:path";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
+import { create } from "../fs_file.ts";
 import { bailUnsupported, parseArgKinds } from "./args.ts";
-import { join } from "@std/path/join";
 
 export async function touchCommand(context: CommandContext) {
   try {
@@ -15,7 +16,7 @@ export async function touchCommand(context: CommandContext) {
 async function executetouch(args: string[], cwd: string) {
   const flags = parseArgs(args);
   for (const path of flags.paths) {
-    using _f = await Deno.create(join(cwd, path));
+    using _f = await create(join(cwd, path));
   }
 }
 

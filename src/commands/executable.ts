@@ -1,4 +1,4 @@
-import { existsSync } from "@std/fs/exists";
+import * as fs from "node:fs";
 import type { CommandContext, CommandHandler, CommandPipeReader, CommandPipeWriter } from "../command_handler.ts";
 import { errorToString } from "../common.ts";
 import {
@@ -8,8 +8,8 @@ import {
   type ShellPipeWriterKind,
 } from "../pipes.ts";
 import type { ExecuteResult } from "../result.ts";
-import { spawnCommand } from "../runtimes/process.deno.ts";
-import type { SpawnedChildProcess } from "../runtimes/process.common.ts";
+import type { Signal } from "../signal.ts";
+import { spawnCommand, type SpawnedChildProcess } from "../spawn.ts";
 
 const neverAbortedSignal = new AbortController().signal;
 
@@ -34,14 +34,12 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         args: context.args,
         cwd,
         env: context.env,
-        clearEnv: true,
         ...pipeStringVals,
       });
     } catch (err) {
-      // Deno throws this sync, Node.js throws it async
       throw checkMapCwdNotExistsError(cwd, err);
     }
-    const listener = (signal: Deno.Signal) => p.kill(signal);
+    const listener = (signal: Signal) => p.kill(signal);
     context.signal.addListener(listener);
     const completeController = new AbortController();
     const completeSignal = completeController.signal;
@@ -62,7 +60,8 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         try {
           p.kill("SIGKILL");
         } catch (err) {
-          if (!(err instanceof Deno.errors.PermissionDenied || err instanceof Deno.errors.NotFound)) {
+          const code = (err as any)?.code;
+          if (code !== "EACCES" && code !== "EPERM" && code !== "ENOENT") {
             throw err;
           }
         }
@@ -78,7 +77,6 @@ export function createExecutableCommand(resolvedPath: string): CommandHandler {
         : Promise.resolve();
       const [exitCode] = await Promise.all([
         p.waitExitCode()
-          // for node.js, which throws this async
           .catch((err) => Promise.reject(checkMapCwdNotExistsError(cwd, err))),
         readStdoutTask,
         readStderrTask,
@@ -134,7 +132,7 @@ function getStdioStringValue(value: ShellPipeReaderKind | ShellPipeWriterKind) {
 }
 
 function checkMapCwdNotExistsError(cwd: string, err: unknown) {
-  if ((err as any).code === "ENOENT" && !existsSync(cwd)) {
+  if ((err as any).code === "ENOENT" && !fs.existsSync(cwd)) {
     throw new Error(`Failed to launch command because the cwd does not exist (${cwd}).`, {
       cause: err,
     });

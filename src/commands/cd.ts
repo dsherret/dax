@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -28,10 +29,9 @@ async function executeCd(cwd: string, args: string[]) {
 
 async function isDirectory(path: string) {
   try {
-    const info = await Deno.stat(path);
-    return info.isDirectory;
+    return (await fs.promises.stat(path)).isDirectory();
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) {
+    if ((err as any)?.code === "ENOENT") {
       return false;
     } else {
       throw err;

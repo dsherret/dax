@@ -671,7 +671,7 @@ srcDir.isAbsolute(); // true
 
 // join to get other paths and do actions on them
 const textFile = srcDir.join("subDir").join("file.txt");
-textFile.writeTextSync("some text");
+textFile.writeSync("some text");
 console.log(textFile.readTextSync()); // "some text"
 
 const jsonFile = srcDir.join("otherDir", "file.json");

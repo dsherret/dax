@@ -1,9 +1,12 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { Buffer } from "@std/io/buffer";
 import { toWritableStream } from "@std/io/to-writable-stream";
-import * as path from "@std/path";
+import * as path from "node:path";
 import { isNode } from "which_runtime";
 import $ from "../mod.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as nodePath from "node:path";
 import { RequestBuilder } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 
@@ -164,12 +167,20 @@ Deno.test("$.request", (t) => {
     });
 
     step("pipeToPath", async () => {
-      const testFilePath = await Deno.makeTempFile();
-      const originDir = Deno.cwd();
+      const tempDirs: string[] = [];
+      const mkTempDir = async () => {
+        const dir = await fs.promises.mkdtemp(nodePath.join(os.tmpdir(), "dax-"));
+        tempDirs.push(dir);
+        return dir;
+      };
+      const tempRoot = await mkTempDir();
+      const testFilePath = nodePath.join(tempRoot, "tmp");
+      await fs.promises.writeFile(testFilePath, "");
+      const originDir = process.cwd();
       try {
         {
           // ensure that a truncate happens
-          $.path(testFilePath).writeTextSync("text".repeat(1002));
+          $.path(testFilePath).writeSync("text".repeat(1002));
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -179,7 +190,7 @@ Deno.test("$.request", (t) => {
         }
         {
           // test default path
-          Deno.chdir(await Deno.makeTempDir()); // change path just to not download to the current dir
+          process.chdir(await mkTempDir()); // change path just to not download to the current dir
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -188,28 +199,24 @@ Deno.test("$.request", (t) => {
           assertEquals(downloadedFilePath.toString(), path.resolve("text-file"));
         }
         {
-          await assertRejects(
-            async () => {
-              await new RequestBuilder()
-                .url(new URL("/text-file", serverUrl))
-                .showProgress()
-                .pipeToPath({ createNew: true });
-            },
-            Deno.errors.AlreadyExists,
-          );
-          await assertRejects(
-            async () => {
-              await new RequestBuilder()
-                .url(new URL("/text-file", serverUrl))
-                .showProgress()
-                .pipeToPath(undefined, { createNew: true });
-            },
-            Deno.errors.AlreadyExists,
-          );
+          const alreadyExistsErr = await assertRejects(async () => {
+            await new RequestBuilder()
+              .url(new URL("/text-file", serverUrl))
+              .showProgress()
+              .pipeToPath({ createNew: true });
+          });
+          assert((alreadyExistsErr as any)?.code === "EEXIST", `expected EEXIST, got ${alreadyExistsErr}`);
+          const alreadyExistsErr2 = await assertRejects(async () => {
+            await new RequestBuilder()
+              .url(new URL("/text-file", serverUrl))
+              .showProgress()
+              .pipeToPath(undefined, { createNew: true });
+          });
+          assert((alreadyExistsErr2 as any)?.code === "EEXIST", `expected EEXIST, got ${alreadyExistsErr2}`);
         }
         {
           // test downloading to a directory
-          const tempDir = await Deno.makeTempDir();
+          const tempDir = await mkTempDir();
           const downloadedFilePath = await new RequestBuilder()
             .url(new URL("/text-file", serverUrl))
             .showProgress()
@@ -218,11 +225,10 @@ Deno.test("$.request", (t) => {
           assertEquals(downloadedFilePath.toString(), path.join(tempDir, "text-file"));
         }
       } finally {
-        try {
-          Deno.chdir(originDir);
-          await Deno.remove(testFilePath);
-        } catch {
-          // do nothing
+        // restore the cwd before cleaning up temp dirs (Windows can't rm the current cwd)
+        process.chdir(originDir);
+        for (const dir of tempDirs) {
+          await fs.promises.rm(dir, { recursive: true, force: true });
         }
       }
     });

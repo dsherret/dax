@@ -1,5 +1,4 @@
 import { build, emptyDir } from "@deno/dnt";
-import { walkSync } from "@std/fs/walk";
 import $ from "../mod.ts";
 
 Deno.chdir($.path(import.meta.url).parentOrThrow().parentOrThrow().toString());
@@ -10,7 +9,9 @@ await build({
   entryPoints: ["./mod.ts"],
   outDir: "./npm",
   shims: {
-    deno: true,
+    deno: {
+      test: true,
+    },
     custom: [{
       package: {
         name: "node:util",
@@ -71,9 +72,6 @@ await build({
       }],
     }],
   },
-  filterDiagnostic(diagnostic) {
-    return !diagnostic.file?.fileName.includes("@david/path/0.2.0/mod.ts");
-  },
   compilerOptions: {
     stripInternal: false,
     skipLibCheck: false,
@@ -81,7 +79,6 @@ await build({
     target: "ES2022",
   },
   mappings: {
-    "./src/runtimes/process.deno.ts": "./src/runtimes/process.node.ts",
     "./src/test/server.deno.ts": "./src/test/server.node.ts",
   },
   package: {
@@ -97,7 +94,6 @@ await build({
       url: "https://github.com/dsherret/dax/issues",
     },
     dependencies: {
-      "@deno/shim-deno": "~0.19.0",
       "undici-types": "^5.26",
     },
     devDependencies: {
@@ -117,11 +113,22 @@ await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=exter
 const npmPath = $.path("npm");
 
 // remove all the javascript files in the script folder
-for (const entry of walkSync(npmPath.join("script").toString(), { includeDirs: false, exts: ["js"] })) {
-  $.path(entry.path).removeSync();
+for (const entry of walkJsFiles(npmPath.join("script").toString())) {
+  $.path(entry).removeSync();
 }
-for (const entry of walkSync(npmPath.join("esm").toString(), { includeDirs: false, exts: ["js"] })) {
-  $.path(entry.path).removeSync();
+for (const entry of walkJsFiles(npmPath.join("esm").toString())) {
+  $.path(entry).removeSync();
+}
+
+function* walkJsFiles(dir: string): Generator<string> {
+  for (const entry of Deno.readDirSync(dir)) {
+    const entryPath = `${dir}/${entry.name}`;
+    if (entry.isDirectory) {
+      yield* walkJsFiles(entryPath);
+    } else if (entry.isFile && entry.name.endsWith(".js")) {
+      yield entryPath;
+    }
+  }
 }
 
 // move the bundle to the script folder

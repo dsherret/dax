@@ -1,9 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { Buffer } from "@std/io/buffer";
-import * as path from "@std/path";
+import * as path from "node:path";
 import {
   delayToIterator,
   delayToMs,
+  errorToString,
   formatMillis,
   getExecutableShebang,
   getFileNameFromUrl,
@@ -97,6 +98,31 @@ Deno.test("tree box should work storing values in a tree", () => {
   assertEquals(grandChildA2.getValue(), 5);
   assertEquals(box.getValue(), 4);
   assertEquals(childB.getValue(), 4);
+});
+
+Deno.test("errorToString strips libuv error code prefixes", () => {
+  // plain Error instance — ENOENT prefix stripped
+  assertEquals(
+    errorToString(Object.assign(new Error("ENOENT: no such file or directory, open 'x'"), { code: "ENOENT" })),
+    "no such file or directory, open 'x'",
+  );
+  // EISDIR
+  assertEquals(
+    errorToString(new Error("EISDIR: illegal operation on a directory, unlink 'x'")),
+    "illegal operation on a directory, unlink 'x'",
+  );
+  // other E-prefixed codes with digits/underscore
+  assertEquals(errorToString(new Error("EAI_AGAIN: temporary failure")), "temporary failure");
+  // plain strings also get stripped
+  assertEquals(errorToString("EPERM: operation not permitted"), "operation not permitted");
+  // messages without a libuv prefix are returned unchanged
+  assertEquals(errorToString(new Error("some other error")), "some other error");
+  // only one prefix at the start is stripped
+  assertEquals(errorToString(new Error("EACCES: EACCES: nested")), "EACCES: nested");
+  // non-Error values coerce via String()
+  assertEquals(errorToString(42), "42");
+  assertEquals(errorToString(null), "null");
+  assertEquals(errorToString(undefined), "undefined");
 });
 
 Deno.test("gets file name from url", () => {

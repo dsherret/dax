@@ -40,9 +40,10 @@ import {
 import { stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
+import { inspect as nodeInspect } from "node:util";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { outdent } from "./src/vendor/outdent.ts";
-import { denoWhichRealEnv } from "./src/shell.ts";
+import { whichRealEnv } from "./src/shell.ts";
 
 export { type DirEntry, FsFileWrapper, Path, type SymlinkOptions } from "@david/path";
 export type { Delay, DelayIterator } from "./src/common.ts";
@@ -627,10 +628,10 @@ const helperObject = {
   dedent: outdent,
   sleep,
   which(commandName: string) {
-    return which(commandName, denoWhichRealEnv);
+    return which(commandName, whichRealEnv);
   },
   whichSync(commandName: string) {
-    return whichSync(commandName, denoWhichRealEnv);
+    return whichSync(commandName, whichRealEnv);
   },
 };
 
@@ -837,7 +838,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
       if (typeofD !== "object" && typeofD !== "undefined") {
         return d;
       } else {
-        return Deno.inspect(d, { colors: true });
+        return nodeInspect(d, { colors: true });
       }
     }).join(" ");
     if (state.indentLevel.value === 0) {

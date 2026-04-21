@@ -1,4 +1,3 @@
-import { exists } from "@std/fs/exists";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath, safeLstat } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -9,15 +8,15 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
     let result: boolean;
     switch (testFlag) {
       case "-f":
-        result = (await safeLstat(testPath))?.isFile ?? false;
+        result = (await safeLstat(testPath))?.isFile() ?? false;
         break;
 
       case "-d":
-        result = (await safeLstat(testPath))?.isDirectory ?? false;
+        result = (await safeLstat(testPath))?.isDirectory() ?? false;
         break;
 
       case "-e":
-        result = await exists(testPath);
+        result = (await safeLstat(testPath)) != null;
         break;
 
       case "-s":
@@ -25,7 +24,7 @@ export async function testCommand(context: CommandContext): Promise<ExecuteResul
         break;
 
       case "-L":
-        result = (await safeLstat(testPath))?.isSymlink ?? false;
+        result = (await safeLstat(testPath))?.isSymbolicLink() ?? false;
         break;
 
       default:

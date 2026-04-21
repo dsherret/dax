@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import type { CommandContext } from "../command_handler.ts";
 import { errorToString, resolvePath } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
@@ -34,14 +35,32 @@ async function executeRemove(cwd: string, args: string[]) {
       throw new Error("Cannot delete root directory. Maybe bug in dax? Please report this.");
     }
 
-    return Deno.remove(path, { recursive: flags.recursive }).catch((err) => {
-      if (flags.force && err instanceof Deno.errors.NotFound) {
+    return removePath(path, flags.recursive).catch((err) => {
+      if (flags.force && (err as any)?.code === "ENOENT") {
         return Promise.resolve();
       } else {
         return Promise.reject(err);
       }
     });
   }));
+}
+
+async function removePath(filePath: string, recursive: boolean): Promise<void> {
+  if (recursive) {
+    await fs.promises.rm(filePath, { recursive: true });
+    return;
+  }
+  // allow removing files or empty directories — fs.rm refuses directories
+  // without `recursive: true`, so fall back to rmdir on EISDIR rather than
+  // stat-then-act, which would be racy.
+  try {
+    await fs.promises.rm(filePath);
+  } catch (err: any) {
+    if (err?.code !== "EISDIR" && err?.code !== "ERR_FS_EISDIR") {
+      throw err;
+    }
+    await fs.promises.rmdir(filePath);
+  }
 }
 
 export function parseArgs(args: string[]) {
