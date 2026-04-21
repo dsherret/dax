@@ -1,8 +1,6 @@
 import type { CommandContext } from "../command_handler.ts";
-import { errorToString } from "../common.ts";
+import { errorToString, isWindows } from "../common.ts";
 import type { ExecuteResult } from "../result.ts";
-
-const isWindows = process.platform === "win32";
 
 export function printEnvCommand(context: CommandContext): ExecuteResult | Promise<ExecuteResult> {
   // windows expects env vars to be upcased

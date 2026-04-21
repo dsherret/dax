@@ -1,8 +1,21 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { open } from "./fs_file.ts";
 import { logger } from "./console/mod.ts";
+import { open } from "./fs_file.ts";
 import type { Reader } from "./pipes.ts";
+
+export const isWindows: boolean = process.platform === "win32";
+
+/** A snapshot of `process.env` with `undefined` values filtered out. */
+export function getRealEnvVars(): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
 
 interface Symbols {
   /** Use this symbol to enable the provided object to be written to in

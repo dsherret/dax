@@ -3,7 +3,13 @@ import { RealEnvironment, which } from "which";
 import type { KillSignal } from "./command.ts";
 import type { CommandContext, CommandHandler, CommandPipeReader } from "./command_handler.ts";
 import { createExecutableCommand } from "./commands/executable.ts";
-import { errorToString, getExecutableShebangFromPath, type ShebangInfo } from "./common.ts";
+import {
+  errorToString,
+  getExecutableShebangFromPath,
+  getRealEnvVars,
+  isWindows,
+  type ShebangInfo,
+} from "./common.ts";
 import { open } from "./fs_file.ts";
 import { expandGlob } from "./glob.ts";
 import * as wasmInstance from "./lib/rs_lib.js";
@@ -18,8 +24,6 @@ import {
 } from "./pipes.ts";
 import { type EnvChange, type ExecuteResult, getAbortedResult, type ShellOption } from "./result.ts";
 import { stdin as stdinStream } from "./streams.ts";
-
-const isWindows = process.platform === "win32";
 
 class ShellEvaluateError extends Error {
 }
@@ -190,13 +194,7 @@ class RealEnv implements Env {
   }
 
   getEnvVars() {
-    const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(process.env)) {
-      if (value !== undefined) {
-        result[key] = value;
-      }
-    }
-    return result;
+    return getRealEnvVars();
   }
 
   clone(): Env {

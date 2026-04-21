@@ -22,12 +22,10 @@ import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { whichCommand } from "./commands/which.ts";
-import { Box, delayToMs, errorToString, LoggerTreeBox } from "./common.ts";
+import { Box, delayToMs, errorToString, getRealEnvVars, isWindows, LoggerTreeBox } from "./common.ts";
 import type { Delay } from "./common.ts";
 import type { Signal } from "./signal.ts";
 import { stderr as stderrStream, stdout as stdoutStream } from "./streams.ts";
-
-const isWindows = process.platform === "win32";
 import { symbols } from "./common.ts";
 import { isShowingProgressBars } from "./console/progress.ts";
 import {
@@ -1268,14 +1266,7 @@ export class CommandResult {
 }
 
 function buildEnv(env: Record<string, string | undefined>, clearEnv: boolean) {
-  const result: Record<string, string> = {};
-  if (!clearEnv) {
-    for (const [key, value] of Object.entries(process.env)) {
-      if (value !== undefined) {
-        result[key] = value;
-      }
-    }
-  }
+  const result = clearEnv ? {} : getRealEnvVars();
   for (const [key, value] of Object.entries(env)) {
     if (value == null) {
       delete result[key];

@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as nodePath from "node:path";
-
-const isWindows = process.platform === "win32";
+import { isWindows } from "./common.ts";
 
 export interface ExpandGlobOptions {
   /** Directory to resolve relative glob patterns against. */
@@ -83,8 +82,17 @@ async function* walkSegments(
   if (!hasGlobChar(segment)) {
     const literal = unescapeGlob(segment);
     const nextPath = nodePath.join(dir, literal);
-    if (opts.caseInsensitive && !isWindows) {
-      // on case-sensitive filesystems we need to scan to match case-insensitively
+    // try the exact-case lookup first — the common case is the caller passed
+    // the right case, and lstat is much cheaper than reading the whole dir.
+    let stat: fs.Stats | undefined;
+    try {
+      stat = opts.followSymlinks ? await fs.promises.stat(nextPath) : await fs.promises.lstat(nextPath);
+    } catch (err: any) {
+      if (err?.code !== "ENOENT" || !opts.caseInsensitive || isWindows) {
+        return;
+      }
+      // not found and we need case-insensitive matching on a case-sensitive
+      // filesystem — fall back to scanning the directory.
       let entries: fs.Dirent[];
       try {
         entries = await fs.promises.readdir(dir, { withFileTypes: true });
@@ -96,12 +104,6 @@ async function* walkSegments(
         if (entry.name.toLowerCase() !== lowered) continue;
         yield* yieldOrDescend(nodePath.join(dir, entry.name), entry, segments, index, isLast, opts);
       }
-      return;
-    }
-    let stat: fs.Stats;
-    try {
-      stat = opts.followSymlinks ? await fs.promises.stat(nextPath) : await fs.promises.lstat(nextPath);
-    } catch {
       return;
     }
     if (isLast) {

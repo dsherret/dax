@@ -73,21 +73,25 @@ export class FsFile {
 }
 
 export async function open(filePath: string, options: OpenOptions): Promise<FsFile> {
-  const flags = openOptionsToFlags(options);
-  const fd = await openAsync(filePath, flags);
+  const fd = await openAsync(filePath, openOptionsToFlags(options));
   return new FsFile(fd);
 }
 
 export async function create(filePath: string): Promise<FsFile> {
-  const fd = await openAsync(filePath, "w");
+  const fd = await openAsync(filePath, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_TRUNC);
   return new FsFile(fd);
 }
 
-function openOptionsToFlags(options: OpenOptions): string {
-  if (options.write && options.append) return "a";
-  if (options.write && options.create) return "w";
-  if (options.write) return "r+";
-  return "r";
+function openOptionsToFlags(options: OpenOptions): number {
+  let flags = options.read && options.write
+    ? fs.constants.O_RDWR
+    : options.write
+    ? fs.constants.O_WRONLY
+    : fs.constants.O_RDONLY;
+  if (options.create) flags |= fs.constants.O_CREAT;
+  if (options.truncate) flags |= fs.constants.O_TRUNC;
+  if (options.append) flags |= fs.constants.O_APPEND;
+  return flags;
 }
 
 /**
