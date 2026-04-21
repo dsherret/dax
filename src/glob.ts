@@ -19,6 +19,13 @@ export interface GlobEntry {
   path: string;
 }
 
+interface ResolvedOptions {
+  caseInsensitive: boolean;
+  globstar: boolean;
+  followSymlinks: boolean;
+  includeDirs: boolean;
+}
+
 /**
  * Expands a glob pattern into matching filesystem entries.
  *
@@ -52,7 +59,7 @@ async function* walkSegments(
   dir: string,
   segments: string[],
   index: number,
-  opts: { caseInsensitive: boolean; globstar: boolean; followSymlinks: boolean; includeDirs: boolean },
+  opts: ResolvedOptions,
 ): AsyncGenerator<GlobEntry> {
   if (index >= segments.length) {
     return;
@@ -135,7 +142,7 @@ async function* yieldOrDescend(
   segments: string[],
   index: number,
   isLast: boolean,
-  opts: { caseInsensitive: boolean; globstar: boolean; followSymlinks: boolean; includeDirs: boolean },
+  opts: ResolvedOptions,
 ): AsyncGenerator<GlobEntry> {
   let isFile = entry.isFile();
   let isDir = entry.isDirectory();

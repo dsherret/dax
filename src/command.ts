@@ -22,12 +22,19 @@ import { testCommand } from "./commands/test.ts";
 import { touchCommand } from "./commands/touch.ts";
 import { unsetCommand } from "./commands/unset.ts";
 import { whichCommand } from "./commands/which.ts";
-import { Box, delayToMs, errorToString, getRealEnvVars, isWindows, LoggerTreeBox } from "./common.ts";
-import type { Delay } from "./common.ts";
+import {
+  Box,
+  type Delay,
+  delayToMs,
+  errorToString,
+  getRealEnvVars,
+  isWindows,
+  LoggerTreeBox,
+  symbols,
+} from "./common.ts";
+import { isShowingProgressBars } from "./console/progress.ts";
 import type { Signal } from "./signal.ts";
 import { stderr as stderrStream, stdout as stdoutStream } from "./streams.ts";
-import { symbols } from "./common.ts";
-import { isShowingProgressBars } from "./console/progress.ts";
 import {
   CapturingBufferWriter,
   CapturingBufferWriterSync,

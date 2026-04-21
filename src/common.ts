@@ -355,21 +355,10 @@ export function abortSignalToPromise(signal: AbortSignal) {
   };
 }
 
-const nodeENotEmpty = "ENOTEMPTY: ";
-const nodeENOENT = "ENOENT: ";
+// matches Node's libuv error prefix — "ENOENT: ...", "EISDIR: ...", etc.
+const nodeErrorPrefix = /^E[A-Z0-9_]+: /;
 
 export function errorToString(err: unknown) {
-  let message: string;
-  if (err instanceof Error) {
-    message = err.message;
-  } else {
-    message = String(err);
-  }
-  if (message.startsWith(nodeENotEmpty)) {
-    return message.slice(nodeENotEmpty.length);
-  } else if (message.startsWith(nodeENOENT)) {
-    return message.slice(nodeENOENT.length);
-  } else {
-    return message;
-  }
+  const message = err instanceof Error ? err.message : String(err);
+  return message.replace(nodeErrorPrefix, "");
 }

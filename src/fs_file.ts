@@ -42,8 +42,19 @@ export class FsFile {
     return bytesRead === 0 ? null : bytesRead;
   }
 
-  write(p: Uint8Array): Promise<number> {
-    return Promise.resolve(writeSyncAll(this.#fd, p));
+  async write(p: Uint8Array): Promise<number> {
+    let offset = 0;
+    while (offset < p.length) {
+      const n = await new Promise<number>((resolve, reject) => {
+        fs.write(this.#fd, p, offset, p.length - offset, null, (err, bytesWritten) => {
+          if (err) reject(err);
+          else resolve(bytesWritten);
+        });
+      });
+      if (n <= 0) break;
+      offset += n;
+    }
+    return offset;
   }
 
   writeSync(p: Uint8Array): number {
@@ -59,10 +70,10 @@ export class FsFile {
   }
 
   get writable(): WritableStream<Uint8Array> {
-    const fd = this.#fd;
+    const write = this.write.bind(this);
     return new WritableStream({
-      write(chunk) {
-        writeSyncAll(fd, chunk);
+      async write(chunk) {
+        await write(chunk);
       },
     });
   }

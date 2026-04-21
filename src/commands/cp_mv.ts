@@ -70,27 +70,13 @@ async function doCopyOperation(
       } else if (fromInfo.isSymbolicLink()) {
         throw Error("no support for copying from symlinks");
       } else {
-        await copyDirRecursively(from.path, to.path);
+        await fs.promises.cp(from.path, to.path, { recursive: true });
       }
     } else {
       throw Error("source was a directory; maybe specify -r");
     }
   } else {
     await fs.promises.copyFile(from.path, to.path);
-  }
-}
-
-async function copyDirRecursively(from: string, to: string) {
-  await fs.promises.mkdir(to, { recursive: true });
-  const entries = await fs.promises.readdir(from, { withFileTypes: true });
-  for (const entry of entries) {
-    const newFrom = path.join(from, path.basename(entry.name));
-    const newTo = path.join(to, path.basename(entry.name));
-    if (entry.isDirectory()) {
-      await copyDirRecursively(newFrom, newTo);
-    } else if (entry.isFile()) {
-      await fs.promises.copyFile(newFrom, newTo);
-    }
   }
 }
 

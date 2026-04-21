@@ -1,7 +1,7 @@
 import * as cp from "node:child_process";
-import * as os from "node:os";
 import { Readable, Writable } from "node:stream";
 import { getSignalAbortCode } from "./command.ts";
+import { isWindows } from "./common.ts";
 import type { Signal } from "./signal.ts";
 
 export interface SpawnCommandOptions {
@@ -27,7 +27,7 @@ export function spawnCommand(path: string, options: SpawnCommandOptions): Spawne
   let receivedSignal: Signal | undefined;
   // launching bat or cmd files in Node.js will error, so launch
   // via cmd.exe instead https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
-  const isWindowsBatch = os.platform() === "win32" && /\.(cmd|bat)$/i.test(path);
+  const isWindowsBatch = isWindows && /\.(cmd|bat)$/i.test(path);
   const child = cp.spawn(
     isWindowsBatch ? "cmd.exe" : path,
     isWindowsBatch ? ["/d", "/s", "/c", path, ...options.args] : options.args,
