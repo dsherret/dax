@@ -51,6 +51,14 @@ export async function* innerReadKeys(reader: Pick<typeof stdin, "read">) {
       } else if (buf[0] === 13) {
         yield Keys.Enter;
         continue;
+      } else if (buf[0] === 14) {
+        // ctrl+n
+        yield Keys.Down;
+        continue;
+      } else if (buf[0] === 16) {
+        // ctrl+p
+        yield Keys.Up;
+        continue;
       } else if (buf[0] === 32) {
         yield Keys.Space;
         continue;
