@@ -1,47 +1,38 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@david/console-static-text@~0.3.1": "0.3.1",
     "jsr:@david/path@0.3": "0.3.1",
     "jsr:@david/path@~0.3.1": "0.3.1",
-    "jsr:@david/shell@0.1": "0.1.0",
+    "jsr:@david/shell@0.2": "0.2.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
-    "jsr:@david/which@~0.5.1": "0.5.1",
-    "jsr:@david/which@~0.5.2": "0.5.2",
-    "jsr:@deno/dnt@~0.42.3": "0.42.3",
+    "jsr:@david/which@0.6": "0.6.0",
+    "jsr:@david/which@~0.5.1": "0.5.2",
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/async@1": "1.0.16",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/fmt@1": "1.0.10",
-    "jsr:@std/fs@1": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@std/io@0.225": "0.225.3",
     "jsr:@std/path@1": "1.1.4",
-    "jsr:@std/path@^1.1.4": "1.1.4",
-    "jsr:@ts-morph/bootstrap@0.27": "0.27.0",
-    "jsr:@ts-morph/common@0.27": "0.27.0",
     "npm:@types/node@*": "22.15.15",
     "npm:esbuild@0.20.0": "0.20.0"
   },
   "jsr": {
-    "@david/code-block-writer@13.0.3": {
-      "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
-    },
     "@david/console-static-text@0.3.1": {
       "integrity": "6ad500e3deb72f62e058209537f271a001605d5236e2c1c25e86d89adb3568c3"
     },
     "@david/path@0.3.1": {
       "integrity": "25e31e27ba87832af880e103807afb698548069ab14a274a64d553f45bd49393"
     },
-    "@david/shell@0.1.0": {
-      "integrity": "330c81893e2007dccdad6eaefce72de0dd31297b5aa1771d2e9bc047bcc4c834",
+    "@david/shell@0.2.0": {
+      "integrity": "9967bf95410d8fa69432adebeb6e033b8ec4c7359e362ee5c10c06af05120fae",
       "dependencies": [
         "jsr:@david/path@0.3",
-        "jsr:@david/which@~0.5.2",
+        "jsr:@david/which@0.6",
         "jsr:@std/fmt",
         "jsr:@std/io",
-        "jsr:@std/path@1"
+        "jsr:@std/path"
       ]
     },
     "@david/which@0.5.1": {
@@ -50,18 +41,11 @@
     "@david/which@0.5.2": {
       "integrity": "cd284a87aecdb8e32a5b91a024813fb57cbb8b4889df7d1c90351f073a4301a9"
     },
+    "@david/which@0.6.0": {
+      "integrity": "efe63f07f6741b12b0d470a660f5c20dedf0af0e0c18b5c934d8a930bcaba4bf"
+    },
     "@david/which-runtime@0.2.1": {
       "integrity": "2a304e36b1122ebfe384d45de8fe0fb2bfe54a0a5a2a596efbfc81f54a47a62d"
-    },
-    "@deno/dnt@0.42.3": {
-      "integrity": "62a917a0492f3c8af002dce90605bb0d41f7d29debc06aca40dba72ab65d8ae3",
-      "dependencies": [
-        "jsr:@david/code-block-writer",
-        "jsr:@std/fmt",
-        "jsr:@std/fs",
-        "jsr:@std/path@1",
-        "jsr:@ts-morph/bootstrap"
-      ]
     },
     "@std/assert@1.0.19": {
       "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
@@ -87,13 +71,6 @@
     "@std/fmt@1.0.10": {
       "integrity": "90dfba288802ac6de82fb31d0917eb9e4450b9925b954d5e51fc29ac07419db5"
     },
-    "@std/fs@1.0.23": {
-      "integrity": "3ecbae4ce4fee03b180fa710caff36bb5adb66631c46a6460aaad49515565a37",
-      "dependencies": [
-        "jsr:@std/internal",
-        "jsr:@std/path@^1.1.4"
-      ]
-    },
     "@std/internal@1.0.6": {
       "integrity": "9533b128f230f73bd209408bb07a4b12f8d4255ab2a4d22a1fd6d87304aca9a4"
     },
@@ -116,19 +93,6 @@
       "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
       "dependencies": [
         "jsr:@std/internal"
-      ]
-    },
-    "@ts-morph/bootstrap@0.27.0": {
-      "integrity": "b8d7bc8f7942ce853dde4161b28f9aa96769cef3d8eebafb379a81800b9e2448",
-      "dependencies": [
-        "jsr:@ts-morph/common"
-      ]
-    },
-    "@ts-morph/common@0.27.0": {
-      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052",
-      "dependencies": [
-        "jsr:@std/fs",
-        "jsr:@std/path@1"
       ]
     }
   },
@@ -292,7 +256,7 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.1",
       "jsr:@david/path@~0.3.1",
-      "jsr:@david/shell@0.1",
+      "jsr:@david/shell@0.2",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
       "jsr:@deno/dnt@~0.42.3",
