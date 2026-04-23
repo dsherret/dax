@@ -3,16 +3,17 @@
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@david/console-static-text@~0.3.1": "0.3.1",
-    "jsr:@david/path@0.3": "0.3.1",
-    "jsr:@david/path@~0.3.1": "0.3.1",
-    "jsr:@david/shell@0.1": "0.1.0",
+    "jsr:@david/path@0.3": "0.3.2",
+    "jsr:@david/path@~0.3.1": "0.3.2",
+    "jsr:@david/shell@0.2": "0.2.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
-    "jsr:@david/which@~0.5.1": "0.5.1",
-    "jsr:@david/which@~0.5.2": "0.5.2",
+    "jsr:@david/which@0.6": "0.6.0",
+    "jsr:@david/which@~0.5.1": "0.5.2",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@std/assert@1": "1.0.19",
-    "jsr:@std/async@1": "1.0.16",
+    "jsr:@std/async@1": "1.3.0",
     "jsr:@std/bytes@^1.0.6": "1.0.6",
+    "jsr:@std/data-structures@^1.0.11": "1.0.11",
     "jsr:@std/fmt@1": "1.0.10",
     "jsr:@std/fs@1": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.13",
@@ -31,14 +32,14 @@
     "@david/console-static-text@0.3.1": {
       "integrity": "6ad500e3deb72f62e058209537f271a001605d5236e2c1c25e86d89adb3568c3"
     },
-    "@david/path@0.3.1": {
-      "integrity": "25e31e27ba87832af880e103807afb698548069ab14a274a64d553f45bd49393"
+    "@david/path@0.3.2": {
+      "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.1.0": {
-      "integrity": "330c81893e2007dccdad6eaefce72de0dd31297b5aa1771d2e9bc047bcc4c834",
+    "@david/shell@0.2.0": {
+      "integrity": "9967bf95410d8fa69432adebeb6e033b8ec4c7359e362ee5c10c06af05120fae",
       "dependencies": [
         "jsr:@david/path@0.3",
-        "jsr:@david/which@~0.5.2",
+        "jsr:@david/which@0.6",
         "jsr:@std/fmt",
         "jsr:@std/io",
         "jsr:@std/path@1"
@@ -49,6 +50,9 @@
     },
     "@david/which@0.5.2": {
       "integrity": "cd284a87aecdb8e32a5b91a024813fb57cbb8b4889df7d1c90351f073a4301a9"
+    },
+    "@david/which@0.6.0": {
+      "integrity": "efe63f07f6741b12b0d470a660f5c20dedf0af0e0c18b5c934d8a930bcaba4bf"
     },
     "@david/which-runtime@0.2.1": {
       "integrity": "2a304e36b1122ebfe384d45de8fe0fb2bfe54a0a5a2a596efbfc81f54a47a62d"
@@ -72,14 +76,20 @@
     "@std/async@1.0.13": {
       "integrity": "1d76ca5d324aef249908f7f7fe0d39aaf53198e5420604a59ab5c035adc97c96"
     },
-    "@std/async@1.0.16": {
-      "integrity": "6c9e43035313b67b5de43e2b3ee3eadb39a488a0a0a3143097f112e025d3ee9a"
+    "@std/async@1.3.0": {
+      "integrity": "80485538a4f7baaa46bfe2246168069e02ed142b9f9079cd164f43bb060ad9e9",
+      "dependencies": [
+        "jsr:@std/data-structures"
+      ]
     },
     "@std/bytes@1.0.5": {
       "integrity": "4465dd739d7963d964c809202ebea6d5c6b8e3829ef25c6a224290fbb8a1021e"
     },
     "@std/bytes@1.0.6": {
       "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
+    },
+    "@std/data-structures@1.0.11": {
+      "integrity": "53b98ed7efa61f107dfc14244bd2ec5557f7f7ee0bbaef6d449d7937facacb89"
     },
     "@std/fmt@1.0.7": {
       "integrity": "2a727c043d8df62cd0b819b3fb709b64dd622e42c3b1bb817ea7e6cc606360fb"
@@ -292,7 +302,7 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.1",
       "jsr:@david/path@~0.3.1",
-      "jsr:@david/shell@0.1",
+      "jsr:@david/shell@0.2",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
       "jsr:@deno/dnt@~0.42.3",

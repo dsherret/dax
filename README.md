@@ -85,6 +85,21 @@ const result = await $`echo 1 && echo 2`.lines();
 console.log(result); // ["1", "2"]
 ```
 
+Stream the output line-by-line without buffering the whole thing into memory (makes the chosen stream "quiet"):
+
+```ts
+for await (const line of $`cat big.txt`.linesIter()) {
+  console.log(line);
+}
+
+// also works for stderr
+for await (const line of $`some-command`.linesIter("stderr")) {
+  console.log(line);
+}
+```
+
+Breaking out of the loop early kills the child process. Lines split at `\n` or `\r\n` and the terminators are not included.
+
 Get stderr's text:
 
 ```ts
@@ -825,6 +840,29 @@ Sequential lists:
 const result = await $`cd someDir ; deno eval 'console.log(Deno.cwd())'`;
 ```
 
+Multi-line commands — write each command on its own line:
+
+```ts
+await $`
+  echo one
+  echo two
+  echo three
+`;
+```
+
+In multi-line input, `errexit` (`set -e`) is on by default — the first failing line stops the rest. Single-line input (`a; b`) will continue-on-failure. You can opt in or out explicitly with `set -e` / `set +e`:
+
+```ts
+// keep running even if an earlier line fails
+await $`
+  set +e
+  (exit 3)
+  echo still-ran
+`;
+```
+
+Trailing `&&`, `||`, `|`, and backslash-newline continue onto the next line as you'd expect.
+
 Boolean lists:
 
 ```ts
@@ -919,6 +957,7 @@ Note that these cross-platform commands can be bypassed by running them through 
 
 ### Shell Options
 
+- `errexit` (`set -e`/`+e` or `set -o`/`+o errexit`) - When enabled, a sequential list aborts at the first non-zero command. Default: **on for multi-line input, off for single-line input**
 - `pipefail` (`set -o`/`+o`) - When enabled, a pipeline's exit code is the rightmost non-zero exit code. Default: **off**
 - `nullglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing expands to nothing. Default: **off**
 - `failglob` (`shopt -s`/`-u`) - When enabled, a glob pattern matching nothing causes an error. Default: **off**
