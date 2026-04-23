@@ -524,6 +524,25 @@ There are a few selections/prompts that can be used.
 
 By default, all prompts will exit the process if the user cancelled their selection via ctrl+c. If you don't want this behaviour, then use the `maybe` variant functions.
 
+### `$.alert`
+
+Shows a message and blocks until the user acknowledges it. By default, any key press dismisses the alert:
+
+```ts
+await $.alert("Backup complete!");
+
+// or require the user to press Enter
+await $.alert("Backup complete!", {
+  requireEnter: true,
+});
+
+// or provide an object
+await $.alert({
+  message: "Backup complete!",
+  noClear: true, // don't clear the text on dismissal
+});
+```
+
 ### `$.prompt` / `$.maybePrompt`
 
 Gets a string value from the user:
