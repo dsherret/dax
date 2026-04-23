@@ -978,10 +978,6 @@ const $ = build$({
 });
 ```
 
-### Windows command resolution (PATHEXT)
-
-On Windows, path-like commands (for example, `./tool` or `../bin/tool`) are resolved against `PATHEXT`, so `./tool` will find `tool.exe`, `tool.bat`, etc., without you having to spell out the extension.
-
 ### Cross-platform shebang support
 
 Users on unix-based platforms often write a script like so:
