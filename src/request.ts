@@ -723,20 +723,27 @@ export async function makeRequest(state: RequestBuilderState) {
     abortController.clearTimeout();
     throw err;
   }
-  const result = new RequestResponse({
+  const shouldThrowOnError = !response.ok && (
+    !state.noThrow
+    || (state.noThrow instanceof Array && !state.noThrow.includes(response.status))
+  );
+  if (shouldThrowOnError) {
+    // await the cancel so the body resource is fully consumed before throwing,
+    // so that we don't leak resources
+    try {
+      await response.body?.cancel();
+    } catch {
+      // ignore
+    }
+    abortController.clearTimeout();
+    throw new Error(`Error making request to ${state.url}: ${response.statusText}`);
+  }
+  return new RequestResponse({
     response,
     originalUrl: state.url.toString(),
     progressBar: getProgressBar(),
     abortController,
   });
-  if (!state.noThrow) {
-    result.throwIfNotOk();
-  } else if (state.noThrow instanceof Array) {
-    if (!state.noThrow.includes(response.status)) {
-      result.throwIfNotOk();
-    }
-  }
-  return result;
 
   function getProgressBar() {
     if (state.progressOptions == null || state.progressBarFactory == null) {
