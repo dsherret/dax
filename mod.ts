@@ -7,6 +7,7 @@ import {
   escapeArg,
   type RawArg,
   rawArg,
+  type TailDisplayOptions,
   type TemplateExpr,
   whichRealEnv,
 } from "@david/shell";
@@ -75,6 +76,7 @@ export {
   type ShellOptionsState,
   type ShellPipeReaderKind,
   type ShellPipeWriterKind,
+  type TailDisplayOptions,
   type TemplateExpr,
   type UnsetVarChange,
   type WriterSync,
@@ -504,6 +506,23 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    */
   setPrintCommand(value: boolean): void;
   /**
+   * Mutates the internal command builder to enable Docker-style partial
+   * scrolling by default for all commands instead of needing to build a
+   * custom `$` or call `.tailDisplay()` per command.
+   *
+   * ```ts
+   * $.setTailDisplay(true);
+   * await $`./build.sh`; // tail-displayed by default
+   *
+   * // or with options
+   * $.setTailDisplay({ maxLines: 10 });
+   * ```
+   *
+   * @param value - `true` to enable with defaults, `false` to disable, or
+   * an options object to enable with custom configuration.
+   */
+  setTailDisplay(value: boolean | TailDisplayOptions): void;
+  /**
    * Sleep for the provided delay.
    *
    * ```ts
@@ -830,6 +849,11 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
       },
       setPrintCommand(value: boolean) {
         const commandBuilder = state.commandBuilder.getValue().printCommand(value);
+        state.commandBuilder.setValue(commandBuilder);
+      },
+      setTailDisplay(value: boolean | TailDisplayOptions) {
+        const builder = state.commandBuilder.getValue();
+        const commandBuilder = typeof value === "boolean" ? builder.tailDisplay(value) : builder.tailDisplay(value);
         state.commandBuilder.setValue(commandBuilder);
       },
       symbols,

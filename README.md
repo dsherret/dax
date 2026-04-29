@@ -393,6 +393,54 @@ const text = "example";
 await $`echo ${text}`; // will output `> echo example` before running the command
 ```
 
+### Tail display (Docker-style partial scrolling)
+
+`.tailDisplay()` pins the command's output to a fixed-height region at the bottom of the terminal — only the most recent lines are shown live, and on completion they're cleared from the live region (the full output stays in scrollback above for failed commands).
+
+```ts
+// keep the last 5 lines of `./build.sh` pinned while it runs
+await $`./build.sh`.tailDisplay();
+
+// configure visible row count and header
+await $`./build.sh`.tailDisplay({ maxLines: 2, header: false });
+
+// percentage sizing — re-fits if the terminal is resized mid-run
+await $`./build.sh`.tailDisplay({ maxLines: "50%" });
+
+// custom header rendered verbatim (you supply any styling)
+await $`./build.sh`.tailDisplay({
+  maxLines: 10,
+  header: ({ command }) => `building ${command}…`,
+});
+```
+
+`maxLines` accepts a literal number, a `"N%"` string resolved against the terminal height at draw time, or a `(ctx) => number` callback. Defaults to 5.
+
+`header` accepts:
+
+- `undefined` (default) — `Running <command>` while running, `Ran <command>` promoted to scrollback when `.printCommand()` is set.
+- `false` — no header.
+- A `string` or `({ command, size }) => string` callback — rendered verbatim.
+
+Concurrent tailing commands compose into a single shared scrolling region, so multiple builds can run in parallel without spilling over each other:
+
+```ts
+await Promise.all([
+  $`./build.sh frontend`.tailDisplay({ maxLines: 4 }),
+  $`./build.sh backend`.tailDisplay({ maxLines: 4 }),
+]);
+```
+
+#### Enabling on a `$`
+
+Like `printCommand`, you can build a new `$` turning this on (see [Custom `$`](#custom-)) or enable it globally on the default `$`:
+
+```ts
+$.setTailDisplay(true);
+// or with options
+$.setTailDisplay({ maxLines: 10 });
+```
+
 ### Timeout a command
 
 This will exit with code 124 after 1 second.
