@@ -5,7 +5,7 @@
     "jsr:@david/console-static-text@~0.3.2": "0.3.4",
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
-    "jsr:@david/path@~0.3.1": "0.3.2",
+    "jsr:@david/path@~0.3.2": "0.3.2",
     "jsr:@david/shell@0.3": "0.3.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@0.6": "0.6.0",
@@ -306,7 +306,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.2",
-      "jsr:@david/path@~0.3.1",
+      "jsr:@david/path@~0.3.2",
       "jsr:@david/shell@0.3",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
