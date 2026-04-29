@@ -2,10 +2,11 @@
   "version": "5",
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
-    "jsr:@david/console-static-text@~0.3.1": "0.3.1",
+    "jsr:@david/console-static-text@~0.3.2": "0.3.4",
+    "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
     "jsr:@david/path@~0.3.1": "0.3.2",
-    "jsr:@david/shell@0.2": "0.2.0",
+    "jsr:@david/shell@0.3": "0.3.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@0.6": "0.6.0",
     "jsr:@david/which@~0.5.1": "0.5.2",
@@ -29,15 +30,19 @@
     "@david/code-block-writer@13.0.3": {
       "integrity": "f98c77d320f5957899a61bfb7a9bead7c6d83ad1515daee92dbacc861e13bb7f"
     },
-    "@david/console-static-text@0.3.1": {
-      "integrity": "6ad500e3deb72f62e058209537f271a001605d5236e2c1c25e86d89adb3568c3"
+    "@david/console-static-text@0.3.2": {
+      "integrity": "cfd095669b0a2eebbb5d893ee99f9851a64f0cc301dc3f233e2a4916af18ecbf"
+    },
+    "@david/console-static-text@0.3.4": {
+      "integrity": "1c596f500b075ff3c8bab1d328ca7148a88067fd9a506b16a73eeaf230c229fd"
     },
     "@david/path@0.3.2": {
       "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.2.0": {
-      "integrity": "9967bf95410d8fa69432adebeb6e033b8ec4c7359e362ee5c10c06af05120fae",
+    "@david/shell@0.3.0": {
+      "integrity": "6f333ddb1e2c026c77416a7251676a68c81eaaf59e1a1c5dd83a792dfb8f4cdb",
       "dependencies": [
+        "jsr:@david/console-static-text@~0.3.4",
         "jsr:@david/path@0.3",
         "jsr:@david/which@0.6",
         "jsr:@std/fmt",
@@ -300,9 +305,9 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@david/console-static-text@~0.3.1",
+      "jsr:@david/console-static-text@~0.3.2",
       "jsr:@david/path@~0.3.1",
-      "jsr:@david/shell@0.2",
+      "jsr:@david/shell@0.3",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
       "jsr:@deno/dnt@~0.42.3",

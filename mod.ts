@@ -15,8 +15,6 @@ import {
   getRegisteredCommandNamesSymbol,
   LoggerTreeBox,
   setCommandTextStateSymbol,
-  setHasStaticText,
-  setStaticTextClear,
   symbols,
   template,
   templateRaw,
@@ -28,7 +26,6 @@ import {
   type AlertOptions,
   confirm,
   type ConfirmOptions,
-  isShowingProgressBars,
   maybeConfirm,
   maybeMultiSelect,
   maybePrompt,
@@ -42,17 +39,12 @@ import {
   select,
   type SelectOptions,
 } from "./src/console/mod.ts";
-import { staticText, stripAnsiCodes } from "@david/console-static-text";
+import { stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
 import { inspect as nodeInspect } from "node:util";
 import { RequestBuilder, withProgressBarFactorySymbol } from "./src/request.ts";
 import { outdent } from "./src/vendor/outdent.ts";
-
-// wire shell into the host's static-text rendering so progress bars and
-// command output don't clobber each other
-setStaticTextClear((action) => staticText.withTempClear(action));
-setHasStaticText(isShowingProgressBars);
 
 export { type DirEntry, FsFileWrapper, Path, type SymlinkOptions } from "@david/path";
 export {
