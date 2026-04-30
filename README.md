@@ -940,7 +940,7 @@ await $.request(url)
   .pipeToPath();
 ```
 
-`total` is taken from the `content-length` response header and will be `undefined` if the server doesn't provide one. Only one callback may be registered at a time — calling `.onProgress` again replaces the previous callback, and passing `undefined` clears it. `.onProgress` is independent of `.showProgress`, so the two can be combined or used on their own.
+`total` is taken from the `content-length` response header and will be `undefined` if the server doesn't provide one. Multiple callbacks may be registered by calling `.onProgress` repeatedly — each is invoked in the order it was added. `.onProgress` is independent of `.showProgress`, so the two can be combined or used on their own.
 
 ### Modifying a request before it is sent
 

@@ -19,7 +19,7 @@ interface RequestBuilderState {
   referrer: string | undefined;
   referrerPolicy: ReferrerPolicy | undefined;
   progressOptions: { noClear: boolean } | undefined;
-  onProgress: ((event: ProgressEvent) => void) | undefined;
+  onProgress: ((event: ProgressEvent) => void)[];
   timeout: number | undefined;
   signal: AbortSignal | undefined;
   beforeRequest: BeforeRequestCallback[] | undefined;
@@ -94,7 +94,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       progressOptions: state.progressOptions == null ? undefined : {
         ...state.progressOptions,
       },
-      onProgress: state.onProgress,
+      onProgress: [...state.onProgress],
       timeout: state.timeout,
       signal: state.signal,
       beforeRequest: state.beforeRequest,
@@ -117,7 +117,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       referrerPolicy: undefined,
       progressBarFactory: undefined,
       progressOptions: undefined,
-      onProgress: undefined,
+      onProgress: [],
       timeout: undefined,
       signal: undefined,
       beforeRequest: undefined,
@@ -347,17 +347,17 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
     });
   }
 
-  /** Sets a callback that is invoked as bytes are received from the response body.
+  /** Adds a callback that is invoked as bytes are received from the response body.
    *
    * The callback fires once per chunk read from the network with the cumulative
    * number of bytes received and the total expected size (from the `content-length`
-   * header, or `undefined` if the server didn't provide one). Pass `undefined` to
-   * clear a previously set callback. Only one callback may be registered at a time;
-   * setting a new one replaces the previous.
+   * header, or `undefined` if the server didn't provide one). Multiple callbacks
+   * may be registered by calling this method repeatedly; each is invoked in the
+   * order it was added.
    */
-  onProgress(callback: ((event: ProgressEvent) => void) | undefined): RequestBuilder {
+  onProgress(callback: (event: ProgressEvent) => void): RequestBuilder {
     return this.#newWithState((state) => {
-      state.onProgress = callback;
+      state.onProgress.push(callback);
     });
   }
 
@@ -512,7 +512,7 @@ export class RequestResponse {
     response: Response;
     originalUrl: string;
     progressBar: ProgressBar | undefined;
-    onProgress: ((event: ProgressEvent) => void) | undefined;
+    onProgress: ((event: ProgressEvent) => void)[];
     contentLength: number | undefined;
     abortController: RequestAbortController;
   }) {
@@ -523,7 +523,7 @@ export class RequestResponse {
       opts.abortController.clearTimeout();
     }
 
-    if (opts.progressBar != null || opts.onProgress != null) {
+    if (opts.progressBar != null || opts.onProgress.length > 0) {
       const pb = opts.progressBar;
       const onProgress = opts.onProgress;
       const total = opts.contentLength;
@@ -543,7 +543,12 @@ export class RequestResponse {
                 }
                 loaded += value.byteLength;
                 pb?.increment(value.byteLength);
-                onProgress?.({ loaded, total });
+                if (onProgress.length > 0) {
+                  const event = { loaded, total };
+                  for (const callback of onProgress) {
+                    callback(event);
+                  }
+                }
                 controller.enqueue(value);
               }
               const signal = opts.abortController.controller.signal;
