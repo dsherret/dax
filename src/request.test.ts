@@ -320,7 +320,7 @@ Deno.test("$.request", (t) => {
 
     step("piping to a command", async () => {
       const requestBuilder = new RequestBuilder().url(new URL("/json", serverUrl));
-      const data = await $`deno eval 'Deno.stdin.readable.pipeTo(Deno.stdout.writable)'`
+      const data = await $`cat -`
         .stdin(requestBuilder)
         .json();
       assertEquals(data, { value: 5 });
