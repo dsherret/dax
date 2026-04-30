@@ -1,3 +1,5 @@
+export { alert } from "./alert.ts";
+export type { AlertOptions } from "./alert.ts";
 export { confirm, maybeConfirm } from "./confirm.ts";
 export type { ConfirmOptions } from "./confirm.ts";
 export { maybeMultiSelect, multiSelect } from "./multiSelect.ts";

@@ -24,6 +24,8 @@ import {
 } from "@david/shell/internal";
 import { type DelayIterator, delayToIterator, formatMillis } from "./src/common.ts";
 import {
+  alert,
+  type AlertOptions,
   confirm,
   type ConfirmOptions,
   isShowingProgressBars,
@@ -91,6 +93,7 @@ const PathRef = Path;
 // bug in deno: https://github.com/denoland/deno_lint/pull/1262
 export { PathRef };
 export type {
+  AlertOptions,
   ConfirmOptions,
   MultiSelectOption,
   MultiSelectOptions,
@@ -373,6 +376,21 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   logGroupEnd(): void;
   /** Gets or sets the current log depth (0-indexed). */
   logDepth: number;
+  /**
+   * Shows an alert message that blocks until the user acknowledges it.
+   *
+   * By default, any key press dismisses the alert. Set `requireEnter` to
+   * `true` to require pressing Enter instead.
+   *
+   * @returns Resolves once the alert is dismissed, or exits the process if the user pressed ctrl+c.
+   */
+  alert(message: string, options?: Omit<AlertOptions, "message">): Promise<void>;
+  /**
+   * Shows an alert message that blocks until the user acknowledges it.
+   *
+   * @returns Resolves once the alert is dismissed, or exits the process if the user pressed ctrl+c.
+   */
+  alert(options: AlertOptions): Promise<void>;
   /**
    * Shows a prompt asking the user to answer a yes or no question.
    *
@@ -778,6 +796,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         }
         return helperObject.whichSync(commandName) != null;
       },
+      alert,
       maybeConfirm,
       confirm,
       maybeSelect,
