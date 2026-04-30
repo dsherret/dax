@@ -343,9 +343,11 @@ Deno.test("$.request", (t) => {
         .url(new URL("/sleep-body/10000", serverUrl))
         .timeout(200) // so high because CI was slow
         .showProgress();
-      const response = await request.fetch();
       let caughtErr: Error | undefined;
       try {
+        // include the fetch in the try/catch because on slow CI the timeout
+        // can fire before fetch() resolves
+        const response = await request.fetch();
         await response.text();
       } catch (err: any) {
         caughtErr = err;
