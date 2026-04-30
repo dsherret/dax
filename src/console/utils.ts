@@ -1,8 +1,19 @@
 import { logger, LoggerRefreshItemKind } from "./logger.ts";
 import { maybeConsoleSize, stripAnsiCodes, type TextItem } from "@david/console-static-text";
 import { stderr, stdin } from "@david/shell";
+import { hasFallbackTty, ttyStdin } from "./ttyFallback.ts";
 
 const encoder = new TextEncoder();
+
+/** Input source for an interactive prompt — either the process's stdin
+ * or a fallback handle on `/dev/tty` / `CONIN$` when stdin is piped. */
+type PromptInput = Pick<typeof stdin, "read" | "setRaw">;
+
+function resolvePromptInput(): PromptInput | undefined {
+  if (isTerminal(stdin)) return stdin;
+  if (hasFallbackTty()) return ttyStdin;
+  return undefined;
+}
 
 export enum Keys {
   Up,
@@ -14,8 +25,8 @@ export enum Keys {
   Backspace,
 }
 
-export async function* readKeys() {
-  return yield* innerReadKeys(stdin);
+export async function* readKeys(reader: PromptInput = stdin) {
+  return yield* innerReadKeys(reader);
 }
 
 export async function* innerReadKeys(reader: Pick<typeof stdin, "read">) {
@@ -140,16 +151,20 @@ export interface SelectionOptions<TReturn> {
 }
 
 export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Promise<TReturn | undefined> {
-  if (!isOutputTty || !isTerminal(stdin)) {
+  // stderr being a tty still gates prompts — that's where the UI is rendered.
+  // for stdin we fall back to /dev/tty (or CONIN$ on Windows) when the
+  // process's stdin is a pipe, so prompts work in `cmd | script.ts`.
+  const input = isOutputTty ? resolvePromptInput() : undefined;
+  if (input == null) {
     throw new Error(`Cannot prompt when not a tty. (Prompt: '${options.message}')`);
   }
   if (maybeConsoleSize() == null) {
     throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
   }
-  return ensureSingleSelection(async () => {
+  return ensureSingleSelection(input, async () => {
     logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
-    for await (const key of readKeys()) {
+    for await (const key of readKeys(input)) {
       const keyResult = options.onKey(key);
       if (keyResult != null) {
         const size = {
@@ -171,7 +186,7 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
 }
 
 let lastPromise: Promise<any> = Promise.resolve();
-function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
+function ensureSingleSelection<TReturn>(input: PromptInput, action: () => Promise<TReturn>) {
   const currentLastPromise = lastPromise;
   const currentPromise = (async () => {
     try {
@@ -181,11 +196,11 @@ function ensureSingleSelection<TReturn>(action: () => Promise<TReturn>) {
     }
     hideCursor();
     try {
-      stdin.setRaw(true);
+      input.setRaw(true);
       try {
         return await action();
       } finally {
-        stdin.setRaw(false);
+        input.setRaw(false);
       }
     } finally {
       showCursor();

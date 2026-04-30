@@ -38,6 +38,34 @@ $.log("Welcome to the visual test of the progress bars.");
 }
 
 {
+  $.log(
+    "Next: a prompt in a child process whose stdin is a pipe — should still respond to typed keys via the /dev/tty / CONIN$ fallback.",
+  );
+  await delay(1_000);
+
+  const modUrl = import.meta.resolve("../../mod.ts");
+  const childScript = `
+import $ from ${JSON.stringify(modUrl)};
+// drain the piped stdin so the parent's writer can close cleanly —
+// the prompt itself should *not* read these bytes, it should read
+// keystrokes from the controlling terminal via the fallback.
+const piped = await new Response(process.stdin).text();
+console.error("[child] piped stdin contained:", JSON.stringify(piped));
+const choice = await $.select({
+  message: "Pick one (child has piped stdin — type into your terminal)",
+  options: ["alpha", "beta", "gamma"],
+});
+console.error("[child] selected:", choice.value);
+`;
+
+  // pipe benign data so stdin is a non-TTY pipe; the prompt should
+  // bypass it entirely and read keys from the controlling terminal.
+  await $`deno eval ${childScript}`.stdinText("piped data, not keystrokes\n");
+
+  $.log("TTY fallback prompt complete.");
+}
+
+{
   $.log("The text below should show for a bit and then disappear.");
   using scope = staticText.createScope();
   const endTime = Date.now() + 1000;
