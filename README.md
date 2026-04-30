@@ -663,8 +663,7 @@ const result = await $.confirm("Would you like to continue?", {
 
 ### `$.select` / `$.maybeSelect`
 
-Gets a single value. Returns a `SelectionItem` with `index` and `value` properties.
-The item coerces to its `index` so it can still be used directly as an array index:
+Gets a single value:
 
 ```ts
 const colours = ["Red", "Green", "Blue"];
@@ -680,8 +679,7 @@ console.log(colours[result]); // also works — coerces to the index
 
 ### `$.multiSelect` / `$.maybeMultiSelect`
 
-Gets multiple or no values. Returns an array of `SelectionItem`s, each with `index` and `value`.
-Each item coerces to its `index` for use as an array index:
+Gets multiple or no values:
 
 ```ts
 const result = await $.multiSelect({
