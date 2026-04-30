@@ -28,6 +28,7 @@
     ".gitignore",
     ".github",
     ".vscode",
+    "docs/",
     "npm/"
   ],
   "exports": "./mod.ts",
