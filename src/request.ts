@@ -505,14 +505,26 @@ export class RequestResponse {
    *
    * This might be useful if the request was built with `.noThrow()`, but
    * otherwise this is called automatically for any non-2xx response codes.
+   *
+   * Note: this does not consume the body. If you don't intend to read the
+   * body, call `cancelBody()` first to release the underlying resources.
    */
   throwIfNotOk(): void {
     if (!this.ok) {
-      this.#response.body?.cancel().catch(() => {
-        // ignore
-      });
       throw new Error(`Error making request to ${this.#originalUrl}: ${this.statusText}`);
     }
+  }
+
+  /**
+   * Cancels the response body, releasing the underlying resources.
+   *
+   * Useful in conjunction with `.noThrow()` and `throwIfNotOk()` when you
+   * don't intend to read the body.
+   */
+  cancelBody(): Promise<void> {
+    return this.#withReturnHandling(async () => {
+      await this.#response.body?.cancel();
+    });
   }
 
   /**
@@ -729,12 +741,19 @@ export async function makeRequest(state: RequestBuilderState) {
     progressBar: getProgressBar(),
     abortController,
   });
-  if (!state.noThrow) {
-    result.throwIfNotOk();
-  } else if (state.noThrow instanceof Array) {
-    if (!state.noThrow.includes(response.status)) {
-      result.throwIfNotOk();
+  const shouldThrowOnError = !response.ok && (
+    !state.noThrow
+    || (state.noThrow instanceof Array && !state.noThrow.includes(response.status))
+  );
+  if (shouldThrowOnError) {
+    // await the cancel so the body resource is fully consumed before throwing,
+    // so that we don't leak resources
+    try {
+      await result.cancelBody();
+    } catch {
+      // ignore
     }
+    result.throwIfNotOk();
   }
   return result;
 
