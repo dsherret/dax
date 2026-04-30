@@ -441,6 +441,39 @@ $.setTailDisplay(true);
 $.setTailDisplay({ maxLines: 10 });
 ```
 
+### Capturing output for failure messages
+
+`.errorTail()` silently retains the trailing bytes of stdout and/or stderr while a command runs and appends them to the thrown `Error.message` if the command exits with a non-zero code. It targets streams the user _can't_ see — piped to another command, redirected to a file, sent to a `WritableStream`, or discarded with `"null"` — so when the command fails you still get a glimpse of what was written. Streams routed to the terminal (`"inherit"` / `"inheritPiped"`) are skipped, since the bytes already reached the scrollback.
+
+The most common case is `.quiet()`: stdout/stderr are suppressed, so without `.errorTail()` you have no idea what the command was doing when it failed.
+
+```ts
+// surfaces the trailing stdout/stderr bytes in the error if the command fails
+await $`./build.sh`.errorTail().quiet();
+
+// raise the per-stream cap (default: 8 KiB)
+await $`./build.sh`.errorTail({ maxBytes: 16 * 1024 }).quiet();
+
+// only capture stderr
+await $`./build.sh > out.log`.errorTail({ stdout: false }).quiet();
+
+// merge stdout and stderr into one interleaved buffer so the error
+// message preserves the order the bytes were written
+await $`./build.sh > out.log 2> err.log`.errorTail({ combined: true }).quiet();
+```
+
+`.errorTail()` has no effect when the command succeeds (the buffer is discarded) or when `.noThrow()` swallows the failure.
+
+#### Enabling on a `$`
+
+You can build a new `$` turning this on (see [Custom `$`](#custom-)) or enable it globally on the default `$`:
+
+```ts
+$.setErrorTail(true);
+// or with options
+$.setErrorTail({ maxBytes: 16 * 1024 });
+```
+
 ### Timeout a command
 
 This will exit with code 124 after 1 second.
