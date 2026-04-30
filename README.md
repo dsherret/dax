@@ -26,7 +26,7 @@ Deno:
 
 ```sh
 # or skip and import directly from `jsr:@david/dax@<version>`
-deno add jsr:@david/dax
+deno add dax@jsr:@david/dax
 ```
 
 Node:
@@ -39,7 +39,7 @@ npm install dax
 
 ```ts
 #!/usr/bin/env -S deno run --allow-all
-import $ from "@david/dax"; // "dax" in Node
+import $ from "dax";
 
 // run a command
 await $`echo 5`; // outputs: 5
@@ -485,6 +485,29 @@ await promise; // throws after 1 second
 
 Combining this with the `CommandBuilder` API and building your own `$` as shown later in the documentation, can be extremely useful for sending a `Deno.Signal` to all commands you've spawned.
 
+### Modifying a command before it is spawned
+
+Use `.beforeCommand(callback)` to register a hook that runs immediately before each command is spawned. The callback receives the current builder and may return a (possibly modified) builder — useful when an env var depends on an asynchronous operation, such as fetching a token:
+
+```ts
+await $`./build.sh`
+  .beforeCommand(async (builder) => {
+    return builder.env("AUTH_TOKEN", await getAccessToken());
+  });
+```
+
+Multiple `.beforeCommand(...)` calls compose: each callback runs in the order it was registered, with the builder produced by the previous one.
+
+Async hooks only run on the await / `.then()` path. Calling `.spawn()` on a builder with `.beforeCommand` hooks throws — for the streaming case, use the synchronous variant:
+
+```ts
+const child = $`./build.sh`
+  .beforeCommandSync((builder) => builder.env("BUILD_ID", crypto.randomUUID()))
+  .spawn();
+```
+
+`.beforeCommandSync(callback)` accepts a callback that returns synchronously (`CommandBuilder` or nothing). Sync hooks always run before async hooks during a single resolution pass.
+
 ### Exporting the environment of the shell to JavaScript
 
 When executing commands in the shell, the environment will be contained to the shell and not exported to the current process. For example:
@@ -914,6 +937,20 @@ await $.request(url)
 
 `total` is taken from the `content-length` response header and will be `undefined` if the server doesn't provide one. Only one callback may be registered at a time — calling `.onProgress` again replaces the previous callback, and passing `undefined` clears it. `.onProgress` is independent of `.showProgress`, so the two can be combined or used on their own.
 
+### Modifying a request before it is sent
+
+Use `.beforeRequest(callback)` to register a hook that runs immediately before the request is sent. The callback receives the current builder and may return a (possibly modified) builder — useful when a header value depends on an asynchronous operation, such as fetching an auth token:
+
+```ts
+$.request(`${baseUrl}${path}`)
+  .header("Content-Type", "application/json")
+  .beforeRequest(async (builder) => {
+    return builder.header("Authorization", `Bearer ${await getAccessToken()}`);
+  });
+```
+
+Multiple `.beforeRequest(...)` calls compose: each callback runs in the order it was registered, with the builder produced by the previous one.
+
 ## Shell
 
 The shell is cross-platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).
@@ -1087,7 +1124,7 @@ The builder APIs are what the library uses internally and they're useful for sce
 `CommandBuilder` can be used for building up commands similar to what the tagged template `$` does:
 
 ```ts
-import { CommandBuilder } from "@david/dax";
+import { CommandBuilder } from "dax";
 
 const commandBuilder = new CommandBuilder()
   .cwd("./subDir")
@@ -1137,7 +1174,7 @@ const commandBuilder = new CommandBuilder()
 `RequestBuilder` can be used for building up requests similar to `$.request`:
 
 ```ts
-import { RequestBuilder } from "@david/dax";
+import { RequestBuilder } from "dax";
 
 const requestBuilder = new RequestBuilder()
   .header("SOME_VALUE", "some value to send in a header");
@@ -1153,7 +1190,7 @@ const result = await requestBuilder
 You may wish to create your own `$` function that has a certain setup context (for example, custom commands or functions on `$`, a defined environment variable or cwd). You may do this by using the exported `build$` with `CommandBuilder` and/or `RequestBuilder`, which is essentially what the main default exported `$` uses internally to build itself. In addition, you may also add your own functions to `$`:
 
 ```ts
-import { build$, createExecutableCommand } from "@david/dax";
+import { build$, createExecutableCommand } from "dax";
 
 // creates a $ object with the provided starting environment
 const $ = build$({

@@ -281,6 +281,49 @@ Deno.test("$.request", (t) => {
       }, data);
     });
 
+    step("beforeRequest async return", async () => {
+      // returning the builder directly from an async callback should NOT
+      // trigger a fetch via thenable-unwrapping; both hooks should be applied
+      const result = await new RequestBuilder()
+        .url(new URL("/headers", serverUrl))
+        .beforeRequest(async (builder) => {
+          await new Promise((r) => setTimeout(r, 0));
+          return builder.header("authorization", "Bearer token-xyz");
+        })
+        .beforeRequest((builder) => builder.header("x-second", "yes"))
+        .json();
+      assertEquals(result["authorization"], "Bearer token-xyz");
+      assertEquals(result["x-second"], "yes");
+    });
+
+    step("beforeRequest survives chained method calls", async () => {
+      // `.header(...).header(...).method(...)` — every intermediate builder
+      // must remain non-thenable so the final return doesn't get unwrapped
+      const result = await new RequestBuilder()
+        .url(new URL("/headers", serverUrl))
+        .beforeRequest(async (builder) => {
+          await new Promise((r) => setTimeout(r, 0));
+          return builder
+            .header("a", "1")
+            .header("b", "2")
+            .header("c", "3")
+            .method("GET");
+        })
+        .json();
+      assertEquals(result["a"], "1");
+      assertEquals(result["b"], "2");
+      assertEquals(result["c"], "3");
+    });
+
+    step("beforeRequest no-op when nothing returned", async () => {
+      const result = await new RequestBuilder()
+        .url(new URL("/headers", serverUrl))
+        .header("x-flag", "1")
+        .beforeRequest(() => {})
+        .json();
+      assertEquals(result["x-flag"], "1");
+    });
+
     step("404", async () => {
       const request404 = new RequestBuilder()
         .url(new URL("/code/404", serverUrl));

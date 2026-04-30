@@ -49,6 +49,8 @@ import { outdent } from "./src/vendor/outdent.ts";
 
 export { type DirEntry, FsFileWrapper, Path, type SymlinkOptions } from "@david/path";
 export {
+  type BeforeCommandCallback,
+  type BeforeCommandSyncCallback,
   type CdChange,
   type Closer,
   CommandBuilder,
@@ -97,7 +99,7 @@ export type {
   PromptOptions,
   SelectOptions,
 } from "./src/console/mod.ts";
-export { RequestBuilder, RequestResponse } from "./src/request.ts";
+export { type BeforeRequestCallback, RequestBuilder, RequestResponse } from "./src/request.ts";
 
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).

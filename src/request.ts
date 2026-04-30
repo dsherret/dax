@@ -22,7 +22,34 @@ interface RequestBuilderState {
   onProgress: ((event: ProgressEvent) => void) | undefined;
   timeout: number | undefined;
   signal: AbortSignal | undefined;
+  beforeRequest: BeforeRequestCallback[] | undefined;
 }
+
+/** Callback invoked before a request is sent.
+ *
+ * Receives the current builder and may return a (possibly modified) builder
+ * to use for the request. Returning the builder unchanged — or returning
+ * nothing — is a no-op.
+ *
+ * The builder passed to the callback is wrapped in a Proxy that hides its
+ * `.then`, so it isn't detected as a thenable by the JavaScript Promise
+ * machinery. That makes it safe to `return builder.header(...)` from an
+ * `async` function without the runtime recursively unwrapping the thenable
+ * and triggering a fetch. Methods like `.header(...)` that return a new
+ * builder return another such wrapped Proxy.
+ *
+ * The return type is loose because TypeScript infers the async return type
+ * by following `PromiseLike` (the same logic the runtime uses), so e.g.
+ * `async b => b.header(...)` is inferred as `Promise<RequestResponse>`.
+ */
+export type BeforeRequestCallback = (
+  builder: RequestBuilder,
+) =>
+  | RequestBuilder
+  | Promise<RequestBuilder>
+  | Promise<RequestResponse>
+  | void
+  | Promise<void>;
 
 /** Event passed to an `onProgress` callback as bytes are received. */
 export interface ProgressEvent {
@@ -70,6 +97,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       onProgress: state.onProgress,
       timeout: state.timeout,
       signal: state.signal,
+      beforeRequest: state.beforeRequest,
     };
   }
 
@@ -92,6 +120,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       onProgress: undefined,
       timeout: undefined,
       signal: undefined,
+      beforeRequest: undefined,
     };
   }
 
@@ -148,12 +177,32 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
 
   /** Fetches and gets the response. */
   fetch(): Promise<RequestResponse> {
-    return makeRequest(this.#getClonedState()).catch((err) => {
+    return this.#resolveStateForRequest().then(makeRequest).catch((err) => {
       if (err instanceof TimeoutError) {
         Error.captureStackTrace(err, TimeoutError);
       }
       return Promise.reject(err);
     });
+  }
+
+  async #resolveStateForRequest(): Promise<RequestBuilderState> {
+    const callbacks = this.#state?.beforeRequest;
+    if (callbacks == null || callbacks.length === 0) {
+      return this.#getClonedState();
+    }
+    // strip the hooks before running them so the builder passed to each
+    // callback can't accidentally recurse by appending to its own beforeRequest list
+    let builder: RequestBuilder = this.#newWithState((state) => {
+      state.beforeRequest = undefined;
+    });
+    for (const cb of callbacks) {
+      // wrap in a non-thenable Proxy so `return builder.header(...)` from an
+      // async callback isn't unwrapped (and re-fetched) by Promise machinery
+      const proxy = wrapNonThenable(builder);
+      const result = (await (cb(proxy) as any)) as unknown;
+      builder = unwrapBuilder(result) ?? builder;
+    }
+    return builder.#getClonedState();
   }
 
   /** Specifies the URL to send the request to. */
@@ -325,6 +374,33 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
   signal(signal: AbortSignal): RequestBuilder {
     return this.#newWithState((state) => {
       state.signal = signal;
+    });
+  }
+
+  /** Registers a callback that runs just before each request is sent.
+   *
+   * The callback receives the current builder and may return a (possibly
+   * modified) builder to use for the request. Useful for asynchronously
+   * resolving values such as auth tokens.
+   *
+   * ```ts
+   * $.request(url).beforeRequest(async (builder) => {
+   *   return builder.header("Authorization", `Bearer ${await getAccessToken()}`);
+   * });
+   * ```
+   *
+   * Multiple `.beforeRequest(...)` calls compose: each registered callback runs
+   * in the order it was added, with the builder produced by the previous one.
+   *
+   * The builder passed to the callback is in a special "passthrough" mode so
+   * its `.then(...)` resolves with the builder itself (instead of fetching) —
+   * this is what makes `return builder.header(...)` from an `async` function
+   * safe. If you construct a fresh `new RequestBuilder()` inside the callback,
+   * return it as `{ requestBuilder: ... }` to avoid accidental fetching.
+   */
+  beforeRequest(callback: BeforeRequestCallback): RequestBuilder {
+    return this.#newWithState((state) => {
+      state.beforeRequest = state.beforeRequest == null ? [callback] : [...state.beforeRequest, callback];
     });
   }
 
@@ -862,6 +938,42 @@ export async function makeRequest(state: RequestBuilderState) {
       },
     };
   }
+}
+
+// maps a non-thenable Proxy back to the real RequestBuilder it wraps
+const proxyToBuilder = new WeakMap<RequestBuilder, RequestBuilder>();
+
+/** Wraps a `RequestBuilder` in a Proxy that hides `.then`, so it isn't detected
+ * as a thenable by Promise machinery. Methods that return another
+ * `RequestBuilder` (e.g. `.header(...)`) return a similarly wrapped Proxy, so
+ * chaining inside a `beforeRequest` callback stays "non-thenable" all the way
+ * through. Methods called on the proxy run with `this === target`, so private
+ * fields keep working. */
+function wrapNonThenable(builder: RequestBuilder): RequestBuilder {
+  const proxy = new Proxy(builder, {
+    get(target, prop, _receiver) {
+      // hide `.then` so Promise.resolve / await don't see a thenable here
+      if (prop === "then") return undefined;
+      const value = Reflect.get(target, prop, target);
+      if (typeof value === "function") {
+        return (...args: unknown[]) => {
+          const result = (value as (...a: unknown[]) => unknown).apply(target, args);
+          if (result instanceof RequestBuilder) {
+            return wrapNonThenable(result);
+          }
+          return result;
+        };
+      }
+      return value;
+    },
+  }) as RequestBuilder;
+  proxyToBuilder.set(proxy, builder);
+  return proxy;
+}
+
+function unwrapBuilder(result: unknown): RequestBuilder | undefined {
+  if (!(result instanceof RequestBuilder)) return undefined;
+  return proxyToBuilder.get(result) ?? result;
 }
 
 function resolvePipeToPathParams(
