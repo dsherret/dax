@@ -663,25 +663,28 @@ const result = await $.confirm("Would you like to continue?", {
 
 ### `$.select` / `$.maybeSelect`
 
-Gets a single value:
+Gets a single value. Returns a `SelectionItem` with `index` and `value` properties.
+The item coerces to its `index` so it can still be used directly as an array index:
 
 ```ts
-const index = await $.select({
+const colours = ["Red", "Green", "Blue"];
+const result = await $.select({
   message: "What's your favourite colour?",
-  options: [
-    "Red",
-    "Green",
-    "Blue",
-  ],
+  options: colours,
 });
+
+console.log(result.index); // e.g. 0
+console.log(result.value); // e.g. "Red"
+console.log(colours[result]); // also works — coerces to the index
 ```
 
 ### `$.multiSelect` / `$.maybeMultiSelect`
 
-Gets multiple or no values:
+Gets multiple or no values. Returns an array of `SelectionItem`s, each with `index` and `value`.
+Each item coerces to its `index` for use as an array index:
 
 ```ts
-const indexes = await $.multiSelect({
+const result = await $.multiSelect({
   message: "Which of the following are days of the week?",
   options: [
     "Monday",
@@ -692,6 +695,10 @@ const indexes = await $.multiSelect({
     "Blue",
   ],
 });
+
+for (const item of result) {
+  console.log(item.index, item.value);
+}
 ```
 
 ## Progress indicator

@@ -1,6 +1,6 @@
 import * as colors from "@std/fmt/colors";
 import type { TextItem } from "@david/console-static-text";
-import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, SelectionItem, type SelectionOptions } from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {
@@ -41,7 +41,7 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
 
 export function innerMultiSelect(
   opts: MultiSelectOptions,
-): Pick<SelectionOptions<number[] | undefined>, "render" | "onKey"> {
+): Pick<SelectionOptions<SelectionItem[] | undefined>, "render" | "onKey"> {
   const drawState: DrawState = {
     title: opts.message,
     activeIndex: 0,
@@ -82,9 +82,9 @@ export function innerMultiSelect(
           drawState.hasCompleted = true;
           return drawState
             .items
-            .map((value, index) => [value, index] as const)
-            .filter(([value]) => value.selected)
-            .map(([, index]) => index);
+            .map((item, index) => [item, index] as const)
+            .filter(([item]) => item.selected)
+            .map(([item, index]) => new SelectionItem(index, item.text));
       }
       return undefined;
     },

@@ -4,6 +4,7 @@ export { confirm, maybeConfirm } from "./confirm.ts";
 export type { ConfirmOptions } from "./confirm.ts";
 export { maybeMultiSelect, multiSelect } from "./multiSelect.ts";
 export type { MultiSelectOption, MultiSelectOptions } from "./multiSelect.ts";
+export { SelectionItem } from "./utils.ts";
 export type { ProgressOptions } from "./progress.ts";
 export { isShowingProgressBars, ProgressBar } from "./progress.ts";
 export { maybePrompt, prompt } from "./prompt.ts";

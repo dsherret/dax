@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { innerSelect } from "./select.ts";
 import { createTester } from "./testUtils.ts";
-import { Keys } from "./utils.ts";
+import { Keys, SelectionItem } from "./utils.ts";
 
 Deno.test("should render", () => {
   const tester = createTester(innerSelect({
@@ -49,7 +49,7 @@ Deno.test("should render", () => {
       "> Option 2",
     ].join("\r\n"),
   );
-  assertEquals(tester.onKey(Keys.Enter), 1);
+  assertEquals(tester.onKey(Keys.Enter), new SelectionItem(1, "Option 2"));
   assertEquals(
     tester.getText(),
     [
