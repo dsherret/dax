@@ -159,16 +159,21 @@ Deno.test("$.request", (t) => {
       assertEquals(events[events.length - 1].loaded, 4 * 1000);
     });
 
-    step("onProgress can be cleared by passing undefined", async () => {
-      let called = false;
-      const builder = new RequestBuilder()
+    step("onProgress invokes multiple callbacks", async () => {
+      let firstCount = 0;
+      let secondCount = 0;
+      const data = await new RequestBuilder()
         .url(new URL("/text-file", serverUrl))
         .onProgress(() => {
-          called = true;
+          firstCount++;
         })
-        .onProgress(undefined);
-      await builder.text();
-      assertEquals(called, false);
+        .onProgress(() => {
+          secondCount++;
+        })
+        .text();
+      assertEquals(data, "text".repeat(1000));
+      assert(firstCount > 0);
+      assertEquals(firstCount, secondCount);
     });
 
     step("pipeTo", async () => {
