@@ -505,14 +505,26 @@ export class RequestResponse {
    *
    * This might be useful if the request was built with `.noThrow()`, but
    * otherwise this is called automatically for any non-2xx response codes.
+   *
+   * Note: this does not consume the body. If you don't intend to read the
+   * body, call `cancelBody()` first to release the underlying resources.
    */
   throwIfNotOk(): void {
     if (!this.ok) {
-      this.#response.body?.cancel().catch(() => {
-        // ignore
-      });
       throw new Error(`Error making request to ${this.#originalUrl}: ${this.statusText}`);
     }
+  }
+
+  /**
+   * Cancels the response body, releasing the underlying resources.
+   *
+   * Useful in conjunction with `.noThrow()` and `throwIfNotOk()` when you
+   * don't intend to read the body.
+   */
+  cancelBody(): Promise<void> {
+    return this.#withReturnHandling(async () => {
+      await this.#response.body?.cancel();
+    });
   }
 
   /**
@@ -723,6 +735,12 @@ export async function makeRequest(state: RequestBuilderState) {
     abortController.clearTimeout();
     throw err;
   }
+  const result = new RequestResponse({
+    response,
+    originalUrl: state.url.toString(),
+    progressBar: getProgressBar(),
+    abortController,
+  });
   const shouldThrowOnError = !response.ok && (
     !state.noThrow
     || (state.noThrow instanceof Array && !state.noThrow.includes(response.status))
@@ -731,19 +749,13 @@ export async function makeRequest(state: RequestBuilderState) {
     // await the cancel so the body resource is fully consumed before throwing,
     // so that we don't leak resources
     try {
-      await response.body?.cancel();
+      await result.cancelBody();
     } catch {
       // ignore
     }
-    abortController.clearTimeout();
-    throw new Error(`Error making request to ${state.url}: ${response.statusText}`);
+    result.throwIfNotOk();
   }
-  return new RequestResponse({
-    response,
-    originalUrl: state.url.toString(),
-    progressBar: getProgressBar(),
-    abortController,
-  });
+  return result;
 
   function getProgressBar() {
     if (state.progressOptions == null || state.progressBarFactory == null) {
