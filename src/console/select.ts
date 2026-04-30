@@ -1,5 +1,5 @@
 import * as colors from "@std/fmt/colors";
-import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, SelectionItem, type SelectionOptions } from "./utils.ts";
 import type { TextItem } from "@david/console-static-text";
 
 /** Options for showing a selection that only has one result. */
@@ -35,7 +35,7 @@ export function maybeSelect(opts: SelectOptions) {
 
 export function innerSelect(
   opts: SelectOptions,
-): Pick<SelectionOptions<number | undefined>, "render" | "onKey"> {
+): Pick<SelectionOptions<SelectionItem | undefined>, "render" | "onKey"> {
   const drawState: DrawState = {
     title: opts.message,
     activeIndex: (opts.initialIndex ?? 0) % opts.options.length,
@@ -59,7 +59,7 @@ export function innerSelect(
           break;
         case Keys.Enter:
           drawState.hasCompleted = true;
-          return drawState.activeIndex;
+          return new SelectionItem(drawState.activeIndex, drawState.items[drawState.activeIndex]);
       }
     },
   };

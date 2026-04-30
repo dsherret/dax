@@ -38,6 +38,7 @@ import {
   prompt,
   type PromptOptions,
   select,
+  type SelectionItem,
   type SelectOptions,
 } from "./src/console/mod.ts";
 import { stripAnsiCodes } from "@david/console-static-text";
@@ -84,6 +85,7 @@ export {
   type WriterSync,
 } from "@david/shell";
 export { type DelayIterator, TimeoutError } from "./src/common.ts";
+export { SelectionItem } from "./src/console/mod.ts";
 /** @deprecated Import `Path` instead. */
 const PathRef = Path;
 // bug in deno: https://github.com/denoland/deno_lint/pull/1262
@@ -414,27 +416,31 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
   /**
    * Shows a prompt selection to the user where there is one possible answer.
    *
-   * @returns Option index the user selected or `undefined` if the user pressed ctrl+c.
+   * @returns A {@link SelectionItem} with the selected index and value, or `undefined` if the user pressed ctrl+c.
+   * The returned item coerces to its index, so it can be used directly as an array index.
    */
-  maybeSelect(options: SelectOptions): Promise<number | undefined>;
+  maybeSelect(options: SelectOptions): Promise<SelectionItem | undefined>;
   /**
    * Shows a prompt selection to the user where there is one possible answer.
    *
-   * @returns Option index the user selected or exits the process if the user pressed ctrl+c.
+   * @returns A {@link SelectionItem} with the selected index and value, or exits the process if the user pressed ctrl+c.
+   * The returned item coerces to its index, so it can be used directly as an array index.
    */
-  select(options: SelectOptions): Promise<number>;
+  select(options: SelectOptions): Promise<SelectionItem>;
   /**
    * Shows a prompt selection to the user where there are multiple or zero possible answers.
    *
-   * @returns Array of selected indexes or `undefined` if the user pressed ctrl+c.
+   * @returns Array of {@link SelectionItem}s for selected options, or `undefined` if the user pressed ctrl+c.
+   * Each item coerces to its index, so it can be used directly as an array index.
    */
-  maybeMultiSelect(options: MultiSelectOptions): Promise<number[] | undefined>;
+  maybeMultiSelect(options: MultiSelectOptions): Promise<SelectionItem[] | undefined>;
   /**
    * Shows a prompt selection to the user where there are multiple or zero possible answers.
    *
-   * @returns Array of selected indexes or exits the process if the user pressed ctrl+c.
+   * @returns Array of {@link SelectionItem}s for selected options, or exits the process if the user pressed ctrl+c.
+   * Each item coerces to its index, so it can be used directly as an array index.
    */
-  multiSelect(options: MultiSelectOptions): Promise<number[]>;
+  multiSelect(options: MultiSelectOptions): Promise<SelectionItem[]>;
   /**
    * Shows an input prompt where the user can enter any text.
    *

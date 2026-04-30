@@ -106,6 +106,32 @@ export function resultOrExit<T>(result: T | undefined): T {
   }
 }
 
+/**
+ * Result of a selection prompt. Coerces to its `index` so it can be used
+ * directly as an array index for backwards compatibility.
+ */
+export class SelectionItem {
+  readonly index: number;
+  readonly value: string;
+
+  constructor(index: number, value: string) {
+    this.index = index;
+    this.value = value;
+  }
+
+  [Symbol.toPrimitive](hint: string): number | string {
+    return hint === "string" ? String(this.index) : this.index;
+  }
+
+  toString(): string {
+    return String(this.index);
+  }
+
+  valueOf(): number {
+    return this.index;
+  }
+}
+
 export interface SelectionOptions<TReturn> {
   message: string;
   render: () => TextItem[];

@@ -666,14 +666,15 @@ const result = await $.confirm("Would you like to continue?", {
 Gets a single value:
 
 ```ts
-const index = await $.select({
+const colours = ["Red", "Green", "Blue"];
+const result = await $.select({
   message: "What's your favourite colour?",
-  options: [
-    "Red",
-    "Green",
-    "Blue",
-  ],
+  options: colours,
 });
+
+console.log(result.index); // e.g. 0
+console.log(result.value); // e.g. "Red"
+console.log(colours[result]); // also works — coerces to the index
 ```
 
 ### `$.multiSelect` / `$.maybeMultiSelect`
@@ -681,7 +682,7 @@ const index = await $.select({
 Gets multiple or no values:
 
 ```ts
-const indexes = await $.multiSelect({
+const result = await $.multiSelect({
   message: "Which of the following are days of the week?",
   options: [
     "Monday",
@@ -692,6 +693,10 @@ const indexes = await $.multiSelect({
     "Blue",
   ],
 });
+
+for (const item of result) {
+  console.log(item.index, item.value);
+}
 ```
 
 ## Progress indicator
