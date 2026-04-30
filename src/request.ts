@@ -19,8 +19,19 @@ interface RequestBuilderState {
   referrer: string | undefined;
   referrerPolicy: ReferrerPolicy | undefined;
   progressOptions: { noClear: boolean } | undefined;
+  onProgress: ((event: ProgressEvent) => void) | undefined;
   timeout: number | undefined;
   signal: AbortSignal | undefined;
+}
+
+/** Event passed to an `onProgress` callback as bytes are received. */
+export interface ProgressEvent {
+  /** Cumulative number of bytes received so far. */
+  loaded: number;
+  /** Total number of bytes expected from the `content-length` header,
+   * or `undefined` if not provided by the server.
+   */
+  total: number | undefined;
 }
 
 /** @internal */
@@ -56,6 +67,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       progressOptions: state.progressOptions == null ? undefined : {
         ...state.progressOptions,
       },
+      onProgress: state.onProgress,
       timeout: state.timeout,
       signal: state.signal,
     };
@@ -77,6 +89,7 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
       referrerPolicy: undefined,
       progressBarFactory: undefined,
       progressOptions: undefined,
+      onProgress: undefined,
       timeout: undefined,
       signal: undefined,
     };
@@ -285,6 +298,20 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
     });
   }
 
+  /** Sets a callback that is invoked as bytes are received from the response body.
+   *
+   * The callback fires once per chunk read from the network with the cumulative
+   * number of bytes received and the total expected size (from the `content-length`
+   * header, or `undefined` if the server didn't provide one). Pass `undefined` to
+   * clear a previously set callback. Only one callback may be registered at a time;
+   * setting a new one replaces the previous.
+   */
+  onProgress(callback: ((event: ProgressEvent) => void) | undefined): RequestBuilder {
+    return this.#newWithState((state) => {
+      state.onProgress = callback;
+    });
+  }
+
   /** Timeout the request after the specified delay throwing a `TimeoutError`. */
   timeout(delay: Delay | undefined): RequestBuilder {
     return this.#newWithState((state) => {
@@ -409,6 +436,8 @@ export class RequestResponse {
     response: Response;
     originalUrl: string;
     progressBar: ProgressBar | undefined;
+    onProgress: ((event: ProgressEvent) => void) | undefined;
+    contentLength: number | undefined;
     abortController: RequestAbortController;
   }) {
     this.#originalUrl = opts.originalUrl;
@@ -418,8 +447,10 @@ export class RequestResponse {
       opts.abortController.clearTimeout();
     }
 
-    if (opts.progressBar != null) {
+    if (opts.progressBar != null || opts.onProgress != null) {
       const pb = opts.progressBar;
+      const onProgress = opts.onProgress;
+      const total = opts.contentLength;
       this.#downloadResponse = new Response(
         new ReadableStream({
           async start(controller) {
@@ -427,13 +458,16 @@ export class RequestResponse {
             if (reader == null) {
               return;
             }
+            let loaded = 0;
             try {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done || value == null) {
                   break;
                 }
-                pb.increment(value.byteLength);
+                loaded += value.byteLength;
+                pb?.increment(value.byteLength);
+                onProgress?.({ loaded, total });
                 controller.enqueue(value);
               }
               const signal = opts.abortController.controller.signal;
@@ -444,7 +478,7 @@ export class RequestResponse {
               }
             } finally {
               reader.releaseLock();
-              pb.finish();
+              pb?.finish();
             }
           },
         }),
@@ -735,10 +769,13 @@ export async function makeRequest(state: RequestBuilderState) {
     abortController.clearTimeout();
     throw err;
   }
+  const contentLength = getContentLength();
   const result = new RequestResponse({
     response,
     originalUrl: state.url.toString(),
-    progressBar: getProgressBar(),
+    progressBar: getProgressBar(contentLength),
+    onProgress: state.onProgress,
+    contentLength,
     abortController,
   });
   const shouldThrowOnError = !response.ok && (
@@ -757,23 +794,23 @@ export async function makeRequest(state: RequestBuilderState) {
   }
   return result;
 
-  function getProgressBar() {
+  function getProgressBar(contentLength: number | undefined) {
     if (state.progressOptions == null || state.progressBarFactory == null) {
       return undefined;
     }
     return state.progressBarFactory(`Download ${state.url}`)
       .noClear(state.progressOptions.noClear)
       .kind("bytes")
-      .length(getContentLength());
+      .length(contentLength);
+  }
 
-    function getContentLength() {
-      const contentLength = response.headers.get("content-length");
-      if (contentLength == null) {
-        return undefined;
-      }
-      const length = parseInt(contentLength, 10);
-      return isNaN(length) ? undefined : length;
+  function getContentLength() {
+    const contentLength = response.headers.get("content-length");
+    if (contentLength == null) {
+      return undefined;
     }
+    const length = parseInt(contentLength, 10);
+    return isNaN(length) ? undefined : length;
   }
 
   function getAbortController(): RequestAbortController {
