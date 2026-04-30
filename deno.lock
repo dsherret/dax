@@ -6,7 +6,7 @@
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
     "jsr:@david/path@~0.3.2": "0.3.2",
-    "jsr:@david/shell@~0.3.1": "0.3.1",
+    "jsr:@david/shell@~0.3.2": "0.3.2",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@0.6": "0.6.0",
     "jsr:@david/which@~0.5.1": "0.5.2",
@@ -39,8 +39,8 @@
     "@david/path@0.3.2": {
       "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.3.1": {
-      "integrity": "9b18de1bac02d0a8077e16510f83a69456960a6973ea69cb3d9f604d08c2f72c",
+    "@david/shell@0.3.2": {
+      "integrity": "5a0137d1591b698f9a4be965ea89316165eec48d9e845afa3ac2e51319abb3f8",
       "dependencies": [
         "jsr:@david/console-static-text@~0.3.4",
         "jsr:@david/path@0.3",
@@ -307,7 +307,7 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.2",
       "jsr:@david/path@~0.3.2",
-      "jsr:@david/shell@~0.3.1",
+      "jsr:@david/shell@~0.3.2",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@~0.5.1",
       "jsr:@deno/dnt@~0.42.3",

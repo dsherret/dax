@@ -4,6 +4,7 @@ import {
   CommandBuilder,
   type Delay,
   delayToMs,
+  type ErrorTailOptions,
   escapeArg,
   type RawArg,
   rawArg,
@@ -65,6 +66,7 @@ export {
   createExecutableCommand,
   type Delay,
   type EnvChange,
+  type ErrorTailOptions,
   type ExecuteResult,
   type ExitExecuteResult,
   KillController,
@@ -531,6 +533,23 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    */
   setTailDisplay(value: boolean | TailDisplayOptions): void;
   /**
+   * Mutates the internal command builder to enable errorTail capture by
+   * default for all commands instead of needing to build a custom `$` or
+   * call `.errorTail()` per command.
+   *
+   * ```ts
+   * $.setErrorTail(true);
+   * await $`./build.sh`.text(); // captured stdout surfaces in the error if it fails
+   *
+   * // or with options
+   * $.setErrorTail({ maxBytes: 16 * 1024 });
+   * ```
+   *
+   * @param value - `true` to enable with defaults, `false` to disable, or
+   * an options object to enable with custom configuration.
+   */
+  setErrorTail(value: boolean | ErrorTailOptions): void;
+  /**
    * Sleep for the provided delay.
    *
    * ```ts
@@ -862,6 +881,11 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
       setTailDisplay(value: boolean | TailDisplayOptions) {
         const builder = state.commandBuilder.getValue();
         const commandBuilder = typeof value === "boolean" ? builder.tailDisplay(value) : builder.tailDisplay(value);
+        state.commandBuilder.setValue(commandBuilder);
+      },
+      setErrorTail(value: boolean | ErrorTailOptions) {
+        const builder = state.commandBuilder.getValue();
+        const commandBuilder = typeof value === "boolean" ? builder.errorTail(value) : builder.errorTail(value);
         state.commandBuilder.setValue(commandBuilder);
       },
       symbols,
