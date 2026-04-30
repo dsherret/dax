@@ -896,6 +896,24 @@ const downloadPath = await $.request(url)
   .pipeToPath();
 ```
 
+### Custom progress reporting
+
+If you'd rather render your own progress UI (or report progress somewhere other than the terminal), use `.onProgress(callback)` instead. The callback fires once per chunk read from the response body with the cumulative bytes received and the total expected size:
+
+```ts
+await $.request(url)
+  .onProgress(({ loaded, total }) => {
+    if (total != null) {
+      console.log(`${(loaded / total * 100).toFixed(1)}%`);
+    } else {
+      console.log(`${loaded} bytes`);
+    }
+  })
+  .pipeToPath();
+```
+
+`total` is taken from the `content-length` response header and will be `undefined` if the server doesn't provide one. Only one callback may be registered at a time — calling `.onProgress` again replaces the previous callback, and passing `undefined` clears it. `.onProgress` is independent of `.showProgress`, so the two can be combined or used on their own.
+
 ## Shell
 
 The shell is cross-platform and uses the parser from [deno_task_shell](https://github.com/denoland/deno_task_shell).

@@ -138,6 +138,39 @@ Deno.test("$.request", (t) => {
       assertEquals(data, "text".repeat(1000));
     });
 
+    step("onProgress reports cumulative bytes", async () => {
+      const events: { loaded: number; total: number | undefined }[] = [];
+      const data = await new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .onProgress((event) => events.push(event))
+        .text();
+      assertEquals(data, "text".repeat(1000));
+      assert(events.length > 0, "expected at least one progress event");
+      // total is whatever the server reports via content-length (or undefined),
+      // but it must be the same value on every event
+      const total = events[0].total;
+      // loaded must be monotonically non-decreasing and end at the body size
+      let prev = 0;
+      for (const event of events) {
+        assertEquals(event.total, total);
+        assert(event.loaded >= prev, `loaded went backwards: ${prev} -> ${event.loaded}`);
+        prev = event.loaded;
+      }
+      assertEquals(events[events.length - 1].loaded, 4 * 1000);
+    });
+
+    step("onProgress can be cleared by passing undefined", async () => {
+      let called = false;
+      const builder = new RequestBuilder()
+        .url(new URL("/text-file", serverUrl))
+        .onProgress(() => {
+          called = true;
+        })
+        .onProgress(undefined);
+      await builder.text();
+      assertEquals(called, false);
+    });
+
     step("pipeTo", async () => {
       const buffer = new Buffer();
       await new RequestBuilder()
