@@ -7,8 +7,6 @@
 
 Cross-platform shell tools for Deno and Node.js inspired by [zx](https://github.com/google/zx).
 
-📖 **Full documentation: [dax.land](https://dax.land)**
-
 ```ts
 import $ from "dax";
 
@@ -25,7 +23,7 @@ const data = await $.request("https://plugins.dprint.dev/info.json").json();
 const name = await $.prompt("What's your name?");
 ```
 
-See [dax.land](https://dax.land) for the full guide, including the shell, path API, request builder, prompts, progress bars, and custom `$` setup.
+Docs: [dax.land](https://dax.land)
 
 ## Differences with zx
 
