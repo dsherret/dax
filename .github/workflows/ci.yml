@@ -15,9 +15,6 @@ concurrency:
 jobs:
   deno:
     name: dax-${{ matrix.os }}
-    if: |
-      github.event_name == 'push' ||
-      !startsWith(github.event.pull_request.head.label, 'dsherret:')
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
