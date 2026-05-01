@@ -5,7 +5,7 @@ layout: layout.vto
 <section class="intro hero" id="overview">
   <div>
     <h4 class="eyebrow">{{ version }}</h4>
-    <h1>Shell scripting,<br/>without the platform&nbsp;tax.</h1>
+    <h1>dax — shell scripting<br/>that runs the same everywhere.</h1>
     <p class="lede">
       Cross-platform shell tools for Deno and Node.js inspired by <a href="https://github.com/google/zx">zx</a> — a friendlier <code>$</code> for spawning processes, with a built-in shell parser, built-in commands, prompts, requests, and a <code>Path</code> API.
     </p>
@@ -55,7 +55,7 @@ layout: layout.vto
   <div class="feat">
     <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg></span>
     <h3>Portable</h3>
-    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes.</p>
+    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes — no vendor lock-in.</p>
   </div>
 </div>
 
