@@ -1,3 +1,17 @@
+// mobile sidebar drawer
+const navToggle = document.querySelector('.nav-toggle');
+const sidebar = document.querySelector('.sidebar');
+const backdrop = document.querySelector('.nav-backdrop');
+function setNavOpen(open) {
+  sidebar.classList.toggle('open', open);
+  backdrop.hidden = !open;
+  navToggle.setAttribute('aria-expanded', String(open));
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+navToggle?.addEventListener('click', () => setNavOpen(!sidebar.classList.contains('open')));
+backdrop?.addEventListener('click', () => setNavOpen(false));
+sidebar?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setNavOpen(false)));
+
 // install tabs
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -28,30 +42,3 @@ sectionIds.forEach(id => {
   if (el) obs.observe(el);
 });
 
-// build right-side TOC from H2s in main
-const tocList = document.getElementById('toc-list');
-document.querySelectorAll('main h2[id]').forEach(h => {
-  const li = document.createElement('li');
-  const a  = document.createElement('a');
-  a.href = '#' + h.id;
-  a.textContent = h.textContent.replace('#', '').trim();
-  a.dataset.target = h.id;
-  li.appendChild(a);
-  tocList.appendChild(li);
-});
-const tocLinks = new Map(
-  [...tocList.querySelectorAll('a')].map(a => [a.dataset.target, a])
-);
-const obs2 = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      tocLinks.forEach(a => a.classList.remove('active'));
-      const a = tocLinks.get(e.target.id);
-      if (a) a.classList.add('active');
-    }
-  });
-}, { rootMargin: '-25% 0px -65% 0px', threshold: 0 });
-sectionIds.forEach(id => {
-  const el = document.getElementById(id);
-  if (el) obs2.observe(el);
-});

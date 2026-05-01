@@ -38,24 +38,23 @@ a:hover { color: var(--orange-deep); }
 /* ===== Layout ===== */
 .shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 220px;
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: 56px;
-  max-width: 1672px;
+  max-width: 1396px;
   margin: 0 auto;
   padding: 0 40px;
 }
-@media (max-width: 1100px) { .shell { grid-template-columns: 240px minmax(0,1fr); } .toc { display: none; } }
-@media (max-width: 800px)  { .shell { grid-template-columns: minmax(0,1fr); padding: 0 20px; } .sidebar { display: none; } }
+@media (max-width: 800px) { .shell { grid-template-columns: minmax(0,1fr); padding: 0 20px; } }
 
 /* ===== Topbar ===== */
 .topbar {
-  position: sticky; top: 0; z-index: 30;
+  position: sticky; top: 0; z-index: 40;
   background: rgba(253,250,243,0.85);
   backdrop-filter: saturate(140%) blur(10px);
   border-bottom: 1px solid var(--line);
 }
 .topbar-inner {
-  max-width: 1672px; margin: 0 auto;
+  max-width: 1396px; margin: 0 auto;
   padding: 14px 40px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
@@ -74,7 +73,34 @@ a:hover { color: var(--orange-deep); }
 }
 .ghost-btn:hover { background: var(--paper-3); color: var(--ink); }
 .ghost-btn svg { width: 14px; height: 14px; }
-@media (max-width: 800px) { .topnav { display: none; } }
+
+/* burger menu — only shown on mobile, hidden by default */
+.nav-toggle {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper-2);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.nav-toggle:hover { background: var(--paper-3); color: var(--ink); }
+.nav-toggle svg { width: 20px; height: 20px; }
+.nav-backdrop {
+  position: fixed;
+  top: 56px; left: 0; right: 0; bottom: 0;
+  background: rgba(26, 24, 55, 0.4);
+  z-index: 28;
+}
+.nav-backdrop[hidden] { display: none; }
+
+@media (max-width: 800px) {
+  .topnav { display: none; }
+  .topbar-inner { padding: 12px 20px; }
+  .nav-toggle { display: inline-flex; }
+}
 
 /* ===== Sidebar ===== */
 .sidebar {
@@ -107,27 +133,24 @@ a:hover { color: var(--orange-deep); }
   border-left-color: var(--orange-deep);
 }
 
-/* ===== TOC ===== */
-.toc {
-  position: sticky; top: 64px;
-  align-self: start;
-  padding: 36px 0 60px;
-  font-size: 13px;
+/* mobile: turn the sidebar into a slide-in drawer triggered by .nav-toggle.
+   sits below the topbar so the burger stays tappable to close it. */
+@media (max-width: 800px) {
+  .sidebar {
+    position: fixed;
+    top: 56px; left: 0;
+    width: 280px; max-width: 85vw;
+    height: calc(100vh - 56px);
+    padding: 24px 24px 60px;
+    background: var(--paper);
+    border-right: 1px solid var(--line);
+    box-shadow: 8px 0 24px -12px rgba(26, 24, 55, 0.25);
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+  .sidebar.open { transform: translateX(0); }
 }
-.toc h5 {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--ink-muted);
-  margin: 0 0 10px;
-}
-.toc ul { list-style: none; padding: 0; margin: 0; }
-.toc li a {
-  display: block; padding: 4px 0;
-  color: var(--ink-muted); line-height: 1.45;
-  border-left: 2px solid var(--line);
-  padding-left: 12px;
-}
-.toc li a:hover { color: var(--ink); }
-.toc li a.active { color: var(--ink); border-left-color: var(--orange-deep); font-weight: 600; }
 
 /* ===== Main content ===== */
 main { padding: 0 0 120px; min-width: 0; }
@@ -342,9 +365,10 @@ footer {
   border-top: 1px solid var(--line);
   margin-top: 80px; padding: 40px 40px 60px;
 }
-.foot-inner { max-width: 1672px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--ink-muted); }
+.foot-inner { max-width: 1396px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--ink-muted); }
 .foot-inner a { color: var(--ink-muted); }
 .foot-inner a:hover { color: var(--orange-deep); }
+@media (max-width: 800px) { footer { padding: 32px 20px 48px; } }
 
 /* cat hover-peek — image url is only declared in :hover so the browser
    doesn't fetch the photo until first hover (then it's cached) */

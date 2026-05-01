@@ -55,7 +55,7 @@ layout: layout.vto
   <div class="feat">
     <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg></span>
     <h3>Portable</h3>
-    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all node-compatible runtimes.</p>
+    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes.</p>
   </div>
 </div>
 
@@ -78,13 +78,12 @@ npx jsr add dax@jsr:@david/dax</code></pre>
 ## Executing commands <a class="anchor" href="#executing">#</a> {#executing}
 
 ```ts
-#!/usr/bin/env -S deno run --allow-all
 import $ from "dax";
 
 // run a command
 await $`echo 5`; // outputs: 5
 
-// outputting to stdout and running a sub process
+// output to stdout and run a sub process
 await $`echo 1 && deno run main.ts`;
 
 // parallel
@@ -725,7 +724,6 @@ Currently implemented (though not every option is supported):
 - `which` - Resolves the path to an executable (`-a` flag is not supported at this time)
 - [`true`](https://man7.org/linux/man-pages/man1/true.1.html) - True command.
 - [`false`](https://man7.org/linux/man-pages/man1/false.1.html) - False command.
-- More to come. Will try to get a similar list as https://deno.land/manual/tools/task_runner#built-in-commands
 
 You can also register your own commands with the shell parser (see below).
 

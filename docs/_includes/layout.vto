@@ -14,6 +14,9 @@
 
 <header class="topbar">
   <div class="topbar-inner">
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
     <a href="#top" class="brand">
       <img src="/logo.svg" alt="dax logo" />
       <span>dax</span>
@@ -33,9 +36,10 @@
     </div>
   </div>
 </header>
+<div class="nav-backdrop" hidden></div>
 
 <div class="shell" id="top">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     {{ for group of sidebar }}
       <h4>{{ group.heading }}</h4>
       <ul>
@@ -47,11 +51,6 @@
   </aside>
 
   <main>{{ content }}</main>
-
-  <aside class="toc" id="toc">
-    <h5>On this page</h5>
-    <ul id="toc-list"></ul>
-  </aside>
 </div>
 
 <footer>
