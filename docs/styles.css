@@ -40,7 +40,7 @@ a:hover { color: var(--orange-deep); }
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 220px;
   gap: 56px;
-  max-width: 1320px;
+  max-width: 1672px;
   margin: 0 auto;
   padding: 0 40px;
 }
@@ -55,7 +55,7 @@ a:hover { color: var(--orange-deep); }
   border-bottom: 1px solid var(--line);
 }
 .topbar-inner {
-  max-width: 1320px; margin: 0 auto;
+  max-width: 1672px; margin: 0 auto;
   padding: 14px 40px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
@@ -178,6 +178,9 @@ ul.tight li::marker { color: var(--orange-deep); }
 .badge .b-r { padding: 4px 10px; background: var(--paper-2); color: var(--ink-soft); }
 .badge.npm .b-l { background: #cb3837; }
 .badge.jsr .b-l { background: #f7df1e; color: #1a1837; }
+a.badge { transition: transform .08s ease; }
+a.badge:hover { transform: translateY(-1px); }
+a.badge:hover .b-r { background: var(--paper-3); }
 
 .cta {
   display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;
@@ -232,7 +235,7 @@ ul.tight li::marker { color: var(--orange-deep); }
   padding: 0;
   background: var(--paper);
 }
-.install-body pre { margin: 0; padding: 18px 22px; }
+.install-body pre { margin: 0; padding: 18px 22px; border: 0; border-radius: 0; }
 
 /* ===== Code blocks ===== */
 pre {
@@ -336,7 +339,7 @@ footer {
   border-top: 1px solid var(--line);
   margin-top: 80px; padding: 40px 40px 60px;
 }
-.foot-inner { max-width: 1320px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--ink-muted); }
+.foot-inner { max-width: 1672px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--ink-muted); }
 .foot-inner a { color: var(--ink-muted); }
 .foot-inner a:hover { color: var(--orange-deep); }
 
