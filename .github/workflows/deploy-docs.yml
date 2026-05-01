@@ -2,8 +2,7 @@ name: deploy-docs
 
 on:
   push:
-    tags:
-      - "*"
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -41,6 +40,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
