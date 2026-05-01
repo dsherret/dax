@@ -4,7 +4,7 @@ layout: layout.vto
 
 <section class="intro hero" id="overview">
   <div>
-    <h4 class="eyebrow">v0.45 · MIT licensed</h4>
+    <h4 class="eyebrow">{{ version }}</h4>
     <h1>Shell scripting,<br/>without the platform&nbsp;tax.</h1>
     <p class="lede">
       Cross-platform shell tools for Deno and Node.js inspired by <a href="https://github.com/google/zx">zx</a> — a friendlier <code>$</code> for spawning processes, with a built-in shell parser, built-in commands, prompts, requests, and a <code>Path</code> API.
@@ -29,18 +29,35 @@ layout: layout.vto
   </div>
 </section>
 
-## Differences with zx <a class="anchor" href="#differences">#</a> {#differences}
+## Highlights <a class="anchor" href="#highlights">#</a> {#highlights}
 
-1. Cross-platform shell.
-   - Makes more code work on Windows.
-   - Allows exporting the shell's environment to the current process.
-   - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
-   - Has common commands built-in for better Windows support.
-1. Minimal globals or global configuration.
-   - Only a default instance of `$`, but it's not mandatory to use this.
-1. No custom CLI.
-1. Good for application code in addition to use as a shell script replacement.
-1. Named after my cat.
+<div class="feature-grid">
+  <div class="feat feat-hero">
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>
+    <h3>Cross-platform shell</h3>
+    <p>Same shell on macOS, Linux, and Windows. Common commands (<code>cp</code>, <code>mv</code>, <code>rm</code>, <code>mkdir</code>, …) are built in for better Windows support, and the shell's env can be exported back to the host process.</p>
+  </div>
+  <div class="feat">
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></span>
+    <h3>Safe by default</h3>
+    <p>Template literal interpolations are escaped automatically — <code>$`mkdir ${dir}`</code> works whether <code>dir</code> is <code>"foo"</code> or <code>"Dir with spaces &amp; quotes"</code>. No manual quoting, no shell-injection bugs.</p>
+  </div>
+  <div class="feat">
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h11"/><path d="M10 8l4 4-4 4"/><circle cx="19" cy="12" r="1.5"/></svg></span>
+    <h3>Structured output</h3>
+    <p>Coerce stdout into the shape you need with chained methods: <code>.text()</code>, <code>.json()</code>, <code>.lines()</code>, <code>.bytes()</code>, or stream line-by-line with <code>.linesIter()</code>.</p>
+  </div>
+  <div class="feat">
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+    <h3>Batteries included</h3>
+    <p>Prompts (<code>$.confirm</code>, <code>$.select</code>), progress bars (<code>$.progress</code>), HTTP requests (<code>$.request</code>), and an immutable <code>Path</code> API — all in one library.</p>
+  </div>
+  <div class="feat">
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg></span>
+    <h3>Portable</h3>
+    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all node-compatible runtimes.</p>
+  </div>
+</div>
 
 ## Install <a class="anchor" href="#install">#</a> {#install}
 

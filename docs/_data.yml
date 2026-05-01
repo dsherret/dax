@@ -3,7 +3,7 @@ sidebar:
   - heading: "Getting started"
     items:
       - { title: "Overview", href: "#overview" }
-      - { title: "Differences with zx", href: "#differences" }
+      - { title: "Highlights", href: "#highlights" }
       - { title: "Install", href: "#install" }
   - heading: "Commands"
     items:
