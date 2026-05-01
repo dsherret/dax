@@ -23,7 +23,7 @@ const data = await $.request("https://plugins.dprint.dev/info.json").json();
 const name = await $.prompt("What's your name?");
 ```
 
-Docs: [dax.land](https://dax.land)
+[Docs](https://dax.land)
 
 ## Differences with zx
 
