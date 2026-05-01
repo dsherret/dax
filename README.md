@@ -362,8 +362,8 @@ Makes a command not output anything to stdout and stderr.
 
 ```ts
 await $`echo 5`.quiet();
-await $`echo 5`.quiet("stdout"); // or just stdout
-await $`echo 5`.quiet("stderr"); // or just stderr
+await $`echo 5`.quiet("stdout"); // only silence stdout
+await $`echo 5`.quiet("stderr"); // only silence stderr
 ```
 
 ### Output a command before executing it

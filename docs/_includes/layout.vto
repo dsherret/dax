@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <meta name="description" content="dax is a cross-platform shell scripting toolkit for Deno and Node.js — a friendlier $ for spawning processes, with a built-in shell, prompts, progress bars, HTTP requests, and a Path API." />
+  <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <a href="#top" class="brand">
+      <img src="/logo.svg" alt="dax logo" />
+      <span>dax</span>
+    </a>
+    <nav class="topnav">
+      <a href="#highlights">Docs</a>
+      <a href="#shell">Shell</a>
+      <a href="#requests">Requests</a>
+      <a href="#prompts">Prompts</a>
+      <a href="#command-builder">API</a>
+    </nav>
+    <div class="topbar-right">
+      <a class="ghost-btn" href="https://github.com/dsherret/dax" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.13c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.91-.25 1.89-.38 2.86-.39.97.01 1.95.13 2.86.39 2.18-1.49 3.14-1.18 3.14-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.13v3.16c0 .31.21.68.8.56 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</header>
+<div class="nav-backdrop" hidden></div>
+
+<div class="shell" id="top">
+  <aside class="sidebar" id="sidebar">
+    {{ for group of sidebar }}
+      <h4>{{ group.heading }}</h4>
+      <ul>
+        {{ for item of group.items }}
+          <li><a href="{{ item.href }}">{{ item.title }}</a></li>
+        {{ /for }}
+      </ul>
+    {{ /for }}
+  </aside>
+
+  <main>{{ content }}</main>
+</div>
+
+<footer>
+  <div class="foot-inner">
+    <div>© 2026 David Sherret · MIT licensed · <span class="cat-peek" aria-label="A photo of dax the cat">🐱</span></div>
+    <div style="display:flex; gap:18px;">
+      <a href="https://github.com/dsherret/dax" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://jsr.io/@david/dax" target="_blank" rel="noopener">JSR</a>
+      <a href="https://www.npmjs.com/package/dax" target="_blank" rel="noopener">npm</a>
+      <a href="https://github.com/dsherret/dax/releases" target="_blank" rel="noopener">Releases</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/script.js"></script>
+</body>
+</html>

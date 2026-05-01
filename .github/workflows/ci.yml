@@ -1,6 +1,12 @@
 name: ci
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+    tags:
+      - '*'
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}'
@@ -9,9 +15,6 @@ concurrency:
 jobs:
   deno:
     name: dax-${{ matrix.os }}
-    if: |
-      github.event_name == 'push' ||
-      !startsWith(github.event.pull_request.head.label, 'dsherret:')
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read

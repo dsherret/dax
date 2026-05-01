@@ -1,0 +1,45 @@
+title: "dax — cross-platform shell tools for Deno and Node.js"
+sidebar:
+  - heading: "Getting started"
+    items:
+      - { title: "Overview", href: "#overview" }
+      - { title: "Highlights", href: "#highlights" }
+      - { title: "Install", href: "#install" }
+  - heading: "Commands"
+    items:
+      - { title: "Executing", href: "#executing" }
+      - { title: "Providing arguments", href: "#arguments" }
+      - { title: "Providing stdin", href: "#stdin" }
+      - { title: "Getting output", href: "#getting-output" }
+      - { title: "Streaming API", href: "#streaming" }
+      - { title: "Piping", href: "#piping" }
+      - { title: "Silencing", href: "#silencing" }
+      - { title: "Print command", href: "#print-command" }
+      - { title: "Tail display", href: "#tail-display" }
+      - { title: "Exit codes", href: "#exit-codes" }
+      - { title: "Error tail", href: "#error-tail" }
+      - { title: "Env variables", href: "#env" }
+      - { title: "Setting cwd", href: "#cwd" }
+      - { title: "Export env", href: "#export-env" }
+      - { title: "Timeout", href: "#timeout" }
+      - { title: "Aborting", href: "#aborting" }
+      - { title: "Before command", href: "#before-command" }
+  - heading: "Shell"
+    items:
+      - { title: "Cross-platform shell", href: "#shell" }
+      - { title: "Built-in commands", href: "#builtins" }
+      - { title: "Shell options", href: "#shell-options" }
+      - { title: "Shebang support", href: "#shebang" }
+  - heading: "Toolkit"
+    items:
+      - { title: "Logging", href: "#logging" }
+      - { title: "Requests", href: "#requests" }
+      - { title: "Prompts", href: "#prompts" }
+      - { title: "Progress", href: "#progress" }
+      - { title: "Path API", href: "#path" }
+      - { title: "Helpers", href: "#helpers" }
+  - heading: "Advanced"
+    items:
+      - { title: "CommandBuilder", href: "#command-builder" }
+      - { title: "RequestBuilder", href: "#request-builder" }
+      - { title: "Custom $", href: "#custom-dollar" }
