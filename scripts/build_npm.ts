@@ -10,7 +10,7 @@ await build({
   outDir: "./npm",
   shims: {
     deno: {
-      test: true,
+      test: "dev",
     },
     custom: [{
       package: {
@@ -90,6 +90,12 @@ await build({
       type: "git",
       url: "git+https://github.com/dsherret/dax.git",
     },
+    keywords: [
+      "shell",
+      "scripting",
+      "spawn",
+      "process",
+    ],
     bugs: {
       url: "https://github.com/dsherret/dax/issues",
     },
