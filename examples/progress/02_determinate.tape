@@ -1,8 +1,8 @@
 Output videos/02_determinate.mp4
 
-Set FontSize 24
-Set Width 1000
-Set Height 250
+Set FontSize 17
+Set Width 800
+Set Height 110
 Set Padding 16
 
 Hide

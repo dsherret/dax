@@ -1,8 +1,8 @@
 Output videos/06_combined.mp4
 
-Set FontSize 18
-Set Width 1000
-Set Height 440
+Set FontSize 13
+Set Width 800
+Set Height 320
 Set Padding 16
 
 Hide
