@@ -29,6 +29,32 @@ layout: layout.vto
   </div>
 </section>
 
+<div class="hero-sample">
+
+```ts
+import $ from "dax";
+
+$.logStep("Building");
+await $`deno task build`;
+
+const env = await $.select({
+  message: "Where to?",
+  options: ["staging", "production"],
+});
+
+const branch = await $`git rev-parse --abbrev-ref HEAD`.text();
+$.logLight(`Deploying ${branch} → ${env.value}`);
+
+await Promise.all([
+  $`./deploy.sh ${env.value} api`,
+  $`./deploy.sh ${env.value} web`,
+]);
+
+$.logStep("Deployed");
+```
+
+</div>
+
 ## Highlights <a class="anchor" href="#highlights">#</a> {#highlights}
 
 <div class="feature-grid">
