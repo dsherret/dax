@@ -46,8 +46,8 @@ const branch = await $`git rev-parse --abbrev-ref HEAD`.text();
 $.logLight(`Deploying ${branch} → ${env.value}`);
 
 await Promise.all([
-  $`./deploy.sh ${env.value} api`,
-  $`./deploy.sh ${env.value} web`,
+  $`deno task deploy ${env.value} api`,
+  $`deno task deploy ${env.value} web`,
 ]);
 
 $.logStep("Deployed");
