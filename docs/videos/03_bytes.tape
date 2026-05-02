@@ -1,4 +1,4 @@
-Output videos/03_bytes.mp4
+Output output/03_bytes.mp4
 
 Set FontSize 17
 Set Width 800

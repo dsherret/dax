@@ -1,4 +1,4 @@
-Output videos/01_indeterminate.mp4
+Output output/01_indeterminate.mp4
 
 Set FontSize 17
 Set Width 800

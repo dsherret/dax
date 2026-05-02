@@ -1,4 +1,4 @@
-Output videos/06_combined.mp4
+Output output/06_combined.mp4
 
 Set FontSize 13
 Set Width 800

@@ -9,7 +9,7 @@ if (!(await $.commandExists("vhs"))) {
   Deno.exit(1);
 }
 
-await here.join("videos").mkdir({ recursive: true });
+await here.join("output").mkdir({ recursive: true });
 
 const filter = Deno.args[0];
 const tapes: Path[] = [];
@@ -31,4 +31,4 @@ await Promise.all(tapes.map(async (tape) => {
     .cwd(here);
 }));
 
-$.logStep("Done.", `Wrote ${tapes.length} mp4(s) to ${here.join("videos")}`);
+$.logStep("Done.", `Wrote ${tapes.length} mp4(s) to ${here.join("output")}`);

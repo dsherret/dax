@@ -1,4 +1,4 @@
-Output videos/05_logging.mp4
+Output output/05_logging.mp4
 
 Set FontSize 17
 Set Width 800
