@@ -1023,7 +1023,7 @@ You may wish to indicate that some progress is occurring.
 
 A spinner for work whose total isn't known up front:
 
-<!-- video placeholder: 01_indeterminate.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/01_indeterminate.mp4"></video>
 
 ```ts
 const pb = $.progress("Updating Database");
@@ -1049,7 +1049,7 @@ try {
 
 Set a `length` to render a filled bar with a percentage. The displayed message can be updated mid-run via `pb.message(text)` to reflect the current step (and `pb.prefix(text)` updates the green prefix the same way):
 
-<!-- video placeholder: 02_determinate.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/02_determinate.mp4"></video>
 
 ```ts
 const files = [/*...*/];
@@ -1068,7 +1068,7 @@ await pb.with(async () => {
 
 For downloads or anything else measured in bytes, chain `.kind("bytes")` to format `length` and `position` as human-readable sizes (e.g. `12.34 MiB / 40.00 MiB`):
 
-<!-- video placeholder: 03_bytes.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/03_bytes.mp4"></video>
 
 ```ts
 const pb = $.progress("Downloading data.zip", { length: totalBytes })
@@ -1088,7 +1088,7 @@ await pb.with(async () => {
 
 Any number of progress bars can be active at once. They stack in the order they were created and reflow as each one finishes — useful for parallel downloads or per-file processing:
 
-<!-- video placeholder: 04_parallel.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/04_parallel.mp4"></video>
 
 ```ts
 await Promise.all(
@@ -1104,7 +1104,7 @@ await Promise.all(
 
 `$.log`, `$.logStep`, `$.logError`, and friends are progress-aware: their output prints _above_ any active bars without tearing them. You can stream a log of completed steps while a bar continues to animate:
 
-<!-- video placeholder: 05_logging.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/05_logging.mp4"></video>
 
 ```ts
 const pb = $.progress("Migrating tables", { length: tables.length });
@@ -1122,7 +1122,7 @@ await pb.with(async () => {
 
 Selections and other prompts compose with active progress bars: the prompt renders below the bars, log lines stream in above, and the bars keep animating while the user chooses.
 
-<!-- video placeholder: 06_combined.mp4 -->
+<video class="demo-video" muted loop playsinline preload="none" src="/videos/06_combined.mp4"></video>
 
 ```ts
 $.logStep("Loaded", "config.json");
