@@ -30,9 +30,10 @@ if (tapes.length === 0) {
   Deno.exit(0);
 }
 
-for (const tape of tapes) {
-  $.logStep("Recording", tape.basename());
-  await $`vhs ${tape}`.cwd(here);
-}
+await Promise.all(tapes.map(async (tape) => {
+  await $`vhs ${tape}`
+    .tailDisplay({ maxLines: 3 })
+    .cwd(here);
+}));
 
 $.logStep("Done.", `Wrote ${tapes.length} mp4(s) to ${here.join("videos")}`);

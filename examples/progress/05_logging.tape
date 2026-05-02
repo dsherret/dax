@@ -1,8 +1,8 @@
 Output videos/05_logging.mp4
 
-Set FontSize 14
+Set FontSize 36
 Set Width 1000
-Set Height 450
+Set Height 720
 Set Padding 16
 
 Hide
