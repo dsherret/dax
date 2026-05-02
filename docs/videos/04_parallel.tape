@@ -1,0 +1,14 @@
+Output output/04_parallel.mp4
+
+Set FontSize 17
+Set Width 800
+Set Height 240
+Set Padding 16
+
+Hide
+Type "deno run -A 04_parallel.ts"
+Enter
+Wait+Screen@10s /Downloading/
+Show
+Wait+Screen@30s /All downloads complete/
+Sleep 500ms

@@ -41,3 +41,18 @@ sectionIds.forEach((id) => {
   const el = document.getElementById(id);
   if (el) obs.observe(el);
 });
+
+// lazy-play demo videos: preload="none" keeps bytes off the wire until the
+// user scrolls one into view, at which point we start playback and pause
+// again on exit so background tabs don't keep downloading.
+const videoObs = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    const v = entry.target;
+    if (entry.isIntersecting) {
+      v.play().catch(() => {/* autoplay blocked — leave paused */});
+    } else {
+      v.pause();
+    }
+  }
+}, { threshold: 0.25 });
+document.querySelectorAll("video.demo-video").forEach((v) => videoObs.observe(v));

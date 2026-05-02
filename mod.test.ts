@@ -18,7 +18,7 @@ Deno.test("command builder should build", async () => {
     // this environment variable should have no effect here. Additionally,
     // command builders are immutable and return a new builder each time
     commandBuilder.env("TEST", "456");
-    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const output = await local$`deno eval --no-config 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }
@@ -26,7 +26,7 @@ Deno.test("command builder should build", async () => {
   {
     // this one additionally won't be affected because command builders are immutable
     const local$ = $.build$({ commandBuilder });
-    const output = await local$`deno eval 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
+    const output = await local$`deno eval --no-config 'console.log(Deno.env.get("TEST"));'`.stdout("piped");
     assertEquals(output.code, 0);
     assertEquals(output.stdout, "123\n");
   }

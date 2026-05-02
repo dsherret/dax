@@ -342,6 +342,16 @@ p code, li code, td code {
 .callout strong, blockquote strong { color: var(--ink-soft); }
 blockquote p { margin: 0; max-width: none; }
 
+/* ===== Demo videos ===== */
+.demo-video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px 0;
+  border-radius: 8px;
+  background: #000;
+}
+
 /* ===== Built-in commands grid ===== */
 .cmd-grid {
   display: grid;

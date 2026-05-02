@@ -25,6 +25,8 @@ site.copy("logo.svg");
 site.copy("styles.css");
 site.copy("script.js");
 
+site.copy("videos/output", "videos");
+
 // resolve the version once at build time from the latest git tag and substitute
 // `{{ version }}` placeholders in rendered html. lets the hero ride along with
 // releases without anyone having to hand-edit the docs on every tag.
