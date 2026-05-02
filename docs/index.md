@@ -393,8 +393,6 @@ await $`./build.sh`.tailDisplay({
 });
 ```
 
-<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/07_tail_display.mp4"></video>
-
 `maxLines` accepts a literal number, a `"N%"` string resolved against the terminal height at draw time, or a `(ctx) => number` callback. Defaults to 5.
 
 `header` accepts:
@@ -411,6 +409,8 @@ await Promise.all([
   $`./build.sh backend`.tailDisplay({ maxLines: 4 }),
 ]);
 ```
+
+<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/07_tail_display.mp4"></video>
 
 ### Enabling on a `$`
 
