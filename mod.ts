@@ -108,23 +108,8 @@ export { type BeforeRequestCallback, RequestBuilder, RequestResponse } from "./s
 /**
  * Cross platform shell tools for Deno inspired by [zx](https://github.com/google/zx).
  *
- * Differences:
- *
- * 1. Cross platform shell.
- *    - Makes more code work on Windows.
- *    - Allows exporting the shell's environment to the current process.
- *    - Uses [deno_task_shell](https://github.com/denoland/deno_task_shell)'s parser.
- *    - Has common commands built-in for better Windows support.
- * 1. Minimal globals or global configuration.
- *    - Only a default instance of `$`, but it's not mandatory to use this.
- * 1. No custom CLI.
- * 1. Good for application code in addition to use as a shell script replacement.
- * 1. Named after my cat.
- *
- * ## Example
- *
  * ```ts
- * import $ from "https://deno.land/x/dax@VERSION_GOES_HERE/mod.ts";
+ * import $ from "dax";
  *
  * await $`echo hello`;
  * ```
@@ -197,7 +182,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * Example:
    *
    * ```ts
-   * import $ from "https://deno.land/x/dax/mod.ts";
+   * import $ from "dax";
    *
    * const commandBuilder = new CommandBuilder()
    *   .cwd("./subDir")
@@ -964,7 +949,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
  * Example:
  *
  * ```ts
- * import { build$ } from "https://deno.land/x/dax/mod.ts";
+ * import { build$ } from "dax";
  *
  * const commandBuilder = new CommandBuilder()
  *   .cwd("./subDir")

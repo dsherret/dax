@@ -3,7 +3,7 @@
 [![JSR](https://jsr.io/badges/@david/dax)](https://jsr.io/@david/dax)
 [![npm Version](https://img.shields.io/npm/v/dax.svg?style=flat)](http://www.npmjs.com/package/dax)
 
-<img src="src/assets/logo.svg" height="150px" alt="dax logo">
+<a href="https://dax.land"><img src="src/assets/logo.svg" height="150px" alt="dax logo"></a>
 
 Cross-platform shell tools for Deno and Node.js inspired by [zx](https://github.com/google/zx).
 

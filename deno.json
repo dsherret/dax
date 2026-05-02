@@ -1,6 +1,9 @@
 {
   "name": "@david/dax",
   "nodeModulesDir": "none",
+  "workspace": [
+    "./docs"
+  ],
   "test": {
     "permissions": {
       "all": true

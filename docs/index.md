@@ -1021,6 +1021,10 @@ You may wish to indicate that some progress is occurring.
 
 ### Indeterminate
 
+A spinner for work whose total isn't known up front:
+
+<!-- video placeholder: 01_indeterminate.mp4 -->
+
 ```ts
 const pb = $.progress("Updating Database");
 
@@ -1029,7 +1033,7 @@ await pb.with(async () => {
 });
 ```
 
-The `.with(async () => { ... })` API will hide the progress bar when the action completes including hiding it when an error is thrown. If you don't want to bother with this though you can just call `pb.finish()` instead.
+The `.with(async () => { ... })` API will hide the progress bar when the action completes, including when an error is thrown. If you don't want to bother with this you can call `pb.finish()` directly instead:
 
 ```ts
 const pb = $.progress("Updating Database");
@@ -1043,20 +1047,100 @@ try {
 
 ### Determinate
 
-Set a length to be determinate, which will display a progress bar:
+Set a `length` to render a filled bar with a percentage. The displayed message can be updated mid-run via `pb.message(text)` to reflect the current step (and `pb.prefix(text)` updates the green prefix the same way):
+
+<!-- video placeholder: 02_determinate.mp4 -->
 
 ```ts
-const items = [/*...*/];
-const pb = $.progress("Processing Items", {
-  length: items.length,
-});
+const files = [/*...*/];
+const pb = $.progress("Type-checking", { length: files.length });
 
 await pb.with(async () => {
-  for (const item of items) {
-    await doWork(item);
+  for (const file of files) {
+    pb.message(file);
+    await typeCheck(file);
     pb.increment(); // or use pb.position(val)
   }
 });
+```
+
+### Bytes-formatted bars
+
+For downloads or anything else measured in bytes, chain `.kind("bytes")` to format `length` and `position` as human-readable sizes (e.g. `12.34 MiB / 40.00 MiB`):
+
+<!-- video placeholder: 03_bytes.mp4 -->
+
+```ts
+const pb = $.progress("Downloading data.zip", { length: totalBytes })
+  .kind("bytes");
+
+await pb.with(async () => {
+  for await (const chunk of stream) {
+    await write(chunk);
+    pb.increment(chunk.length);
+  }
+});
+```
+
+> If you're downloading via `$.request`, you don't need to wire this up yourself — calling [`.showProgress()`](#requests) on the request gives you a bytes-formatted bar for free.
+
+### Multiple bars in parallel
+
+Any number of progress bars can be active at once. They stack in the order they were created and reflow as each one finishes — useful for parallel downloads or per-file processing:
+
+<!-- video placeholder: 04_parallel.mp4 -->
+
+```ts
+await Promise.all(
+  files.map(async (file) => {
+    const pb = $.progress(`Downloading ${file.name}`, { length: file.size })
+      .kind("bytes");
+    await pb.with(() => download(file, (n) => pb.increment(n)));
+  }),
+);
+```
+
+### Logging alongside progress bars
+
+`$.log`, `$.logStep`, `$.logError`, and friends are progress-aware: their output prints _above_ any active bars without tearing them. You can stream a log of completed steps while a bar continues to animate:
+
+<!-- video placeholder: 05_logging.mp4 -->
+
+```ts
+const pb = $.progress("Migrating tables", { length: tables.length });
+
+await pb.with(async () => {
+  for (const table of tables) {
+    $.logStep("Migrating", table);
+    await migrate(table);
+    pb.increment();
+  }
+});
+```
+
+### Composing with prompts
+
+Selections and other prompts compose with active progress bars: the prompt renders below the bars, log lines stream in above, and the bars keep animating while the user chooses.
+
+<!-- video placeholder: 06_combined.mp4 -->
+
+```ts
+$.logStep("Loaded", "config.json");
+$.logStep("Connected", "to api.example.com");
+
+const work = Promise.all(jobs.map(async (job) => {
+  const pb = $.progress(`Processing ${job.name}`, { length: job.total });
+  await pb.with(() => runJob(job, pb));
+}));
+
+const colour = await $.select({
+  message: "What's your favourite colour?",
+  options: ["Red", "Green", "Blue"],
+});
+
+await work;
+
+$.logStep("Picked", colour.value);
 ```
 
 ### Synchronous work
@@ -1076,6 +1160,10 @@ pb.with(() => {
   }
 });
 ```
+
+### Non-TTY output
+
+When stdout isn't a TTY (CI logs, piped or redirected output), the live UI is suppressed: the prefix and message are emitted as plain log lines whenever they're set, and the per-frame redraw is skipped. Your script behaves the same — the output just degrades gracefully to static lines instead of an animated bar.
 
 ## Path API <a class="anchor" href="#path">#</a> {#path}
 
