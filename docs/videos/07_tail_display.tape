@@ -2,7 +2,7 @@ Output output/07_tail_display.mp4
 
 Set FontSize 17
 Set Width 800
-Set Height 280
+Set Height 200
 Set Padding 16
 
 Hide
