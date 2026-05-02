@@ -6,5 +6,7 @@ $.setPrintCommand(true);
 
 const target = "production";
 await $`echo Deploying to ${target}...`;
+await $.sleep("1.2s");
 await $`echo Build hash: abc123`;
+await $.sleep("1.2s");
 await $`echo Done!`;
