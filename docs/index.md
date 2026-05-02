@@ -361,6 +361,8 @@ Outputs the following (with the command text in blue):
 example
 ```
 
+<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/11_print_command.mp4"></video>
+
 ### Enabling on a `$`
 
 Like with any default in Dax, you can build a new `$` turning on this option so this will occur with all commands (see [Custom `$`](#custom-dollar)). Alternatively, you can enable this globally by calling `$.setPrintCommand(true);`.
@@ -393,7 +395,7 @@ await $`./build.sh`.tailDisplay({
 });
 ```
 
-`maxLines` accepts a literal number, a `"N%"` string resolved against the terminal height at draw time, or a `(ctx) => number` callback. Defaults to 5.
+`maxLines` accepts a literal number, a `"N%"` string resolved against the terminal height at draw time, or a `(ctx) => number` callback. Includes the header line. Defaults to 5.
 
 `header` accepts:
 
@@ -405,8 +407,8 @@ Concurrent tailing commands compose into a single shared scrolling region, so mu
 
 ```ts
 await Promise.all([
-  $`./build.sh frontend`.tailDisplay({ maxLines: 4 }),
-  $`./build.sh backend`.tailDisplay({ maxLines: 4 }),
+  $`./build.sh frontend`.tailDisplay({ maxLines: 3 }),
+  $`./build.sh backend`.tailDisplay({ maxLines: 3 }),
 ]);
 ```
 
@@ -479,6 +481,8 @@ await $`./build.sh > out.log 2> err.log`.errorTail({ combined: true }).quiet();
 ```
 
 `.errorTail()` has no effect when the command succeeds (the buffer is discarded) or when `.noThrow()` swallows the failure.
+
+<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/10_error_tail.mp4"></video>
 
 ### Enabling on a `$`
 
@@ -995,6 +999,8 @@ console.log(result.value); // e.g. "Red"
 console.log(colours[result]); // also works — coerces to the index
 ```
 
+<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/08_select.mp4"></video>
+
 ### `$.multiSelect` / `$.maybeMultiSelect`
 
 Gets multiple or no values:
@@ -1016,6 +1022,8 @@ for (const item of result) {
   console.log(item.index, item.value);
 }
 ```
+
+<video class="demo-video" controls muted loop playsinline preload="none" src="/videos/09_multi_select.mp4"></video>
 
 ## Progress indicator <a class="anchor" href="#progress">#</a> {#progress}
 
