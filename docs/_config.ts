@@ -25,19 +25,7 @@ site.copy("logo.svg");
 site.copy("styles.css");
 site.copy("script.js");
 
-for (
-  const name of [
-    "01_indeterminate",
-    "02_determinate",
-    "03_bytes",
-    "04_parallel",
-    "05_logging",
-    "06_combined",
-  ]
-) {
-  site.remoteFile(`videos/${name}.mp4`, import.meta.resolve(`../examples/progress/videos/${name}.mp4`));
-  site.copy(`videos/${name}.mp4`);
-}
+site.copy("videos/output", "videos");
 
 // resolve the version once at build time from the latest git tag and substitute
 // `{{ version }}` placeholders in rendered html. lets the hero ride along with

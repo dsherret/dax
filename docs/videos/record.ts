@@ -1,10 +1,5 @@
 // Regenerates the .mp4 for every .tape file in this directory.
 // Requires `vhs` on PATH — see https://github.com/charmbracelet/vhs#installation
-//
-// Usage:
-//   deno run -A examples/progress/record.ts
-//   deno run -A examples/progress/record.ts 04_parallel   # one tape only
-
 import $, { type Path } from "../../mod.ts";
 
 const here = $.path(import.meta.dirname!);
