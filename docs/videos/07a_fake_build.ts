@@ -21,6 +21,6 @@ const steps = [
 const stepDelayMs = name === "frontend" ? 280 : 380;
 
 for (const step of steps) {
-  console.log(`[${name}] ${step}`);
+  console.log(step);
   await new Promise((r) => setTimeout(r, stepDelayMs));
 }
