@@ -15,4 +15,4 @@ await pb.with(async () => {
   }
 });
 
-$.logStep("Migration complete");
+$.log("Migration complete");

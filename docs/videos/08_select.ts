@@ -7,4 +7,4 @@ const colour = await $.select({
   options: ["Red", "Green", "Blue", "Yellow", "Purple"],
 });
 
-$.logStep("Picked", colour.value);
+$.log("Picked", colour.value);

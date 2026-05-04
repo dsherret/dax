@@ -16,4 +16,4 @@ const days = await $.multiSelect({
   ],
 });
 
-$.logStep("Picked", days.map((d) => d.value).join(", "));
+$.log("Picked", days.map((d) => d.value).join(", "));

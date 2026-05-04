@@ -24,4 +24,4 @@ await Promise.all([
   fakeDownload("rustc.tar.xz", 80, 12),
 ]);
 
-$.logStep("All downloads complete");
+$.log("All downloads complete");
