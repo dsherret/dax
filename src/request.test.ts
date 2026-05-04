@@ -7,7 +7,7 @@ import $ from "../mod.ts";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as nodePath from "node:path";
-import { RequestBuilder } from "./request.ts";
+import { RequestBuilder, RequestResponse } from "./request.ts";
 import { startServer } from "./test/server.deno.ts";
 
 async function withServer(action: (serverUrl: URL) => Promise<void>) {
@@ -523,4 +523,145 @@ Deno.test("$.request", (t) => {
 
     await Promise.all(steps);
   });
+});
+
+// helpers for the body-cancellation tests below.
+//
+// these construct a `RequestResponse` directly with a synthetic upstream body
+// so we can observe whether `body.cancel()` is invoked when reading is
+// interrupted — the previously-leaking path on CI. doing it this way avoids
+// the timing race that made the original failure intermittent.
+function makeAbortableBody(abortController: AbortController) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (abortController.signal.aborted) {
+        controller.error(abortController.signal.reason);
+        return;
+      }
+      abortController.signal.addEventListener("abort", () => {
+        controller.error(abortController.signal.reason);
+      });
+    },
+  });
+}
+
+function trackBodyCancel(response: Response): { count: () => number } {
+  const body = response.body!;
+  let count = 0;
+  const orig = body.cancel.bind(body);
+  Object.defineProperty(body, "cancel", {
+    value(reason?: unknown) {
+      count++;
+      return orig(reason);
+    },
+    configurable: true,
+    writable: true,
+  });
+  return { count: () => count };
+}
+
+function makeRequestResponse(opts: {
+  response: Response;
+  abortController: AbortController;
+  onProgress?: (() => void)[];
+}) {
+  return new RequestResponse({
+    response: opts.response,
+    originalUrl: "http://localhost/test",
+    progressBar: undefined,
+    // any non-empty array forces the showProgress/onProgress wrapper path
+    onProgress: (opts.onProgress ?? [() => {}]) as any,
+    contentLength: undefined,
+    abortController: {
+      controller: opts.abortController,
+      clearTimeout() {},
+    },
+  });
+}
+
+Deno.test("RequestResponse - cancels body when read method (no wrapper) throws", async () => {
+  // when there's no progress wrapper, `text()`/`json()`/etc. read directly
+  // from the original response. an abort during that read leaves the body
+  // errored — we still need to call `cancel()` so the fetch resource is
+  // released.
+  const abortController = new AbortController();
+  const response = new Response(makeAbortableBody(abortController), { status: 200 });
+  const tracker = trackBodyCancel(response);
+  // pass an empty onProgress array to bypass the wrapper path
+  const requestResponse = makeRequestResponse({
+    response,
+    abortController,
+    onProgress: [],
+  });
+
+  const textPromise = requestResponse.text();
+  await Promise.resolve();
+  abortController.abort(new Error("aborted in body"));
+  await assertRejects(() => textPromise);
+  assert(tracker.count() > 0, `expected response body.cancel() to be called on read error, got ${tracker.count()}`);
+});
+
+Deno.test("RequestResponse - progress wrapper cancels upstream body when read errors", async () => {
+  const abortController = new AbortController();
+  const response = new Response(makeAbortableBody(abortController), { status: 200 });
+  const tracker = trackBodyCancel(response);
+  const requestResponse = makeRequestResponse({ response, abortController });
+
+  const textPromise = requestResponse.text();
+  // let the wrapper start reading before we abort
+  await Promise.resolve();
+  abortController.abort(new Error("aborted in body"));
+  await assertRejects(() => textPromise);
+  assert(tracker.count() > 0, `expected upstream body.cancel() to be called, got ${tracker.count()}`);
+});
+
+Deno.test("RequestResponse - progress wrapper cancels upstream body when downstream cancels", async () => {
+  const abortController = new AbortController();
+  // body whose read never resolves until cancelled — mirrors a server that
+  // returns headers but never sends body bytes.
+  const sourceBody = new ReadableStream<Uint8Array>({
+    pull() {
+      return new Promise(() => {});
+    },
+  });
+  const response = new Response(sourceBody, { status: 200 });
+  const tracker = trackBodyCancel(response);
+  const requestResponse = makeRequestResponse({ response, abortController });
+
+  const reader = requestResponse.readable.getReader();
+  // start the read so the wrapper attaches to the upstream body
+  const readPromise = reader.read();
+  await Promise.resolve();
+  await reader.cancel("downstream-cancel");
+  // the read should resolve as cancelled rather than hang
+  await readPromise.catch(() => {});
+  assert(tracker.count() > 0, `expected upstream body.cancel() to be called on cancel, got ${tracker.count()}`);
+});
+
+Deno.test("RequestBuilder[symbols.readable] - cancels response body when pull errors", async () => {
+  const { symbols } = await import("@david/shell/internal");
+
+  // stand up a fake fetch by stubbing the global. we can't easily get a real
+  // fetch to time out without flakiness, so swap in a controlled response.
+  const abortController = new AbortController();
+  const response = new Response(makeAbortableBody(abortController), { status: 200 });
+  const tracker = trackBodyCancel(response);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((_url: any, init?: RequestInit) => {
+    init?.signal?.addEventListener("abort", () => abortController.abort(init.signal!.reason), { once: true });
+    return Promise.resolve(response);
+  }) as typeof fetch;
+
+  try {
+    const builder = new RequestBuilder().url("http://localhost/test");
+    const stream: ReadableStream<Uint8Array> = (builder as any)[symbols.readable]();
+    const reader = stream.getReader();
+    const readPromise = reader.read();
+    await Promise.resolve();
+    abortController.abort(new Error("aborted in pull"));
+    await readPromise.catch(() => {});
+    assert(tracker.count() > 0, `expected response body.cancel() to be called, got ${tracker.count()}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

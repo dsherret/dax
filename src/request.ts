@@ -143,27 +143,53 @@ export class RequestBuilder implements PromiseLike<RequestResponse> {
         response = await self.fetch();
         const readable = response.readable;
         if (wasCancelled) {
-          readable.cancel(cancelledReason);
+          await readable.cancel(cancelledReason);
         } else {
           streamReader = readable.getReader();
         }
       },
       async pull(controller) {
-        const { done, value } = await streamReader!.read();
-        if (done || value == null) {
-          if (response?.signal?.aborted) {
-            controller.error(response?.signal?.reason);
+        try {
+          const { done, value } = await streamReader!.read();
+          if (done || value == null) {
+            if (response?.signal?.aborted) {
+              controller.error(response?.signal?.reason);
+            } else {
+              controller.close();
+            }
           } else {
-            controller.close();
+            controller.enqueue(value);
           }
-        } else {
-          controller.enqueue(value);
+        } catch (err) {
+          // make sure the underlying response body is released so we don't leak it
+          try {
+            streamReader?.releaseLock();
+          } catch {
+            // ignore
+          }
+          try {
+            await response?.cancelBody();
+          } catch {
+            // ignore
+          }
+          throw err;
         }
       },
-      cancel(reason?: any) {
-        streamReader?.cancel(reason);
+      async cancel(reason?: any) {
         wasCancelled = true;
         cancelledReason = reason;
+        try {
+          if (streamReader != null) {
+            await streamReader.cancel(reason);
+          }
+        } catch {
+          // ignore
+        }
+        try {
+          await response?.cancelBody();
+        } catch {
+          // ignore
+        }
       },
     });
   }
@@ -535,6 +561,7 @@ export class RequestResponse {
               return;
             }
             let loaded = 0;
+            let lockReleased = false;
             try {
               while (true) {
                 const { done, value } = await reader.read();
@@ -557,9 +584,37 @@ export class RequestResponse {
               } else {
                 controller.close();
               }
+            } catch (err) {
+              // release the lock then cancel the upstream body so we don't leak it
+              try {
+                reader.releaseLock();
+                lockReleased = true;
+              } catch {
+                // ignore
+              }
+              try {
+                await opts.response.body?.cancel(err);
+              } catch {
+                // ignore
+              }
+              throw err;
             } finally {
-              reader.releaseLock();
+              if (!lockReleased) {
+                try {
+                  reader.releaseLock();
+                } catch {
+                  // ignore
+                }
+              }
               pb?.finish();
+            }
+          },
+          async cancel(reason) {
+            // propagate cancellation to the upstream response body
+            try {
+              await opts.response.body?.cancel(reason);
+            } catch {
+              // ignore
             }
           },
         }),
@@ -817,6 +872,15 @@ export class RequestResponse {
         // otherwise it will have the stack where it was aborted
         // which isn't very useful
         Error.captureStackTrace(err);
+      }
+      // ensure the underlying body is released so the fetch resource is
+      // freed even if the read aborted mid-stream. cancel is a no-op on a
+      // body that's already been consumed/cancelled, and rejects on an
+      // errored or locked body — all safe to swallow here.
+      try {
+        await this.#response.body?.cancel(err);
+      } catch {
+        // ignore
       }
       throw err;
     } finally {
