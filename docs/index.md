@@ -45,7 +45,7 @@ const env = await $.select({
 const branch = await $`git rev-parse --abbrev-ref HEAD`.text();
 $.logLight(`Deploying ${branch} → ${env.value}`);
 
-await Promise.all([
+await $.all([
   $`deno task deploy ${env.value} api`,
   $`deno task deploy ${env.value} web`,
 ]);
@@ -76,12 +76,12 @@ $.logStep("Deployed");
   <div class="feat">
     <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
     <h3>Batteries included</h3>
-    <p>Prompts (<code>$.confirm</code>, <code>$.select</code>), progress bars (<code>$.progress</code>), HTTP requests (<code>$.request</code>), and an immutable <code>Path</code> API — all in one library.</p>
+    <p>Prompts (<code>$.confirm</code>, <code>$.select</code>), progress bars (<code>$.progress</code>), HTTP requests (<code>$.request</code>), and an immutable <code>Path</code> API.</p>
   </div>
   <div class="feat">
     <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg></span>
     <h3>Portable</h3>
-    <p>Pure TypeScript and WebAssembly — no native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes — no vendor lock-in.</p>
+    <p>Pure TypeScript and WebAssembly. No native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes. No vendor lock-in.</p>
   </div>
 </div>
 
@@ -405,17 +405,17 @@ await $`echo ${text}`; // will output `> echo example` before running the comman
 `.tailDisplay()` pins the command's output to a fixed-height region at the bottom of the terminal — only the most recent lines are shown live, and on completion they're cleared from the live region (the full output stays in scrollback above for failed commands).
 
 ```ts
-// keep the last 5 lines of `./build.sh` pinned while it runs
-await $`./build.sh`.tailDisplay();
+// keep the last 5 lines of `deno task build` pinned while it runs
+await $`deno task build`.tailDisplay();
 
 // configure visible row count and header
-await $`./build.sh`.tailDisplay({ maxLines: 2, header: false });
+await $`deno task build`.tailDisplay({ maxLines: 2, header: false });
 
 // percentage sizing — re-fits if the terminal is resized mid-run
-await $`./build.sh`.tailDisplay({ maxLines: "50%" });
+await $`deno task build`.tailDisplay({ maxLines: "50%" });
 
 // custom header rendered verbatim (you supply any styling)
-await $`./build.sh`.tailDisplay({
+await $`deno task build`.tailDisplay({
   maxLines: 10,
   header: ({ command }) => `building ${command}…`,
 });
@@ -433,12 +433,37 @@ Concurrent tailing commands compose into a single shared scrolling region, so mu
 
 ```ts
 await Promise.all([
-  $`./build.sh frontend`.tailDisplay({ maxLines: 3 }),
-  $`./build.sh backend`.tailDisplay({ maxLines: 3 }),
+  $`deno task build frontend`.tailDisplay({ maxLines: 3 }),
+  $`deno task build backend`.tailDisplay({ maxLines: 3 }),
 ]);
 ```
 
 <video class="demo-video" controls muted loop playsinline preload="none" src="/videos/07_tail_display.mp4"></video>
+
+### `$.all` — `Promise.all` with auto-sized tail display
+
+`$.all(values)` behaves like `Promise.all`, but enables `.tailDisplay()` on any command builders in the list with `maxLines` sized to share the screen:
+
+```ts
+await $.all([
+  $`deno task build frontend`,
+  $`deno task build backend`,
+  $`deno task build worker`,
+]);
+```
+
+The per-item `maxLines` aims for ~90% of the terminal height divided evenly across the items, with a minimum of 3 lines per item — so when there are many items, the combined region may extend past the screen height. The size is recomputed per draw, so it adjusts when the terminal is resized mid-run.
+
+To opt a builder out of the auto-applied tail display, wrap it in a plain `Promise` (e.g. `(async () => await $\`...\`)()`).
+
+For structured output (`.text()`, `.json()`, etc.) pass a transform as the second argument — it's invoked on each builder after `tailDisplay` is applied, so the auto-sizing is preserved:
+
+```ts
+const [frontend, backend] = await $.all(
+  [$`deno task build frontend`, $`deno task build backend`],
+  (b) => b.text(),
+);
+```
 
 ### Enabling on a `$`
 
@@ -493,17 +518,17 @@ The most common case is `.quiet()`: stdout/stderr are suppressed, so without `.e
 
 ```ts
 // surfaces the trailing stdout/stderr bytes in the error if the command fails
-await $`./build.sh`.errorTail().quiet();
+await $`deno task build`.errorTail().quiet();
 
 // raise the per-stream cap (default: 8 KiB)
-await $`./build.sh`.errorTail({ maxBytes: 16 * 1024 }).quiet();
+await $`deno task build`.errorTail({ maxBytes: 16 * 1024 }).quiet();
 
 // only capture stderr
-await $`./build.sh > out.log`.errorTail({ stdout: false }).quiet();
+await $`deno task build > out.log`.errorTail({ stdout: false }).quiet();
 
 // merge stdout and stderr into one interleaved buffer so the error
 // message preserves the order the bytes were written
-await $`./build.sh > out.log 2> err.log`.errorTail({ combined: true }).quiet();
+await $`deno task build > out.log 2> err.log`.errorTail({ combined: true }).quiet();
 ```
 
 `.errorTail()` has no effect when the command succeeds (the buffer is discarded) or when `.noThrow()` swallows the failure.
@@ -618,7 +643,7 @@ Combining this with the `CommandBuilder` API and building your own `$` as shown 
 Use `.beforeCommand(callback)` to register a hook that runs immediately before each command is spawned. The callback receives the current builder and may return a (possibly modified) builder — useful when an env var depends on an asynchronous operation, such as fetching a token:
 
 ```ts
-await $`./build.sh`
+await $`deno task build`
   .beforeCommand(async (builder) => {
     return builder.env("AUTH_TOKEN", await getAccessToken());
   });
@@ -629,7 +654,7 @@ Multiple `.beforeCommand(...)` calls compose: each callback runs in the order it
 Async hooks only run on the await / `.then()` path. Calling `.spawn()` on a builder with `.beforeCommand` hooks throws — for the streaming case, use the synchronous variant:
 
 ```ts
-const child = $`./build.sh`
+const child = $`deno task build`
   .beforeCommandSync((builder) => builder.env("BUILD_ID", crypto.randomUUID()))
   .spawn();
 ```
