@@ -7,7 +7,7 @@ layout: layout.vto
     <h4 class="eyebrow">{{ version }}</h4>
     <h1>dax — shell scripting<br/>that runs the same everywhere.</h1>
     <p class="lede">
-      Cross-platform shell tools for Deno and Node.js inspired by <a href="https://github.com/google/zx">zx</a> — a friendlier <code>$</code> for spawning processes, with a built-in shell parser, built-in commands, prompts, requests, and a <code>Path</code> API.
+      Cross-platform shell tools for Deno and Node.js inspired by <a href="https://github.com/google/zx">zx</a> — a friendlier <code>$</code> for spawning processes, with a built-in shell, built-in commands, prompts, requests, and a <code>Path</code> API.
     </p>
     <div class="badges">
       <a class="badge jsr" href="https://jsr.io/@david/dax"><span class="b-l">JSR</span><span class="b-r">@david/dax</span></a>
