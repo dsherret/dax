@@ -507,7 +507,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    *
    * ```ts
    * $.setTailDisplay(true);
-   * await $`./build.sh`; // tail-displayed by default
+   * await $`deno task build`; // tail-displayed by default
    *
    * // or with options
    * $.setTailDisplay({ maxLines: 10 });
@@ -524,7 +524,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    *
    * ```ts
    * $.setErrorTail(true);
-   * await $`./build.sh`.text(); // captured stdout surfaces in the error if it fails
+   * await $`deno task build`.text(); // captured stdout surfaces in the error if it fails
    *
    * // or with options
    * $.setErrorTail({ maxBytes: 16 * 1024 });
@@ -594,9 +594,9 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    *
    * ```ts
    * await $.all([
-   *   $`./build.sh frontend`,
-   *   $`./build.sh backend`,
-   *   $`./build.sh worker`,
+   *   $`deno task build frontend`,
+   *   $`deno task build backend`,
+   *   $`deno task build worker`,
    * ]);
    * ```
    *
@@ -604,9 +604,9 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    *
    * ```ts
    * await Promise.all([
-   *   $`./build.sh frontend`.tailDisplay({ maxLines: ... }),
-   *   $`./build.sh backend`.tailDisplay({ maxLines: ... }),
-   *   $`./build.sh worker`.tailDisplay({ maxLines: ... }),
+   *   $`deno task build frontend`.tailDisplay({ maxLines: ... }),
+   *   $`deno task build backend`.tailDisplay({ maxLines: ... }),
+   *   $`deno task build worker`.tailDisplay({ maxLines: ... }),
    * ]);
    * ```
    *
@@ -625,7 +625,7 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    *
    * ```ts
    * const [frontend, backend] = await $.all(
-   *   [$`./build.sh frontend`, $`./build.sh backend`],
+   *   [$`deno task build frontend`, $`deno task build backend`],
    *   (b) => b.text(),
    * );
    * ```
