@@ -580,6 +580,60 @@ export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
    * or the specified number of retries (`count`) is hit.
    */
   withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn>;
+  /**
+   * Like `Promise.all`, but turns on `.tailDisplay()` for any
+   * {@link CommandBuilder} values passed in so they share a fixed-height
+   * region at the bottom of the terminal while running concurrently.
+   *
+   * The visible region targets ~90% of the terminal height divided evenly
+   * across the items, with a minimum of 3 lines per item — so when there
+   * are many items, the region may extend past the screen height.
+   *
+   * Non-`CommandBuilder` values are awaited as-is, so this can be mixed
+   * with regular promises.
+   *
+   * ```ts
+   * await $.all([
+   *   $`./build.sh frontend`,
+   *   $`./build.sh backend`,
+   *   $`./build.sh worker`,
+   * ]);
+   * ```
+   *
+   * Equivalent to:
+   *
+   * ```ts
+   * await Promise.all([
+   *   $`./build.sh frontend`.tailDisplay({ maxLines: ... }),
+   *   $`./build.sh backend`.tailDisplay({ maxLines: ... }),
+   *   $`./build.sh worker`.tailDisplay({ maxLines: ... }),
+   * ]);
+   * ```
+   *
+   * Already-configured `.tailDisplay()` settings on a builder are
+   * overridden — pass an explicit `Promise` (e.g. `(async () => ...)()`)
+   * to opt out for a single item.
+   */
+  all<T extends readonly unknown[] | []>(
+    values: T,
+  ): Promise<{ -readonly [P in keyof T]: Awaited<T[P]> }>;
+  /**
+   * Variant of `$.all` that applies a transform to each `CommandBuilder`
+   * after the auto-sized `.tailDisplay()` is applied. Useful for getting
+   * structured output (`.text()`, `.json()`, etc.) without losing the
+   * auto-sized tail display:
+   *
+   * ```ts
+   * const [frontend, backend] = await $.all(
+   *   [$`./build.sh frontend`, $`./build.sh backend`],
+   *   (b) => b.text(),
+   * );
+   * ```
+   */
+  all<TResult>(
+    builders: readonly CommandBuilder[],
+    transform: (builder: CommandBuilder) => TResult | PromiseLike<TResult>,
+  ): Promise<Awaited<TResult>[]>;
   /** Re-export of `jsr:@david/which` for getting the path to an executable. */
   which: Which;
   /** Similar to `which`, but synchronously. */
@@ -884,6 +938,21 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
       rawArg,
       withRetries<TReturn>(opts: RetryOptions<TReturn>): Promise<TReturn> {
         return withRetries(result, state.errorLogger.getValue(), opts);
+      },
+      all(values: readonly unknown[], transform?: (builder: CommandBuilder) => unknown) {
+        const items = Array.from(values);
+        const count = Math.max(1, items.length);
+        const maxLines = ({ size }: { size: { rows: number } | undefined }) =>
+          Math.max(3, Math.floor(((size?.rows ?? 24) * 0.9) / count));
+        return Promise.all(
+          items.map((value) => {
+            if (value instanceof CommandBuilder) {
+              const configured = value.tailDisplay({ maxLines });
+              return transform ? transform(configured) : configured;
+            }
+            return value;
+          }),
+        ) as any;
       },
     },
     state.extras,
