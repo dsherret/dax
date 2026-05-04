@@ -430,6 +430,13 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 .hljs-meta { color: var(--kw); }
 .hljs-string,
 .hljs-regexp { color: var(--str); }
+/* template literal substitutions sit inside an .hljs-string span, so without
+   this rule the `${…}` would inherit the string color and the expression would
+   be invisible against the rest of the template literal. .hljs-subst-brace is
+   added by a build-time post-process in _config.ts and lets the `${`/`}` use a
+   distinct punctuation tone separate from the expression body. */
+.hljs-subst { color: var(--code-ink); }
+.hljs-subst-brace { color: var(--fn); font-weight: 700; }
 .hljs-number,
 .hljs-literal { color: var(--num); }
 .hljs-comment { color: var(--com); font-style: italic; }

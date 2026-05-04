@@ -47,6 +47,20 @@ site.process([".html"], (pages) => {
   }
 });
 
+// highlight.js emits the whole `${expr}` as one .hljs-subst span with the braces
+// as plain text, so we can't style them separately from CSS alone. wrap the
+// leading `${` and trailing `}` in their own class so the stylesheet can give
+// them a distinct color from the expression body.
+site.process([".html"], (pages) => {
+  const subst = /<span class="hljs-subst">\$\{([\s\S]*?)\}<\/span>/g;
+  for (const page of pages) {
+    page.content = (page.content as string).replace(
+      subst,
+      '<span class="hljs-subst"><span class="hljs-subst-brace">${</span>$1<span class="hljs-subst-brace">}</span></span>',
+    );
+  }
+});
+
 // validate that the sidebar in _data.yml stays in sync with the page's h2/section ids.
 // fails the build if a sidebar entry points at a missing id, or if a page heading
 // has no sidebar entry — so adding/renaming a section forces a sidebar update.
