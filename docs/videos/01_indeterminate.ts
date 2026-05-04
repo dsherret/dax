@@ -8,4 +8,4 @@ await pb.with(async () => {
   await $.sleep("3s");
 });
 
-$.logStep("Connected!");
+$.log("Connected!");

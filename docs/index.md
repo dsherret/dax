@@ -450,6 +450,7 @@ await $.all([
   $`deno task build backend`,
   $`deno task build worker`,
 ]);
+$.log("All builds complete");
 ```
 
 The per-item `maxLines` aims for ~90% of the terminal height divided evenly across the items, with a minimum of 3 lines per item — so when there are many items, the combined region may extend past the screen height. The size is recomputed per draw, so it adjusts when the terminal is resized mid-run.

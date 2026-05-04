@@ -14,4 +14,4 @@ await pb.with(async () => {
   }
 });
 
-$.logStep("Download complete");
+$.log("Download complete");

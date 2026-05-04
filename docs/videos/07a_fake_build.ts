@@ -1,7 +1,7 @@
 // helper for 07_tail_display.ts — emits a stream of fake build output so
 // the tail display has interesting lines to scroll through. Accepts a name
 // arg so multiple instances can run in parallel and stay distinguishable.
-const name = Deno.args[0] ?? "build";
+const name = Deno.args[2] ?? "build";
 
 const steps = [
   "Resolving dependencies",

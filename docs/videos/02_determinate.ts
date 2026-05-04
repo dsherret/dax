@@ -35,4 +35,4 @@ await pb.with(async () => {
   }
 });
 
-$.logStep("Done");
+$.log("Done");
