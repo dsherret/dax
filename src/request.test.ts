@@ -579,6 +579,28 @@ function makeRequestResponse(opts: {
   });
 }
 
+Deno.test("RequestResponse - cancels body when read method (no wrapper) throws", async () => {
+  // when there's no progress wrapper, `text()`/`json()`/etc. read directly
+  // from the original response. an abort during that read leaves the body
+  // errored — we still need to call `cancel()` so the fetch resource is
+  // released.
+  const abortController = new AbortController();
+  const response = new Response(makeAbortableBody(abortController), { status: 200 });
+  const tracker = trackBodyCancel(response);
+  // pass an empty onProgress array to bypass the wrapper path
+  const requestResponse = makeRequestResponse({
+    response,
+    abortController,
+    onProgress: [],
+  });
+
+  const textPromise = requestResponse.text();
+  await Promise.resolve();
+  abortController.abort(new Error("aborted in body"));
+  await assertRejects(() => textPromise);
+  assert(tracker.count() > 0, `expected response body.cancel() to be called on read error, got ${tracker.count()}`);
+});
+
 Deno.test("RequestResponse - progress wrapper cancels upstream body when read errors", async () => {
   const abortController = new AbortController();
   const response = new Response(makeAbortableBody(abortController), { status: 200 });

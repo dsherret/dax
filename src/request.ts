@@ -873,6 +873,15 @@ export class RequestResponse {
         // which isn't very useful
         Error.captureStackTrace(err);
       }
+      // ensure the underlying body is released so the fetch resource is
+      // freed even if the read aborted mid-stream. cancel is a no-op on a
+      // body that's already been consumed/cancelled, and rejects on an
+      // errored or locked body — all safe to swallow here.
+      try {
+        await this.#response.body?.cancel(err);
+      } catch {
+        // ignore
+      }
       throw err;
     } finally {
       this.#abortController.clearTimeout();
