@@ -436,6 +436,7 @@ await Promise.all([
   $`deno task build frontend`.tailDisplay({ maxLines: 3 }),
   $`deno task build backend`.tailDisplay({ maxLines: 3 }),
 ]);
+$.log("All builds complete");
 ```
 
 <video class="demo-video" controls muted loop playsinline preload="none" src="/videos/07_tail_display.mp4"></video>
@@ -450,7 +451,6 @@ await $.all([
   $`deno task build backend`,
   $`deno task build worker`,
 ]);
-$.log("All builds complete");
 ```
 
 The per-item `maxLines` aims for ~90% of the terminal height divided evenly across the items, with a minimum of 3 lines per item — so when there are many items, the combined region may extend past the screen height. The size is recomputed per draw, so it adjusts when the terminal is resized mid-run.
