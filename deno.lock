@@ -2,15 +2,12 @@
   "version": "5",
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
-    "jsr:@david/console-static-text@~0.3.2": "0.3.4",
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
     "jsr:@david/path@~0.3.2": "0.3.2",
-    "jsr:@david/shell@0.3.3": "0.3.3",
-    "jsr:@david/shell@~0.3.3": "0.3.3",
+    "jsr:@david/shell@0.4": "0.4.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
-    "jsr:@david/which@0.6": "0.6.0",
-    "jsr:@david/which@~0.5.1": "0.5.2",
+    "jsr:@david/which@0.7": "0.7.0",
     "jsr:@davidbonnet/astring@1.8.6": "1.8.6",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@luca/esbuild-deno-loader@0.11.1": "0.11.1",
@@ -34,7 +31,7 @@
     "jsr:@std/fs@1.0.18": "1.0.18",
     "jsr:@std/fs@^1.0.18": "1.0.18",
     "jsr:@std/html@1.0.3": "1.0.3",
-    "jsr:@std/html@^1.0.4": "1.0.5",
+    "jsr:@std/html@^1.0.4": "1.0.6",
     "jsr:@std/http@1.0.18": "1.0.18",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@std/io@0.225": "0.225.3",
@@ -42,12 +39,12 @@
     "jsr:@std/jsonc@1.0.2": "1.0.2",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.6",
-    "jsr:@std/path@1": "1.1.4",
+    "jsr:@std/path@1": "1.1.0",
     "jsr:@std/path@1.0.8": "1.0.8",
     "jsr:@std/path@1.1.0": "1.1.0",
-    "jsr:@std/path@^1.0.6": "1.1.4",
-    "jsr:@std/path@^1.1.0": "1.1.4",
-    "jsr:@std/streams@^1.0.10": "1.0.17",
+    "jsr:@std/path@^1.0.6": "1.1.0",
+    "jsr:@std/path@^1.1.0": "1.1.0",
+    "jsr:@std/streams@^1.0.10": "1.1.0",
     "jsr:@std/toml@1.0.8": "1.0.8",
     "jsr:@std/toml@^1.0.3": "1.0.8",
     "jsr:@std/yaml@1.0.8": "1.0.8",
@@ -56,6 +53,7 @@
     "jsr:@ts-morph/common@0.27": "0.27.0",
     "npm:@types/estree@1.0.6": "1.0.6",
     "npm:@types/node@*": "22.15.15",
+    "npm:dax@*": "0.46.1",
     "npm:esbuild@0.20.0": "0.20.0",
     "npm:estree-walker@3.0.3": "3.0.3",
     "npm:highlight.js@*": "11.11.1",
@@ -79,25 +77,19 @@
     "@david/path@0.3.2": {
       "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.3.3": {
-      "integrity": "0a54c57ed215e6d638c821c6c98f07f177b607f0e6e405dde144a602263a0f46",
+    "@david/shell@0.4.0": {
+      "integrity": "7863cce36754571dabd593132b32a3aa68a55b7d6e09a4b7964da4165c37abe9",
       "dependencies": [
-        "jsr:@david/console-static-text@~0.3.4",
+        "jsr:@david/console-static-text",
         "jsr:@david/path@0.3",
-        "jsr:@david/which@0.6",
+        "jsr:@david/which",
         "jsr:@std/fmt@1",
         "jsr:@std/io",
         "jsr:@std/path@1"
       ]
     },
-    "@david/which@0.5.1": {
-      "integrity": "2b3020242238f2adece7f9da9e754c0be4d51614d96fe04b953bb7abdff76e3d"
-    },
-    "@david/which@0.5.2": {
-      "integrity": "cd284a87aecdb8e32a5b91a024813fb57cbb8b4889df7d1c90351f073a4301a9"
-    },
-    "@david/which@0.6.0": {
-      "integrity": "efe63f07f6741b12b0d470a660f5c20dedf0af0e0c18b5c934d8a930bcaba4bf"
+    "@david/which@0.7.0": {
+      "integrity": "2e7517b28ecd2c99afe70284f2660f2c11548e5b684fa751889f105e0e4f8fe5"
     },
     "@david/which-runtime@0.2.1": {
       "integrity": "2a304e36b1122ebfe384d45de8fe0fb2bfe54a0a5a2a596efbfc81f54a47a62d"
@@ -184,8 +176,8 @@
     "@std/html@1.0.3": {
       "integrity": "7a0ac35e050431fb49d44e61c8b8aac1ebd55937e0dc9ec6409aa4bab39a7988"
     },
-    "@std/html@1.0.5": {
-      "integrity": "4e2d693f474cae8c16a920fa5e15a3b72267b94b84667f11a50c6dd1cb18d35e"
+    "@std/html@1.0.6": {
+      "integrity": "eaf759c8141e0733ca30eb49e4c08d8e6ca442b85c4d51f9894a56f502993e08"
     },
     "@std/http@1.0.18": {
       "integrity": "8d9546aa532c52a0cf318c74616db0638b4c1073405355d1b14f9e1591dccf20",
@@ -240,14 +232,8 @@
     "@std/path@1.1.2": {
       "integrity": "c0b13b97dfe06546d5e16bf3966b1cadf92e1cc83e56ba5476ad8b498d9e3038"
     },
-    "@std/path@1.1.4": {
-      "integrity": "1d2d43f39efb1b42f0b1882a25486647cb851481862dc7313390b2bb044314b5",
-      "dependencies": [
-        "jsr:@std/internal"
-      ]
-    },
-    "@std/streams@1.0.17": {
-      "integrity": "7859f3d9deed83cf4b41f19223d4a67661b3d3819e9fc117698f493bf5992140"
+    "@std/streams@1.1.0": {
+      "integrity": "2f7024d841f343fd478afe0c958a3f0f068ef2a0d2bcc954f550f97ac1fa22e3"
     },
     "@std/toml@1.0.8": {
       "integrity": "eb8ae76b4cc1c6c13f2a91123675823adbec2380de75cd3748c628960d952164",
@@ -394,11 +380,17 @@
     "@types/node@22.15.15": {
       "integrity": "sha512-R5muMcZob3/Jjchn5LcO8jdKwSCbzqmPB6ruBxMcf9kbxtniZHP327s6C37iOfuw8mbKK3cAQa7sEl7afLrQ8A==",
       "dependencies": [
-        "undici-types"
+        "undici-types@6.21.0"
       ]
     },
     "argparse@2.0.1": {
       "integrity": "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="
+    },
+    "dax@0.46.1": {
+      "integrity": "sha512-E8FidFoEgb2M981RBXA13LZ8amEmp60zzJc8rVSm0Y0Lr/vWz8ImPipkzrthyMa/EjjnD4hr6Dr/9OARBF7D6Q==",
+      "dependencies": [
+        "undici-types@5.28.4"
+      ]
     },
     "entities@4.5.0": {
       "integrity": "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="
@@ -483,6 +475,9 @@
     },
     "uc.micro@2.1.0": {
       "integrity": "sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A=="
+    },
+    "undici-types@5.28.4": {
+      "integrity": "sha512-3OeMF5Lyowe8VW0skf5qaIE7Or3yS9LS7fvMUI0gg4YxpIBVg0L8BxCmROw2CcYhSkpR68Epz7CGc8MPj94Uww=="
     },
     "undici-types@6.21.0": {
       "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="
@@ -730,11 +725,11 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@david/console-static-text@~0.3.2",
+      "jsr:@david/console-static-text@~0.3.4",
       "jsr:@david/path@~0.3.2",
-      "jsr:@david/shell@~0.3.3",
+      "jsr:@david/shell@0.4",
       "jsr:@david/which-runtime@~0.2.1",
-      "jsr:@david/which@~0.5.1",
+      "jsr:@david/which@0.7",
       "jsr:@deno/dnt@~0.42.3",
       "jsr:@std/assert@1",
       "jsr:@std/async@1",
