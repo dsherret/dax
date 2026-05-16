@@ -36,8 +36,8 @@
   ],
   "exports": "./mod.ts",
   "imports": {
-    "@david/console-static-text": "jsr:@david/console-static-text@^0.3.2",
-    "@david/shell": "jsr:@david/shell@^0.3.3",
+    "@david/console-static-text": "jsr:@david/console-static-text@^0.3.4",
+    "@david/shell": "jsr:@david/shell@^0.4.0",
     "@deno/dnt": "jsr:@deno/dnt@^0.42.3",
     "@david/path": "jsr:@david/path@^0.3.2",
     "@std/assert": "jsr:@std/assert@1",
@@ -45,7 +45,7 @@
     "@std/fmt": "jsr:@std/fmt@1",
     "@std/io": "jsr:@std/io@^0.225",
     "@std/path": "jsr:@std/path@1",
-    "which": "jsr:@david/which@^0.5.1",
+    "which": "jsr:@david/which@^0.7.0",
     "which_runtime": "jsr:@david/which-runtime@^0.2.1"
   }
 }
