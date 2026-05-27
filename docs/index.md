@@ -1093,7 +1093,7 @@ await $.maybePrompt({
 });
 ```
 
-Callers that need to distinguish an abort from a user ctrl+c can check `signal.aborted` after the call. The non-`maybe*` variants instead reject the returned promise with `signal.reason`, so an abort doesn't silently terminate the process — this is what you want with `AbortSignal.timeout()`:
+Callers that need to distinguish an abort from a user ctrl+c can check `signal.aborted` after the call. The non-`maybe*` variants instead reject the returned promise with `signal.reason`:
 
 ```ts
 try {
