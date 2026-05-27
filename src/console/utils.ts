@@ -117,6 +117,20 @@ export function resultOrExit<T>(result: T | undefined): T {
   }
 }
 
+/** For `maybe*` variants: convert an abort rejection into `undefined`, so
+ * a cancelled signal looks the same to callers as a ctrl+c. Callers that
+ * need to distinguish can check `signal.aborted`. */
+export function undefinedOnAbort<T>(
+  signal: AbortSignal | undefined,
+  p: Promise<T>,
+): Promise<T | undefined> {
+  if (signal == null) return p;
+  return p.catch((err) => {
+    if (signal.aborted && err === signal.reason) return undefined;
+    throw err;
+  });
+}
+
 /**
  * Result of a selection prompt. Coerces to its `index` so it can be used
  * directly as an array index for backwards compatibility.
@@ -149,7 +163,8 @@ export interface SelectionOptions<TReturn> {
   noClear: boolean | undefined;
   /**
    * Signal that cancels the prompt. When aborted, the returned promise
-   * rejects with `signal.reason`.
+   * rejects with `signal.reason`. The `maybe*` variants convert this
+   * rejection into a resolved `undefined`.
    */
   signal?: AbortSignal;
   onKey: (key: string | Keys) => TReturn | undefined;

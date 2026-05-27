@@ -1,5 +1,5 @@
 import * as colors from "@std/fmt/colors";
-import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, type SelectionOptions, undefinedOnAbort } from "./utils.ts";
 import type { TextItem } from "@david/console-static-text";
 
 /** Options for showing confirming a yes or no question. */
@@ -17,8 +17,10 @@ export interface ConfirmOptions {
    */
   noClear?: boolean;
   /**
-   * Signal that cancels the prompt. When aborted, the returned promise
-   * rejects with `signal.reason`.
+   * Signal that cancels the prompt.
+   *
+   * - `maybeConfirm`: resolves to `undefined` on abort (same as ctrl+c).
+   * - `confirm`: the returned promise rejects with `signal.reason`.
    */
   signal?: AbortSignal;
 }
@@ -30,12 +32,15 @@ export function confirm(optsOrMessage: ConfirmOptions | string, options?: Omit<C
 export function maybeConfirm(optsOrMessage: ConfirmOptions | string, options?: Omit<ConfirmOptions, "message">) {
   const opts = typeof optsOrMessage === "string" ? { message: optsOrMessage, ...options } : optsOrMessage;
 
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
-    signal: opts.signal,
-    ...innerConfirm(opts),
-  });
+  return undefinedOnAbort(
+    opts.signal,
+    createSelection({
+      message: opts.message,
+      noClear: opts.noClear,
+      signal: opts.signal,
+      ...innerConfirm(opts),
+    }),
+  );
 }
 
 export function innerConfirm(opts: ConfirmOptions): Pick<SelectionOptions<boolean | undefined>, "render" | "onKey"> {

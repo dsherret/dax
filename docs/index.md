@@ -1079,31 +1079,31 @@ for (const item of result) {
 
 ### Cancelling a prompt
 
-Every prompt (`$.alert`, `$.prompt`, `$.confirm`, `$.select`, `$.multiSelect`, and their `maybe*` variants) accepts a `signal: AbortSignal`. When the signal is aborted, the prompt is dismissed and the promise rejects with `signal.reason`:
+Every prompt (`$.alert`, `$.prompt`, `$.confirm`, `$.select`, `$.multiSelect`, and their `maybe*` variants) accepts a `signal: AbortSignal` that dismisses the prompt when aborted.
+
+The `maybe*` variants treat abort like ctrl+c and resolve to `undefined` — handy when you want to cancel a prompt because a concurrent task finished:
 
 ```ts
 const ac = new AbortController();
-
-// dismiss the prompt when the work finishes
 doSomeWork().then(() => ac.abort());
 
+await $.maybePrompt({
+  message: "Press [enter] to stop early.",
+  signal: ac.signal,
+});
+```
+
+Callers that need to distinguish an abort from a user ctrl+c can check `signal.aborted` after the call. The non-`maybe*` variants instead reject the returned promise with `signal.reason`, so an abort doesn't silently terminate the process — this is what you want with `AbortSignal.timeout()`:
+
+```ts
 try {
-  await $.prompt({
-    message: "Press [enter] to stop early.",
-    signal: ac.signal,
+  const name = await $.prompt("What's your name?", {
+    signal: AbortSignal.timeout(5_000),
   });
 } catch (err) {
   if (err.name !== "AbortError") throw err;
-  // prompt was cancelled — keep going
+  // prompt timed out
 }
-```
-
-This also makes prompts that time out trivial via `AbortSignal.timeout()`:
-
-```ts
-const name = await $.maybePrompt("What's your name?", {
-  signal: AbortSignal.timeout(5_000),
-});
 ```
 
 ## Progress indicator <a class="anchor" href="#progress">#</a> {#progress}

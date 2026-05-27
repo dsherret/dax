@@ -1,5 +1,5 @@
-import { assertEquals } from "@std/assert";
-import { innerReadKeys } from "./utils.ts";
+import { assertEquals, assertRejects } from "@std/assert";
+import { innerReadKeys, undefinedOnAbort } from "./utils.ts";
 import { Keys } from "./utils.ts";
 
 function createReader() {
@@ -80,6 +80,36 @@ Deno.test("should handle text", async () => {
 
   reader.write(new TextEncoder().encode("world"));
   assertEquals((await gen.next()).value, "world");
+});
+
+Deno.test("undefinedOnAbort: passes through resolution untouched", async () => {
+  const ac = new AbortController();
+  assertEquals(await undefinedOnAbort(ac.signal, Promise.resolve("value")), "value");
+});
+
+Deno.test("undefinedOnAbort: with no signal, rejections propagate", async () => {
+  const err = new Error("boom");
+  await assertRejects(() => undefinedOnAbort(undefined, Promise.reject(err)), Error, "boom");
+});
+
+Deno.test("undefinedOnAbort: converts the signal's abort reason into undefined", async () => {
+  const ac = new AbortController();
+  const reason = new DOMException("cancelled", "AbortError");
+  ac.abort(reason);
+  assertEquals(await undefinedOnAbort(ac.signal, Promise.reject(reason)), undefined);
+});
+
+Deno.test("undefinedOnAbort: unrelated rejections still propagate when signal aborted", async () => {
+  const ac = new AbortController();
+  ac.abort(new DOMException("cancelled", "AbortError"));
+  const other = new Error("unrelated");
+  await assertRejects(() => undefinedOnAbort(ac.signal, Promise.reject(other)), Error, "unrelated");
+});
+
+Deno.test("undefinedOnAbort: rejection while signal not yet aborted propagates", async () => {
+  const ac = new AbortController();
+  const err = new Error("boom");
+  await assertRejects(() => undefinedOnAbort(ac.signal, Promise.reject(err)), Error, "boom");
 });
 
 Deno.test("should handle multibyte characters", async () => {

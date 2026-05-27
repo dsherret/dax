@@ -1,5 +1,5 @@
 import * as colors from "@std/fmt/colors";
-import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
+import { createSelection, Keys, resultOrExit, type SelectionOptions, undefinedOnAbort } from "./utils.ts";
 import type { TextItem } from "@david/console-static-text";
 
 /** Options for showing an input where the user enters a value. */
@@ -25,10 +25,14 @@ export interface PromptOptions {
    */
   noClear?: boolean;
   /**
-   * Signal that cancels the prompt. When aborted, the returned promise
-   * rejects with `signal.reason` (typically an `AbortError`). Useful for
-   * timeouts (`AbortSignal.timeout(...)`) or aborting the prompt when a
-   * concurrent task completes.
+   * Signal that cancels the prompt. Useful for timeouts
+   * (`AbortSignal.timeout(...)`) or aborting the prompt when a concurrent
+   * task completes.
+   *
+   * - `maybePrompt`: resolves to `undefined` on abort (same as ctrl+c).
+   *   Callers that need to tell abort and ctrl+c apart can check
+   *   `signal.aborted`.
+   * - `prompt`: the returned promise rejects with `signal.reason`.
    */
   signal?: AbortSignal;
 }
@@ -55,12 +59,15 @@ export function maybePrompt(optsOrMessage: PromptOptions | string, options?: Omi
     }
     : optsOrMessage;
 
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
-    signal: opts.signal,
-    ...innerPrompt(opts),
-  });
+  return undefinedOnAbort(
+    opts.signal,
+    createSelection({
+      message: opts.message,
+      noClear: opts.noClear,
+      signal: opts.signal,
+      ...innerPrompt(opts),
+    }),
+  );
 }
 
 export function innerPrompt(
