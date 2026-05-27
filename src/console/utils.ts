@@ -216,13 +216,9 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
         }
         logger.setItems(LoggerRefreshItemKind.Selection, options.render());
       }
-
-      logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
       return undefined;
-    } catch (err) {
-      logger.setItems(LoggerRefreshItemKind.Selection, []);
-      throw err;
     } finally {
+      logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
       if (signal != null && abortHandler != null) {
         signal.removeEventListener("abort", abortHandler);
       }
