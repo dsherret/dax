@@ -1,5 +1,12 @@
 import * as colors from "@std/fmt/colors";
-import { createSelection, Keys, resultOrExit, SelectionItem, type SelectionOptions } from "./utils.ts";
+import {
+  createSelection,
+  Keys,
+  resultOrExit,
+  SelectionItem,
+  type SelectionOptions,
+  undefinedOnAbort,
+} from "./utils.ts";
 import type { TextItem } from "@david/console-static-text";
 
 /** Options for showing a selection that only has one result. */
@@ -15,6 +22,13 @@ export interface SelectOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the prompt.
+   *
+   * - `maybeSelect`: resolves to `undefined` on abort (same as ctrl+c).
+   * - `select`: the returned promise rejects with `signal.reason`.
+   */
+  signal?: AbortSignal;
 }
 
 export function select(opts: SelectOptions) {
@@ -26,11 +40,15 @@ export function maybeSelect(opts: SelectOptions) {
     throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }
 
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
-    ...innerSelect(opts),
-  });
+  return undefinedOnAbort(
+    opts.signal,
+    createSelection({
+      message: opts.message,
+      noClear: opts.noClear,
+      signal: opts.signal,
+      ...innerSelect(opts),
+    }),
+  );
 }
 
 export function innerSelect(

@@ -1,6 +1,13 @@
 import * as colors from "@std/fmt/colors";
 import type { TextItem } from "@david/console-static-text";
-import { createSelection, Keys, resultOrExit, SelectionItem, type SelectionOptions } from "./utils.ts";
+import {
+  createSelection,
+  Keys,
+  resultOrExit,
+  SelectionItem,
+  type SelectionOptions,
+  undefinedOnAbort,
+} from "./utils.ts";
 
 /** Single options within a multi-select option. */
 export interface MultiSelectOption {
@@ -21,6 +28,13 @@ export interface MultiSelectOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the prompt.
+   *
+   * - `maybeMultiSelect`: resolves to `undefined` on abort (same as ctrl+c).
+   * - `multiSelect`: the returned promise rejects with `signal.reason`.
+   */
+  signal?: AbortSignal;
 }
 
 export function multiSelect(opts: MultiSelectOptions) {
@@ -32,11 +46,15 @@ export function maybeMultiSelect(opts: MultiSelectOptions) {
     throw new Error(`You must provide at least one option. (Prompt: '${opts.message}')`);
   }
 
-  return createSelection({
-    message: opts.message,
-    noClear: opts.noClear,
-    ...innerMultiSelect(opts),
-  });
+  return undefinedOnAbort(
+    opts.signal,
+    createSelection({
+      message: opts.message,
+      noClear: opts.noClear,
+      signal: opts.signal,
+      ...innerMultiSelect(opts),
+    }),
+  );
 }
 
 export function innerMultiSelect(

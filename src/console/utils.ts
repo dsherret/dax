@@ -117,6 +117,20 @@ export function resultOrExit<T>(result: T | undefined): T {
   }
 }
 
+/** For `maybe*` variants: convert an abort rejection into `undefined`, so
+ * a cancelled signal looks the same to callers as a ctrl+c. Callers that
+ * need to distinguish can check `signal.aborted`. */
+export function undefinedOnAbort<T>(
+  signal: AbortSignal | undefined,
+  p: Promise<T>,
+): Promise<T | undefined> {
+  if (signal == null) return p;
+  return p.catch((err) => {
+    if (signal.aborted && err === signal.reason) return undefined;
+    throw err;
+  });
+}
+
 /**
  * Result of a selection prompt. Coerces to its `index` so it can be used
  * directly as an array index for backwards compatibility.
@@ -147,6 +161,12 @@ export interface SelectionOptions<TReturn> {
   message: string;
   render: () => TextItem[];
   noClear: boolean | undefined;
+  /**
+   * Signal that cancels the prompt. When aborted, the returned promise
+   * rejects with `signal.reason`. The `maybe*` variants convert this
+   * rejection into a resolved `undefined`.
+   */
+  signal?: AbortSignal;
   onKey: (key: string | Keys) => TReturn | undefined;
 }
 
@@ -161,27 +181,48 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
   if (maybeConsoleSize() == null) {
     throw new Error(`Cannot prompt when can't get console size. (Prompt: '${options.message}')`);
   }
+  const { signal } = options;
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason);
+  }
   return ensureSingleSelection(input, async () => {
     logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
-    for await (const key of readKeys(input)) {
-      const keyResult = options.onKey(key);
-      if (keyResult != null) {
-        const size = {
-          columns: process.stdout.columns ?? 80,
-          rows: process.stdout.rows ?? 24,
-        };
-        logger.setItems(LoggerRefreshItemKind.Selection, [], size);
-        if (options.noClear) {
-          logger.logOnce(options.render(), size);
-        }
-        return keyResult;
-      }
-      logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+    let abortPromise: Promise<never> | undefined;
+    let abortHandler: (() => void) | undefined;
+    if (signal != null) {
+      abortPromise = new Promise<never>((_, reject) => {
+        abortHandler = () => reject(signal.reason);
+        signal.addEventListener("abort", abortHandler, { once: true });
+      });
     }
 
-    logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
-    return undefined;
+    try {
+      const iter = readKeys(input);
+      while (true) {
+        const result = abortPromise != null ? await Promise.race([iter.next(), abortPromise]) : await iter.next();
+        if (result.done) break;
+        const keyResult = options.onKey(result.value);
+        if (keyResult != null) {
+          const size = {
+            columns: process.stdout.columns ?? 80,
+            rows: process.stdout.rows ?? 24,
+          };
+          logger.setItems(LoggerRefreshItemKind.Selection, [], size);
+          if (options.noClear) {
+            logger.logOnce(options.render(), size);
+          }
+          return keyResult;
+        }
+        logger.setItems(LoggerRefreshItemKind.Selection, options.render());
+      }
+      return undefined;
+    } finally {
+      logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
+      if (signal != null && abortHandler != null) {
+        signal.removeEventListener("abort", abortHandler);
+      }
+    }
   });
 }
 
