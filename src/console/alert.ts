@@ -17,6 +17,11 @@ export interface AlertOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the alert. When aborted, the returned promise
+   * rejects with `signal.reason`.
+   */
+  signal?: AbortSignal;
 }
 
 export function alert(
@@ -28,6 +33,7 @@ export function alert(
   return createSelection({
     message: opts.message,
     noClear: opts.noClear,
+    signal: opts.signal,
     ...innerAlert(opts),
   }).then(resultOrExit).then(() => undefined);
 }

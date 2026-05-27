@@ -24,6 +24,13 @@ export interface PromptOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the prompt. When aborted, the returned promise
+   * rejects with `signal.reason` (typically an `AbortError`). Useful for
+   * timeouts (`AbortSignal.timeout(...)`) or aborting the prompt when a
+   * concurrent task completes.
+   */
+  signal?: AbortSignal;
 }
 
 /** Configuration of the prompt input mask */
@@ -51,6 +58,7 @@ export function maybePrompt(optsOrMessage: PromptOptions | string, options?: Omi
   return createSelection({
     message: opts.message,
     noClear: opts.noClear,
+    signal: opts.signal,
     ...innerPrompt(opts),
   });
 }

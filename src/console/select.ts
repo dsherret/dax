@@ -15,6 +15,11 @@ export interface SelectOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the prompt. When aborted, the returned promise
+   * rejects with `signal.reason`.
+   */
+  signal?: AbortSignal;
 }
 
 export function select(opts: SelectOptions) {
@@ -29,6 +34,7 @@ export function maybeSelect(opts: SelectOptions) {
   return createSelection({
     message: opts.message,
     noClear: opts.noClear,
+    signal: opts.signal,
     ...innerSelect(opts),
   });
 }

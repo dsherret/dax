@@ -1077,6 +1077,35 @@ for (const item of result) {
 
 <video class="demo-video" controls muted loop playsinline preload="none" src="/videos/09_multi_select.mp4"></video>
 
+### Cancelling a prompt
+
+Every prompt (`$.alert`, `$.prompt`, `$.confirm`, `$.select`, `$.multiSelect`, and their `maybe*` variants) accepts a `signal: AbortSignal`. When the signal is aborted, the prompt is dismissed and the promise rejects with `signal.reason`:
+
+```ts
+const ac = new AbortController();
+
+// dismiss the prompt when the work finishes
+doSomeWork().then(() => ac.abort());
+
+try {
+  await $.prompt({
+    message: "Press [enter] to stop early.",
+    signal: ac.signal,
+  });
+} catch (err) {
+  if (err.name !== "AbortError") throw err;
+  // prompt was cancelled — keep going
+}
+```
+
+This also makes prompts that time out trivial via `AbortSignal.timeout()`:
+
+```ts
+const name = await $.maybePrompt("What's your name?", {
+  signal: AbortSignal.timeout(5_000),
+});
+```
+
 ## Progress indicator <a class="anchor" href="#progress">#</a> {#progress}
 
 You may wish to indicate that some progress is occurring.

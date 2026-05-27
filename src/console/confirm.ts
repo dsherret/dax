@@ -16,6 +16,11 @@ export interface ConfirmOptions {
    * @default `false`
    */
   noClear?: boolean;
+  /**
+   * Signal that cancels the prompt. When aborted, the returned promise
+   * rejects with `signal.reason`.
+   */
+  signal?: AbortSignal;
 }
 
 export function confirm(optsOrMessage: ConfirmOptions | string, options?: Omit<ConfirmOptions, "message">) {
@@ -28,6 +33,7 @@ export function maybeConfirm(optsOrMessage: ConfirmOptions | string, options?: O
   return createSelection({
     message: opts.message,
     noClear: opts.noClear,
+    signal: opts.signal,
     ...innerConfirm(opts),
   });
 }
