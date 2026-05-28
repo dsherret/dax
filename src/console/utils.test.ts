@@ -112,6 +112,27 @@ Deno.test("undefinedOnAbort: rejection while signal not yet aborted propagates",
   await assertRejects(() => undefinedOnAbort(ac.signal, Promise.reject(err)), Error, "boom");
 });
 
+Deno.test("innerReadKeys forwards the abort signal and surfaces its reason", async () => {
+  let receivedSignal: AbortSignal | undefined;
+  const reader = {
+    read(_p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null> {
+      receivedSignal = options?.signal;
+      return new Promise((_, reject) => {
+        options?.signal?.addEventListener("abort", () => reject(options.signal!.reason), { once: true });
+      });
+    },
+  };
+  const ac = new AbortController();
+  const gen = innerReadKeys(reader, ac.signal);
+  const next = gen.next();
+  // give the generator a tick to call reader.read
+  await Promise.resolve();
+  const reason = new DOMException("cancelled", "AbortError");
+  ac.abort(reason);
+  await assertRejects(() => next, DOMException, "cancelled");
+  assertEquals(receivedSignal, ac.signal);
+});
+
 Deno.test("should handle multibyte characters", async () => {
   const reader = createReader();
   const gen = innerReadKeys(reader);

@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import { Readable } from "node:stream";
 import * as tty from "node:tty";
 import process from "node:process";
 
@@ -9,17 +10,20 @@ import process from "node:process";
  * Mirrors fzf / vim / `git commit`'s behavior of bypassing stdin and
  * reading the user's actual terminal directly. */
 export interface TtyStdin {
-  read(p: Uint8Array): Promise<number | null>;
+  read(p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null>;
   setRaw(mode: boolean): void;
 }
 
 interface OpenedTty {
   fd: number;
   stream: tty.ReadStream;
+  reader: ReadableStreamDefaultReader<Uint8Array>;
 }
 
 // undefined = not yet attempted; null = attempted and failed
 let cached: OpenedTty | null | undefined;
+let pendingTtyRead: Promise<ReadableStreamReadResult<Uint8Array>> | undefined;
+let ttyLeftover: Uint8Array | undefined;
 
 function tryOpen(): OpenedTty | null {
   if (cached !== undefined) return cached;
@@ -28,11 +32,13 @@ function tryOpen(): OpenedTty | null {
     // r+ rather than r — setRawMode needs the fd to support tcsetattr,
     // and on some platforms that's only granted when opened for writing too.
     const fd = fs.openSync(path, "r+");
-    // wrap once for setRawMode access. left in paused mode (the default)
-    // so it doesn't pull bytes out from under fs.read on the same fd —
-    // same pattern dax already relies on with process.stdin.
     const stream = new tty.ReadStream(fd);
-    cached = { fd, stream };
+    // wrapping the stream locks it to one consumer; cache so an aborted
+    // read doesn't lose bytes — the in-flight read and leftover buffer
+    // are tied to this reader, same pattern as @david/shell's stdin.
+    const readable = Readable.toWeb(stream) as ReadableStream<Uint8Array>;
+    const reader = readable.getReader();
+    cached = { fd, stream, reader };
   } catch {
     cached = null;
   }
@@ -48,18 +54,26 @@ export function hasFallbackTty(): boolean {
  * use if no controlling terminal is available — guard with
  * {@link hasFallbackTty} first. */
 export const ttyStdin: TtyStdin = {
-  read(p: Uint8Array): Promise<number | null> {
-    return new Promise((resolve, reject) => {
-      const handle = tryOpen();
-      if (handle == null) {
-        reject(new Error("No controlling terminal available."));
-        return;
-      }
-      fs.read(handle.fd, p, 0, p.length, null, (err, bytesRead) => {
-        if (err) reject(err);
-        else resolve(bytesRead === 0 ? null : bytesRead);
-      });
-    });
+  async read(p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null> {
+    const signal = options?.signal;
+    signal?.throwIfAborted();
+    const handle = tryOpen();
+    if (handle == null) throw new Error("No controlling terminal available.");
+
+    if (ttyLeftover === undefined) {
+      // share a single in-flight read across callers so an aborted read
+      // doesn't drop bytes — the next call awaits the same promise.
+      pendingTtyRead ??= handle.reader.read();
+      const result = await (signal ? raceAbort(pendingTtyRead, signal) : pendingTtyRead);
+      pendingTtyRead = undefined;
+      if (result.done) return null;
+      ttyLeftover = result.value;
+    }
+
+    const len = Math.min(ttyLeftover.length, p.length);
+    p.set(ttyLeftover.subarray(0, len));
+    ttyLeftover = ttyLeftover.length > len ? ttyLeftover.subarray(len) : undefined;
+    return len;
   },
   setRaw(mode: boolean): void {
     const handle = tryOpen();
@@ -67,3 +81,20 @@ export const ttyStdin: TtyStdin = {
     handle.stream.setRawMode(mode);
   },
 };
+
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (v) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(v);
+      },
+      (e) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(e);
+      },
+    );
+  });
+}
