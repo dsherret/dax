@@ -25,17 +25,13 @@ export enum Keys {
   Backspace,
 }
 
-export async function* readKeys(reader: PromptInput = stdin) {
-  return yield* innerReadKeys(reader);
-}
-
-export async function* innerReadKeys(reader: Pick<typeof stdin, "read">) {
+export async function* readKeys(reader: Pick<typeof stdin, "read">, signal: AbortSignal | undefined) {
   // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
   const decoder = new TextDecoder();
 
   while (true) {
     const buf = new Uint8Array(8);
-    const byteCount = await reader.read(buf);
+    const byteCount = await reader.read(buf, { signal });
     if (byteCount == null) {
       break;
     }
@@ -188,39 +184,25 @@ export function createSelection<TReturn>(options: SelectionOptions<TReturn>): Pr
   return ensureSingleSelection(input, async () => {
     logger.setItems(LoggerRefreshItemKind.Selection, options.render());
 
-    let abortPromise: Promise<never> | undefined;
-    let abortHandler: (() => void) | undefined;
-    if (signal != null) {
-      abortPromise = new Promise<never>((_, reject) => {
-        abortHandler = () => reject(signal.reason);
-        signal.addEventListener("abort", abortHandler, { once: true });
-      });
-    }
-
     try {
-      const iter = readKeys(input);
-      while (true) {
-        const result = abortPromise != null ? await Promise.race([iter.next(), abortPromise]) : await iter.next();
-        if (result.done) break;
-        const keyResult = options.onKey(result.value);
-        if (keyResult != null) {
-          const size = {
-            columns: process.stdout.columns ?? 80,
-            rows: process.stdout.rows ?? 24,
-          };
-          logger.setItems(LoggerRefreshItemKind.Selection, [], size);
-          if (options.noClear) {
-            logger.logOnce(options.render(), size);
-          }
-          return keyResult;
-        }
+      for await (const key of readKeys(input, signal)) {
+        const keyResult = options.onKey(key);
+        if (keyResult != null) return keyResult;
         logger.setItems(LoggerRefreshItemKind.Selection, options.render());
       }
       return undefined;
     } finally {
-      logger.setItems(LoggerRefreshItemKind.Selection, []); // clear
-      if (signal != null && abortHandler != null) {
-        signal.removeEventListener("abort", abortHandler);
+      // clear the live area and, when noClear is set, also commit the
+      // final render to scrollback. doing this in finally makes the abort
+      // path behave like the success path so subsequent output isn't
+      // overwritten by the next refresh.
+      const size = {
+        columns: process.stdout.columns ?? 80,
+        rows: process.stdout.rows ?? 24,
+      };
+      logger.setItems(LoggerRefreshItemKind.Selection, [], size);
+      if (options.noClear) {
+        logger.logOnce(options.render(), size);
       }
     }
   });

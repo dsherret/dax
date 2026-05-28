@@ -41,6 +41,10 @@ await build({
           typeOnly: true,
         },
         {
+          name: "ReadableStreamReadResult",
+          typeOnly: true,
+        },
+        {
           name: "PipeOptions",
           exportName: "StreamPipeOptions",
           typeOnly: true,
