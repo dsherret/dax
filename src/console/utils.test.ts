@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { innerReadKeys, undefinedOnAbort } from "./utils.ts";
+import { readKeys, undefinedOnAbort } from "./utils.ts";
 import { Keys } from "./utils.ts";
 
 function createReader() {
@@ -39,7 +39,7 @@ function createReader() {
 
 Deno.test("should handle controls", async () => {
   const reader = createReader();
-  const gen = innerReadKeys(reader);
+  const gen = readKeys(reader, undefined);
 
   reader.write(new Uint8Array([13]));
   assertEquals((await gen.next()).value, Keys.Enter);
@@ -73,7 +73,7 @@ Deno.test("should handle controls", async () => {
 
 Deno.test("should handle text", async () => {
   const reader = createReader();
-  const gen = innerReadKeys(reader);
+  const gen = readKeys(reader, undefined);
 
   reader.write(new TextEncoder().encode("hello"));
   assertEquals((await gen.next()).value, "hello");
@@ -112,7 +112,7 @@ Deno.test("undefinedOnAbort: rejection while signal not yet aborted propagates",
   await assertRejects(() => undefinedOnAbort(ac.signal, Promise.reject(err)), Error, "boom");
 });
 
-Deno.test("innerReadKeys forwards the abort signal and surfaces its reason", async () => {
+Deno.test("readKeys forwards the abort signal and surfaces its reason", async () => {
   let receivedSignal: AbortSignal | undefined;
   const reader = {
     read(_p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null> {
@@ -123,7 +123,7 @@ Deno.test("innerReadKeys forwards the abort signal and surfaces its reason", asy
     },
   };
   const ac = new AbortController();
-  const gen = innerReadKeys(reader, ac.signal);
+  const gen = readKeys(reader, ac.signal);
   const next = gen.next();
   // give the generator a tick to call reader.read
   await Promise.resolve();
@@ -135,7 +135,7 @@ Deno.test("innerReadKeys forwards the abort signal and surfaces its reason", asy
 
 Deno.test("should handle multibyte characters", async () => {
   const reader = createReader();
-  const gen = innerReadKeys(reader);
+  const gen = readKeys(reader, undefined);
 
   // Write multibyte characters (e.g., emoji, non-Latin characters)
   // | Character | Unicode | Bytes             |

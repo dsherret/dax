@@ -25,11 +25,7 @@ export enum Keys {
   Backspace,
 }
 
-export async function* readKeys(reader: PromptInput, signal: AbortSignal | undefined) {
-  return yield* innerReadKeys(reader, signal);
-}
-
-export async function* innerReadKeys(reader: Pick<typeof stdin, "read">, signal: AbortSignal | undefined) {
+export async function* readKeys(reader: Pick<typeof stdin, "read">, signal: AbortSignal | undefined) {
   // A new decoder is always needed to take into account that UTF-8 sequences are read in pieces.
   const decoder = new TextDecoder();
 
