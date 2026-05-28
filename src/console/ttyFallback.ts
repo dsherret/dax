@@ -66,7 +66,7 @@ export const ttyStdin: TtyStdin = {
       pendingTtyRead ??= handle.reader.read();
       const result = await (signal ? raceAbort(pendingTtyRead, signal) : pendingTtyRead);
       pendingTtyRead = undefined;
-      if (result.done) return null;
+      if (result.done || result.value === undefined) return null;
       ttyLeftover = result.value;
     }
 
