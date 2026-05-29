@@ -1,5 +1,4 @@
 import * as fs from "node:fs";
-import { Readable } from "node:stream";
 import * as tty from "node:tty";
 import process from "node:process";
 
@@ -17,13 +16,10 @@ export interface TtyStdin {
 interface OpenedTty {
   fd: number;
   stream: tty.ReadStream;
-  reader: ReadableStreamDefaultReader<Uint8Array>;
 }
 
 // undefined = not yet attempted; null = attempted and failed
 let cached: OpenedTty | null | undefined;
-let pendingTtyRead: Promise<ReadableStreamReadResult<Uint8Array>> | undefined;
-let ttyLeftover: Uint8Array | undefined;
 
 function tryOpen(): OpenedTty | null {
   if (cached !== undefined) return cached;
@@ -33,12 +29,7 @@ function tryOpen(): OpenedTty | null {
     // and on some platforms that's only granted when opened for writing too.
     const fd = fs.openSync(path, "r+");
     const stream = new tty.ReadStream(fd);
-    // wrapping the stream locks it to one consumer; cache so an aborted
-    // read doesn't lose bytes — the in-flight read and leftover buffer
-    // are tied to this reader, same pattern as @david/shell's stdin.
-    const readable = Readable.toWeb(stream) as ReadableStream<Uint8Array>;
-    const reader = readable.getReader();
-    cached = { fd, stream, reader };
+    cached = { fd, stream };
   } catch {
     cached = null;
   }
@@ -54,26 +45,12 @@ export function hasFallbackTty(): boolean {
  * use if no controlling terminal is available — guard with
  * {@link hasFallbackTty} first. */
 export const ttyStdin: TtyStdin = {
-  async read(p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null> {
+  read(p: Uint8Array, options?: { signal?: AbortSignal }): Promise<number | null> {
     const signal = options?.signal;
     signal?.throwIfAborted();
     const handle = tryOpen();
-    if (handle == null) throw new Error("No controlling terminal available.");
-
-    if (ttyLeftover === undefined) {
-      // share a single in-flight read across callers so an aborted read
-      // doesn't drop bytes — the next call awaits the same promise.
-      pendingTtyRead ??= handle.reader.read();
-      const result = await (signal ? raceAbort(pendingTtyRead, signal) : pendingTtyRead);
-      pendingTtyRead = undefined;
-      if (result.done || result.value === undefined) return null;
-      ttyLeftover = result.value;
-    }
-
-    const len = Math.min(ttyLeftover.length, p.length);
-    p.set(ttyLeftover.subarray(0, len));
-    ttyLeftover = ttyLeftover.length > len ? ttyLeftover.subarray(len) : undefined;
-    return len;
+    if (handle == null) return Promise.reject(new Error("No controlling terminal available."));
+    return readTty(handle.stream, p, signal);
   },
   setRaw(mode: boolean): void {
     const handle = tryOpen();
@@ -82,19 +59,48 @@ export const ttyStdin: TtyStdin = {
   },
 };
 
-function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(signal.reason);
-    signal.addEventListener("abort", onAbort, { once: true });
-    promise.then(
-      (v) => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(v);
-      },
-      (e) => {
-        signal.removeEventListener("abort", onAbort);
-        reject(e);
-      },
-    );
+// reads directly from the tty.ReadStream in paused mode by listening for a
+// single `readable` event and detaching afterwards. Same pattern @david/shell
+// uses for stdin: leaves the stream in a clean, handoff-able state, and is
+// cleanly abortable — aborting just removes the listener, with no read syscall
+// left outstanding to steal a byte from the next reader.
+function readTty(stream: tty.ReadStream, p: Uint8Array, signal?: AbortSignal): Promise<number | null> {
+  return new Promise<number | null>((resolve, reject) => {
+    const onReadable = () => {
+      const chunk = stream.read() as Uint8Array | null;
+      if (chunk === null) return; // nothing buffered yet; wait for the next event
+      cleanup();
+      const len = Math.min(chunk.length, p.length);
+      p.set(chunk.subarray(0, len));
+      // put any bytes we didn't consume back into the stream rather than a
+      // private buffer, so the next reader still sees them.
+      if (chunk.length > len) stream.unshift(chunk.subarray(len));
+      resolve(len);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(null);
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(signal!.reason);
+    };
+    const cleanup = () => {
+      stream.off("readable", onReadable);
+      stream.off("end", onEnd);
+      stream.off("error", onError);
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    stream.on("readable", onReadable);
+    stream.on("end", onEnd);
+    stream.on("error", onError);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    // data may already be buffered, so attempt a read right away.
+    onReadable();
   });
 }
