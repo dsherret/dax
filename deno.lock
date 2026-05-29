@@ -5,7 +5,7 @@
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
     "jsr:@david/path@~0.3.2": "0.3.2",
-    "jsr:@david/shell@0.5": "0.5.0",
+    "jsr:@david/shell@~0.5.1": "0.5.1",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@0.7": "0.7.0",
     "jsr:@davidbonnet/astring@1.8.6": "1.8.6",
@@ -77,8 +77,8 @@
     "@david/path@0.3.2": {
       "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.5.0": {
-      "integrity": "4184b233b56b8417908616297b418332bfe56b1247177d3f331e43fbbd337198",
+    "@david/shell@0.5.1": {
+      "integrity": "2469318121505246c0633fd0cc34e907d8ee1716cbe41264eb78026f31b53d6c",
       "dependencies": [
         "jsr:@david/console-static-text",
         "jsr:@david/path@0.3",
@@ -248,11 +248,7 @@
       ]
     },
     "@ts-morph/common@0.27.0": {
-      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052",
-      "dependencies": [
-        "jsr:@std/fs@1",
-        "jsr:@std/path@1"
-      ]
+      "integrity": "c7b73592d78ce8479b356fd4f3d6ec3c460d77753a8680ff196effea7a939052"
     }
   },
   "npm": {
@@ -724,7 +720,7 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.4",
       "jsr:@david/path@~0.3.2",
-      "jsr:@david/shell@0.5",
+      "jsr:@david/shell@~0.5.1",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@0.7",
       "jsr:@deno/dnt@~0.42.3",
