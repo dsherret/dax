@@ -5,7 +5,7 @@
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
     "jsr:@david/path@0.3": "0.3.2",
     "jsr:@david/path@~0.3.2": "0.3.2",
-    "jsr:@david/shell@~0.5.2": "0.5.2",
+    "jsr:@david/shell@~0.5.3": "0.5.3",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
     "jsr:@david/which@0.7": "0.7.0",
     "jsr:@davidbonnet/astring@1.8.6": "1.8.6",
@@ -23,9 +23,9 @@
     "jsr:@std/encoding@1.0.10": "1.0.10",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/encoding@^1.0.5": "1.0.10",
-    "jsr:@std/fmt@1": "1.0.10",
+    "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fmt@1.0.8": "1.0.8",
-    "jsr:@std/fmt@^1.0.8": "1.0.10",
+    "jsr:@std/fmt@^1.0.8": "1.0.8",
     "jsr:@std/front-matter@1.0.9": "1.0.9",
     "jsr:@std/fs@1": "1.0.18",
     "jsr:@std/fs@1.0.18": "1.0.18",
@@ -77,8 +77,8 @@
     "@david/path@0.3.2": {
       "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
     },
-    "@david/shell@0.5.2": {
-      "integrity": "e6a1b9d3712373f2811d5c66a502afdd07c99d0aedbd910b0c2ea1744fe1dd88",
+    "@david/shell@0.5.3": {
+      "integrity": "2349201b78b75cb1fc574bde0a90f49aec08c0b12205f487067aa818f1eafad5",
       "dependencies": [
         "jsr:@david/console-static-text",
         "jsr:@david/path@0.3",
@@ -156,9 +156,6 @@
     },
     "@std/fmt@1.0.8": {
       "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
-    },
-    "@std/fmt@1.0.10": {
-      "integrity": "90dfba288802ac6de82fb31d0917eb9e4450b9925b954d5e51fc29ac07419db5"
     },
     "@std/front-matter@1.0.9": {
       "integrity": "ee6201d06674cbef137dda2252f62477450b48249e7d8d9ab57a30f85ff6f051",
@@ -727,7 +724,7 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.4",
       "jsr:@david/path@~0.3.2",
-      "jsr:@david/shell@~0.5.2",
+      "jsr:@david/shell@~0.5.3",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@0.7",
       "jsr:@deno/dnt@~0.42.3",

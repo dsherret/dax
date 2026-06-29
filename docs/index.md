@@ -755,6 +755,16 @@ const result = await $`echo $TEST`.env("TEST", "123").text();
 console.log(result); // 123
 ```
 
+Command substitution — `$(...)` and backticks run a command in a subshell and substitute its output (trailing newlines are trimmed):
+
+```ts
+// both forms print the current commit hash
+await $`echo $(git rev-parse HEAD)`;
+await $`echo \`git rev-parse HEAD\``;
+```
+
+Environment changes made inside a command substitution (such as `cd` or `export`) stay within the subshell and don't affect the outer command.
+
 ## Custom cross-platform shell commands <a class="anchor" href="#builtins">#</a> {#builtins}
 
 Currently implemented (though not every option is supported):
