@@ -148,7 +148,7 @@ npmPath.join("bundle.mjs").renameSync(npmPath.join("esm/mod.js"));
 // basic mjs test
 {
   const tempFile = $.path("temp_file.mjs");
-  tempFile.writeText(
+  tempFile.writeSync(
     `import $ from "./npm/esm/mod.js";
 
 await $\`echo 1\`;
@@ -165,7 +165,7 @@ await $\`echo 1\`;
 // basic cjs test
 {
   const tempFile = $.path("temp_file.cjs");
-  tempFile.writeText(
+  tempFile.writeSync(
     `const $ = require("./npm/script/mod.js").$;
 
 $\`echo 1\`.then(() => {
