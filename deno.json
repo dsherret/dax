@@ -10,7 +10,7 @@
     }
   },
   "tasks": {
-    "dnt": "deno run -A --minimum-dependency-age=0 ./scripts/build_npm.ts",
+    "dnt": "deno run -A ./scripts/build_npm.ts",
     "test": "deno test -A"
   },
   "fmt": {
