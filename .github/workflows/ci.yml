@@ -30,7 +30,7 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: 2.8.3
+          deno-version: canary
 
       - uses: dprint/check@v2.3
         if: runner.os == 'Linux'
