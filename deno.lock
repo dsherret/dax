@@ -7,7 +7,7 @@
     "jsr:@david/path@~0.3.2": "0.3.2",
     "jsr:@david/shell@~0.5.4": "0.5.4",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
-    "jsr:@david/which@0.7": "0.7.0",
+    "jsr:@david/which@0.7": "0.7.1",
     "jsr:@davidbonnet/astring@1.8.6": "1.8.6",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@luca/esbuild-deno-loader@0.11.1": "0.11.1",
@@ -83,8 +83,8 @@
         "jsr:@std/path@1"
       ]
     },
-    "@david/which@0.7.0": {
-      "integrity": "2e7517b28ecd2c99afe70284f2660f2c11548e5b684fa751889f105e0e4f8fe5"
+    "@david/which@0.7.1": {
+      "integrity": "dbc4d2f275650964f7c37a7719f693fac3a836b286d13ec25c2543364cc62d49"
     },
     "@david/which-runtime@0.2.1": {
       "integrity": "2a304e36b1122ebfe384d45de8fe0fb2bfe54a0a5a2a596efbfc81f54a47a62d"
