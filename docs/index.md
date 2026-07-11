@@ -765,6 +765,33 @@ await $`echo \`git rev-parse HEAD\``;
 
 Environment changes made inside a command substitution (such as `cd` or `export`) stay within the subshell and don't affect the outer command.
 
+Brace expansion — `{...}` expands to multiple words before the command runs, matching the shell's usual rules:
+
+```ts
+// comma lists
+await $`echo {a,b,c}`; // a b c
+// prefix/suffix concatenation
+await $`echo pre{a,b}post`; // preapost prebpost
+// cartesian product across multiple braces
+await $`echo {a,b}{1,2}`; // a1 a2 b1 b2
+// nesting
+await $`echo {a,{b,c}}`; // a b c
+// integer ranges (incl. reverse and step) and single-char ranges
+await $`echo {1..3}`; // 1 2 3
+await $`echo {3..1}`; // 3 2 1
+await $`echo {1..7..2}`; // 1 3 5 7
+await $`echo {a..e}`; // a b c d e
+// empty alternatives expand to empty words
+await $`echo x{a,,b}y`; // xay xy xby
+```
+
+A bare `{}`, a single-element `{abc}`, or an unmatched brace is left literal (so the `find -exec {} \;` idiom keeps working), and braces inside quotes are never expanded:
+
+```ts
+await $`echo {}`; // {}
+await $`echo "{a,b}"`; // {a,b}
+```
+
 ## Custom cross-platform shell commands <a class="anchor" href="#builtins">#</a> {#builtins}
 
 Currently implemented (though not every option is supported):
