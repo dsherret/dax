@@ -1,4 +1,4 @@
-import * as colors from "@std/fmt/colors";
+import { styleText } from "./styleText.ts";
 import type { TextItem } from "@david/console-static-text";
 import {
   createSelection,
@@ -123,7 +123,7 @@ interface ItemDrawState {
 
 function render(state: DrawState): TextItem[] {
   const items = [];
-  items.push(colors.bold(colors.blue(state.title)));
+  items.push(styleText(["bold", "blue"], state.title));
   if (state.hasCompleted) {
     if (state.items.some((i) => i.selected)) {
       for (const item of state.items) {
@@ -135,7 +135,7 @@ function render(state: DrawState): TextItem[] {
         }
       }
     } else {
-      items.push(colors.italic(" <None>"));
+      items.push(styleText("italic", " <None>"));
     }
   } else {
     for (const [i, item] of state.items.entries()) {

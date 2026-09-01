@@ -1,5 +1,3 @@
-import * as colors from "@std/fmt/colors";
-import { which, whichSync } from "which";
 import {
   CommandBuilder,
   type Delay,
@@ -10,7 +8,9 @@ import {
   rawArg,
   type TailDisplayOptions,
   type TemplateExpr,
+  which,
   whichRealEnv,
+  whichSync,
 } from "@david/shell";
 import {
   Box,
@@ -42,6 +42,7 @@ import {
   type SelectionItem,
   type SelectOptions,
 } from "./src/console/mod.ts";
+import { styleText } from "./src/console/styleText.ts";
 import { stripAnsiCodes } from "@david/console-static-text";
 
 import { Path } from "@david/path";
@@ -142,20 +143,20 @@ export interface $Template {
 }
 
 /**
- * `outdent` from the https://deno.land/x/outdent module.
+ * Strips leading indents from a string.
  * @internal
  */
 type Outdent = typeof outdent;
 /**
- * `which` from the https://deno.land/x/which module.
+ * Resolves a command name to a path asynchronously.
  * @internal
  */
-type Which = typeof import("which").which;
+type Which = typeof import("@david/shell").which;
 /**
- * `whichSync` from the https://deno.land/x/which module.
+ * Resolves a command name to a path synchronously.
  * @internal
  */
-type WhichSync = typeof import("which").whichSync;
+type WhichSync = typeof import("@david/shell").whichSync;
 
 /** Collection of built-in properties that come with a `$`. */
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
@@ -815,16 +816,16 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         state.infoLogger.getValue()(getLogText(data));
       },
       logLight(...data: any[]) {
-        state.infoLogger.getValue()(colors.gray(getLogText(data)));
+        state.infoLogger.getValue()(styleText("gray", getLogText(data)));
       },
       logStep(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.green(t)), state.infoLogger.getValue());
+        logStep(firstArg, data, (t) => styleText(["bold", "green"], t), state.infoLogger.getValue());
       },
       logError(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.red(t)), state.errorLogger.getValue());
+        logStep(firstArg, data, (t) => styleText(["bold", "red"], t), state.errorLogger.getValue());
       },
       logWarn(firstArg: string, ...data: any[]) {
-        logStep(firstArg, data, (t) => colors.bold(colors.yellow(t)), state.warnLogger.getValue());
+        logStep(firstArg, data, (t) => styleText(["bold", "yellow"], t), state.warnLogger.getValue());
       },
       logGroup<TResult>(labelOrAction?: string | (() => TResult), maybeAction?: () => TResult): TResult | void {
         const label = typeof labelOrAction === "string" ? labelOrAction : undefined;
@@ -909,7 +910,7 @@ function build$FromState<TExtras extends ExtrasObject = {}>(state: $State<TExtra
         // also update the logger used for the print command
         const commandBuilder = state.commandBuilder.getValue();
         commandBuilder.setPrintCommandLogger(
-          (cmd) => logger(colors.white(">"), colors.blue(cmd)),
+          (cmd) => logger(styleText("white", ">"), styleText("blue", cmd)),
         );
         state.commandBuilder.setValue(commandBuilder);
       },

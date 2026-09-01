@@ -1,4 +1,4 @@
-import * as colors from "@std/fmt/colors";
+import { styleText } from "./styleText.ts";
 import { createSelection, Keys, resultOrExit, type SelectionOptions } from "./utils.ts";
 import type { TextItem } from "@david/console-static-text";
 
@@ -66,6 +66,6 @@ interface DrawState {
 function render(state: DrawState): TextItem[] {
   const hint = state.hasCompleted ? "" : state.requireEnter ? " [press enter]" : " [press any key]";
   return [
-    colors.bold(colors.blue(state.title)) + colors.dim(hint),
+    styleText(["bold", "blue"], state.title) + styleText("dim", hint),
   ];
 }

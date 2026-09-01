@@ -1,4 +1,4 @@
-import * as colors from "@std/fmt/colors";
+import { styleText } from "./styleText.ts";
 import {
   type ConsoleSize,
   type DeferredItem,
@@ -185,7 +185,7 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
   if (state.hasCompleted) {
     let text = "";
     if (state.prefix != null) {
-      text += colors.green(state.prefix);
+      text += styleText("green", state.prefix);
     }
     if (state.message != null) {
       if (text.length > 0) {
@@ -195,9 +195,9 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     }
     return text.length > 0 ? [text] : [];
   } else if (state.length == null || state.length === 0) {
-    let text = colors.green(tickStrings[Math.abs(state.tickCount) % tickStrings.length]);
+    let text = styleText("green", tickStrings[Math.abs(state.tickCount) % tickStrings.length]);
     if (state.prefix != null) {
-      text += ` ${colors.green(state.prefix)}`;
+      text += ` ${styleText("green", state.prefix)}`;
     }
     if (state.message != null) {
       text += ` ${state.message}`;
@@ -210,7 +210,7 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
   } else {
     let firstLine = "";
     if (state.prefix != null) {
-      firstLine += colors.green(state.prefix);
+      firstLine += styleText("green", state.prefix);
     }
     if (state.message != null) {
       if (firstLine.length > 0) {
@@ -232,11 +232,11 @@ export function renderProgressBar(state: RenderState, size: ConsoleSize | undefi
     secondLine += "[";
     if (completedBars != totalBars) {
       if (completedBars > 0) {
-        secondLine += colors.cyan("#".repeat(completedBars - 1) + ">");
+        secondLine += styleText("cyan", "#".repeat(completedBars - 1) + ">");
       }
-      secondLine += colors.blue("-".repeat(totalBars - completedBars));
+      secondLine += styleText("blue", "-".repeat(totalBars - completedBars));
     } else {
-      secondLine += colors.cyan("#".repeat(completedBars));
+      secondLine += styleText("cyan", "#".repeat(completedBars));
     }
     secondLine += `] (${currentPosText}/${lengthText})`;
 

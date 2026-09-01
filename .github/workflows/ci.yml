@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     tags:
-      - '*'
+      - "*"
   pull_request:
     branches: [main]
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}'
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -52,8 +52,8 @@ jobs:
         run: echo TAG_VERSION=${GITHUB_REF/refs\/tags\//} >> $GITHUB_OUTPUT
       - uses: actions/setup-node@v6
         with:
-          node-version: '24.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org"
       - name: npm build
         run: deno task dnt ${{steps.get_tag_version.outputs.TAG_VERSION}}
 
