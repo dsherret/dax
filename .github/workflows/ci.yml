@@ -30,7 +30,7 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: canary
+          deno-version: 2.x
 
       - uses: dprint/check@v2.3
         if: runner.os == 'Linux'
@@ -71,6 +71,6 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: canary
+          deno-version: 2.x
       - name: Publish to JSR on tag
         run: deno run -A @david/publish-on-tag
