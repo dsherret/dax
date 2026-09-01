@@ -8,6 +8,7 @@ await emptyDir("./npm");
 await build({
   entryPoints: ["./mod.ts"],
   outDir: "./npm",
+  scriptModule: false,
   shims: {
     deno: {
       test: "dev",
@@ -84,6 +85,11 @@ await build({
   },
   mappings: {
     "./src/test/server.deno.ts": "./src/test/server.node.ts",
+    "jsr:@david/shell": "@dsherret/shell",
+    "jsr:@david/shell/internal": {
+      name: "@dsherret/shell",
+      subPath: "internal",
+    },
   },
   package: {
     name: "dax",
@@ -116,16 +122,12 @@ await build({
   },
 });
 
-// create bundles to improve startup time
-await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=external --outfile=npm/bundle.cjs npm/script/mod.js`;
+// create bundle to improve startup time
 await $`deno run -A npm:esbuild@0.20.0 --bundle --platform=node --packages=external --format=esm --outfile=npm/bundle.mjs npm/esm/mod.js`;
 
 const npmPath = $.path("npm");
 
-// remove all the javascript files in the script folder
-for (const entry of walkJsFiles(npmPath.join("script").toString())) {
-  $.path(entry).removeSync();
-}
+// remove all the javascript files in the esm folder
 for (const entry of walkJsFiles(npmPath.join("esm").toString())) {
   $.path(entry).removeSync();
 }
@@ -141,8 +143,7 @@ function* walkJsFiles(dir: string): Generator<string> {
   }
 }
 
-// move the bundle to the script folder
-npmPath.join("bundle.cjs").renameSync(npmPath.join("script/mod.js"));
+// move the bundle to the esm folder
 npmPath.join("bundle.mjs").renameSync(npmPath.join("esm/mod.js"));
 
 // basic mjs test
@@ -152,25 +153,6 @@ npmPath.join("bundle.mjs").renameSync(npmPath.join("esm/mod.js"));
     `import $ from "./npm/esm/mod.js";
 
 await $\`echo 1\`;
-`,
-  );
-  try {
-    // just ensure it doesn't throw
-    await $`node ${tempFile}`.quiet();
-  } finally {
-    tempFile.removeSync();
-  }
-}
-
-// basic cjs test
-{
-  const tempFile = $.path("temp_file.cjs");
-  tempFile.writeSync(
-    `const $ = require("./npm/script/mod.js").$;
-
-$\`echo 1\`.then(() => {
-console.log("DONE");
-});
 `,
   );
   try {
