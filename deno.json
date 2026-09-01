@@ -37,6 +37,7 @@
   "exports": "./mod.ts",
   "imports": {
     "@david/console-static-text": "jsr:@david/console-static-text@^0.3.4",
+    "@david/publish-on-tag": "jsr:@david/publish-on-tag@^0.2.0",
     "@david/shell": "jsr:@david/shell@^0.6.0",
     "@deno/dnt": "jsr:@deno/dnt@^0.42.3",
     "@david/path": "jsr:@david/path@^0.3.2",
