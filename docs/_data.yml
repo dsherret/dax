@@ -23,6 +23,7 @@ sidebar:
       - { title: "Export env", href: "#export-env" }
       - { title: "Timeout", href: "#timeout" }
       - { title: "Aborting", href: "#aborting" }
+      - { title: "Process tracking", href: "#process-tracker" }
       - { title: "Before command", href: "#before-command" }
   - heading: "Shell"
     items:

@@ -170,16 +170,24 @@ await $.raw`echo ${args}`; // executes as: echo arg1 arg2
 await $.raw`echo ${$.escapeArg(args)} ${args}`; // executes as: echo "arg1  arg2" arg1 arg2
 ```
 
-Providing stdout of one command to another is possible as follows:
+### Interpolating commands {#interpolating-commands}
+
+Interpolating a command substitutes its captured stdout, similar to `$(...)` in a shell:
 
 ```ts
-// Note: This will read trim the last newline of the other command's stdout
-const result = await $`echo 1`.stdout("piped"); // need to set stdout as piped for this to work
-const finalText = await $`echo ${result}`.text();
-console.log(finalText); // 1
+const name = $`echo world`;
+await $`echo hello ${name}`; // hello world
+await $`echo 'hello ${name}'`; // works inside quotes too
+await $`cat < ${name}`; // or as an input redirect
 ```
 
-...though it's probably more straightforward to just collect the output text of a command and provide that:
+The interpolated command runs lazily when the surrounding command evaluates its arguments, so it never runs when short-circuited away (ex. the interpolated command in `` $`exit 1 && echo ${cmd}` `` doesn't run). It executes with its own configuration (env, cwd, etc.), except stdout is captured and stderr defaults to the evaluating command's stderr. If it fails, the command evaluating it fails with its exit code — add `.noThrow()` to the interpolated command to tolerate failure.
+
+Like `$(...)`, an unquoted substitution word-splits its output into multiple arguments and expands glob characters — interpolate inside quotes (ex. `` $`echo "${cmd}"` ``) to keep it a single argument.
+
+In input redirect position, `` $`cat < ${cmd}` `` streams the command's raw stdout directly to the redirect (no capture or word splitting), while a quoted `` $`cat < "${cmd}"` `` substitutes its output as a file path to read.
+
+Alternatively, you can collect the output text of a command upfront and provide that:
 
 ```ts
 const result = await $`echo 1`.text();
@@ -649,6 +657,31 @@ await promise; // throws after 1 second
 
 Combining this with the `CommandBuilder` API and building your own `$` as shown later in the documentation, can be extremely useful for sending a `Deno.Signal` to all commands you've spawned.
 
+## Observing spawned processes <a class="anchor" href="#process-tracker">#</a> {#process-tracker}
+
+Attach a `ProcessTracker` via `.processTracker(...)` to observe the OS processes a command spawns while it executes:
+
+```ts
+import $, { ProcessTracker } from "dax";
+
+const tracker = new ProcessTracker();
+const child = $`npm run build`.processTracker(tracker).spawn();
+
+// at any point while it runs, get a snapshot of the running processes
+for (const process of tracker.processes) {
+  console.log(`${process.pid} — ${process.path}`);
+}
+
+// or listen for spawn/exit events
+tracker.addListener((event) => {
+  console.log(event.kind, event.process.pid, event.process.path);
+});
+
+await child;
+```
+
+A single tracker may be attached to multiple commands. Only processes directly spawned by the shell are tracked — descendant processes spawned by those processes are not visible here, and built-in commands (ex. `echo`, `cd`) never appear since they don't spawn processes.
+
 ## Modifying a command before it is spawned <a class="anchor" href="#before-command">#</a> {#before-command}
 
 Use `.beforeCommand(callback)` to register a hook that runs immediately before each command is spawned. The callback receives the current builder and may return a (possibly modified) builder — useful when an env var depends on an asynchronous operation, such as fetching a token:
@@ -774,6 +807,8 @@ await $`echo \`git rev-parse HEAD\``;
 ```
 
 Environment changes made inside a command substitution (such as `cd` or `export`) stay within the subshell and don't affect the outer command.
+
+You can also interpolate a command builder directly into the template literal for a similar effect (see [Interpolating commands](#interpolating-commands)).
 
 Brace expansion — `{...}` expands to multiple words before the command runs, matching the shell's usual rules:
 

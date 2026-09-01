@@ -73,6 +73,9 @@ export {
   KillController,
   KillSignal,
   type KillSignalListener,
+  ProcessTracker,
+  type ProcessTrackerEvent,
+  type ProcessTrackerListener,
   RawArg,
   type Reader,
   type SetEnvVarChange,
@@ -84,6 +87,7 @@ export {
   type ShellPipeWriterKind,
   type TailDisplayOptions,
   type TemplateExpr,
+  type TrackedProcess,
   type UnsetVarChange,
   type WriterSync,
 } from "@david/shell";
