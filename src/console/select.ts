@@ -1,4 +1,4 @@
-import * as colors from "@std/fmt/colors";
+import { styleText } from "./styleText.ts";
 import {
   createSelection,
   Keys,
@@ -92,7 +92,7 @@ interface DrawState {
 
 function render(state: DrawState): TextItem[] {
   const items = [];
-  items.push(colors.bold(colors.blue(state.title)));
+  items.push(styleText(["bold", "blue"], state.title));
   if (state.hasCompleted) {
     items.push({
       text: ` - ${state.items[state.activeIndex]}`,

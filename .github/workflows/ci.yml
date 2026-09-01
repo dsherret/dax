@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     tags:
-      - '*'
+      - "*"
   pull_request:
     branches: [main]
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}'
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: canary
+          deno-version: 2.x
 
       - uses: dprint/check@v2.3
         if: runner.os == 'Linux'
@@ -52,8 +52,8 @@ jobs:
         run: echo TAG_VERSION=${GITHUB_REF/refs\/tags\//} >> $GITHUB_OUTPUT
       - uses: actions/setup-node@v6
         with:
-          node-version: '24.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org"
       - name: npm build
         run: deno task dnt ${{steps.get_tag_version.outputs.TAG_VERSION}}
 
@@ -71,6 +71,6 @@ jobs:
       - name: Install deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: canary
+          deno-version: 2.x
       - name: Publish to JSR on tag
-        run: deno run -A jsr:@david/publish-on-tag@0.2.0
+        run: deno run -A @david/publish-on-tag

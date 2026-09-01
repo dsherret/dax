@@ -107,7 +107,7 @@ await build({
       "undici-types": "^5.26",
     },
     devDependencies: {
-      "@types/node": "^22.5.0",
+      "@types/node": "^22.18.0",
     },
   },
   postBuild() {

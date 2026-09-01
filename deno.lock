@@ -3,12 +3,13 @@
   "specifiers": {
     "jsr:@david/code-block-writer@^13.0.3": "13.0.3",
     "jsr:@david/console-static-text@~0.3.4": "0.3.4",
-    "jsr:@david/path@0.3": "0.3.2",
-    "jsr:@david/path@~0.3.2": "0.3.2",
+    "jsr:@david/path@0.3": "0.3.3",
+    "jsr:@david/path@~0.3.2": "0.3.3",
+    "jsr:@david/publish-on-tag@0.2": "0.2.0",
     "jsr:@david/shell@0.6": "0.6.0",
     "jsr:@david/which-runtime@~0.2.1": "0.2.1",
-    "jsr:@david/which@0.7": "0.7.1",
-    "jsr:@david/which@~0.7.1": "0.7.1",
+    "jsr:@david/which@0.7": "0.7.3",
+    "jsr:@david/which@~0.7.1": "0.7.3",
     "jsr:@davidbonnet/astring@1.8.6": "1.8.6",
     "jsr:@deno/dnt@~0.42.3": "0.42.3",
     "jsr:@luca/esbuild-deno-loader@0.11.1": "0.11.1",
@@ -35,16 +36,19 @@
     "jsr:@std/html@^1.0.4": "1.0.7",
     "jsr:@std/http@1.0.18": "1.0.18",
     "jsr:@std/internal@^1.0.12": "1.0.14",
+    "jsr:@std/internal@^1.0.14": "1.0.14",
     "jsr:@std/io@0.225": "0.225.3",
     "jsr:@std/json@^1.0.2": "1.1.0",
     "jsr:@std/jsonc@1.0.2": "1.0.2",
     "jsr:@std/media-types@^1.1.0": "1.1.0",
     "jsr:@std/net@^1.0.4": "1.0.6",
-    "jsr:@std/path@1": "1.1.0",
+    "jsr:@std/path@1": "1.1.6",
     "jsr:@std/path@1.0.8": "1.0.8",
     "jsr:@std/path@1.1.0": "1.1.0",
-    "jsr:@std/path@^1.0.6": "1.1.0",
-    "jsr:@std/path@^1.1.0": "1.1.0",
+    "jsr:@std/path@^1.0.6": "1.1.6",
+    "jsr:@std/path@^1.1.0": "1.1.6",
+    "jsr:@std/path@^1.1.6": "1.1.6",
+    "jsr:@std/semver@1": "1.0.8",
     "jsr:@std/streams@^1.0.10": "1.1.1",
     "jsr:@std/toml@1.0.8": "1.0.8",
     "jsr:@std/toml@^1.0.3": "1.0.8",
@@ -70,8 +74,17 @@
     "@david/console-static-text@0.3.4": {
       "integrity": "1c596f500b075ff3c8bab1d328ca7148a88067fd9a506b16a73eeaf230c229fd"
     },
-    "@david/path@0.3.2": {
-      "integrity": "f25aaa3de4d3b9edfe25ca5edf15e3014fee7df4f77d64327e5300c27c1a0497"
+    "@david/path@0.3.3": {
+      "integrity": "19887b1c4ff36d1719b1697b4c10071853f13a85cf60e8713f6a6947e86271b0",
+      "dependencies": [
+        "jsr:@std/path@^1.1.6"
+      ]
+    },
+    "@david/publish-on-tag@0.2.0": {
+      "integrity": "6a4abcc352141e46e705041ca73836176d64cebc1080b6d915de630df9853dea",
+      "dependencies": [
+        "jsr:@std/semver"
+      ]
     },
     "@david/shell@0.6.0": {
       "integrity": "c58b1005b95ea16195d437cccebae3cd939c7b242a12067f37943b3d114dbf17",
@@ -84,8 +97,8 @@
         "jsr:@std/path@1"
       ]
     },
-    "@david/which@0.7.1": {
-      "integrity": "dbc4d2f275650964f7c37a7719f693fac3a836b286d13ec25c2543364cc62d49"
+    "@david/which@0.7.3": {
+      "integrity": "ad6697179c4a153b774c59d06ebc056c4f87a9c27117ff74eecb120c245a2aea"
     },
     "@david/which-runtime@0.2.1": {
       "integrity": "2a304e36b1122ebfe384d45de8fe0fb2bfe54a0a5a2a596efbfc81f54a47a62d"
@@ -114,7 +127,7 @@
     "@std/assert@1.0.19": {
       "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
-        "jsr:@std/internal"
+        "jsr:@std/internal@^1.0.12"
       ]
     },
     "@std/async@1.4.0": {
@@ -206,6 +219,15 @@
     },
     "@std/path@1.1.0": {
       "integrity": "ddc94f8e3c275627281cbc23341df6b8bcc874d70374f75fec2533521e3d6886"
+    },
+    "@std/path@1.1.6": {
+      "integrity": "c68485c2a4dfbb5ae3cc74fae4e8c4e5d874cf8a8ed12927917235c758b46cbe",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.14"
+      ]
+    },
+    "@std/semver@1.0.8": {
+      "integrity": "dc830e8b8b6a380c895d53fbfd1258dc253704ca57bbe1629ac65fd7830179b7"
     },
     "@std/streams@1.1.1": {
       "integrity": "92556d350e537e9dce527a6d08f6f15be3ff65e656079dea69d15252187c7613"
@@ -684,15 +706,14 @@
     "dependencies": [
       "jsr:@david/console-static-text@~0.3.4",
       "jsr:@david/path@~0.3.2",
+      "jsr:@david/publish-on-tag@0.2",
       "jsr:@david/shell@0.6",
       "jsr:@david/which-runtime@~0.2.1",
       "jsr:@david/which@0.7",
       "jsr:@deno/dnt@~0.42.3",
       "jsr:@std/assert@1",
       "jsr:@std/async@1",
-      "jsr:@std/fmt@1",
-      "jsr:@std/io@0.225",
-      "jsr:@std/path@1"
+      "jsr:@std/io@0.225"
     ]
   }
 }

@@ -1,7 +1,29 @@
-<svg width="351" height="240" viewBox="0 0 351 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M276.105 128C283.387 143.131 287.745 149.681 299.605 154.5" stroke="#FFB967" stroke-width="17" />
-  <path d="M257.742 140C261.339 156.027 267.1 166.664 277.605 174.5" stroke="#FFB967" stroke-width="17" />
-  <rect x="91.1049" y="49" width="144" height="142" rx="20" stroke="#333274" stroke-width="19" />
+<svg
+  width="351"
+  height="240"
+  viewBox="0 0 351 240"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    d="M276.105 128C283.387 143.131 287.745 149.681 299.605 154.5"
+    stroke="#FFB967"
+    stroke-width="17"
+  />
+  <path
+    d="M257.742 140C261.339 156.027 267.1 166.664 277.605 174.5"
+    stroke="#FFB967"
+    stroke-width="17"
+  />
+  <rect
+    x="91.1049"
+    y="49"
+    width="144"
+    height="142"
+    rx="20"
+    stroke="#333274"
+    stroke-width="19"
+  />
   <path
     fill-rule="evenodd"
     clip-rule="evenodd"

@@ -5,7 +5,7 @@ layout: layout.vto
 <section class="intro hero" id="overview">
   <div>
     <h4 class="eyebrow">{{ version }}</h4>
-    <h1>dax — shell scripting<br/>that runs the same everywhere.</h1>
+    <h1>dax — shell scripting<br />that runs the same everywhere.</h1>
     <p class="lede">
       Cross-platform shell tools for Deno and Node.js inspired by <a href="https://github.com/google/zx">zx</a> — a friendlier <code>$</code> for spawning processes, with a built-in shell, built-in commands, prompts, requests, and a <code>Path</code> API.
     </p>
@@ -15,11 +15,11 @@ layout: layout.vto
     </div>
     <div class="cta">
       <a class="btn btn-primary" href="#install">Get started
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
       </a>
       <a class="btn btn-secondary" href="#shell">Shell reference</a>
       <a class="btn btn-ghost" href="https://github.com/dsherret/dax" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.13c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.91-.25 1.89-.38 2.86-.39.97.01 1.95.13 2.86.39 2.18-1.49 3.14-1.18 3.14-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.13v3.16c0 .31.21.68.8.56 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.13c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.91-.25 1.89-.38 2.86-.39.97.01 1.95.13 2.86.39 2.18-1.49 3.14-1.18 3.14-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.13v3.16c0 .31.21.68.8.56 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5z" /></svg>
         Star on GitHub
       </a>
     </div>
@@ -59,29 +59,39 @@ $.logStep("Deployed");
 
 <div class="feature-grid">
   <div class="feat feat-hero">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg></span>
     <h3>Cross-platform shell</h3>
-    <p>Same shell on macOS, Linux, and Windows. Common commands (<code>cp</code>, <code>mv</code>, <code>rm</code>, <code>mkdir</code>, …) are built in for better Windows support, and the shell's env can be exported back to the host process.</p>
+    <p>
+      Same shell on macOS, Linux, and Windows. Common commands (<code>cp</code>, <code>mv</code>, <code>rm</code>, <code>mkdir</code>, …) are built in for better Windows support, and the shell's env can be exported back to the host process.
+    </p>
   </div>
   <div class="feat">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg></span>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" /><path d="M9 12l2 2 4-4" /></svg></span>
     <h3>Safe by default</h3>
-    <p>Template literal interpolations are escaped automatically — <code>$`mkdir ${dir}`</code> works whether <code>dir</code> is <code>"foo"</code> or <code>"Dir with spaces &amp; quotes"</code>. No manual quoting, no shell-injection bugs.</p>
+    <p>
+      Template literal interpolations are escaped automatically — <code>$`mkdir ${dir}`</code> works whether <code>dir</code> is <code>"foo"</code> or <code>"Dir with spaces &amp; quotes"</code>. No manual quoting, no shell-injection bugs.
+    </p>
   </div>
   <div class="feat">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h11"/><path d="M10 8l4 4-4 4"/><circle cx="19" cy="12" r="1.5"/></svg></span>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h11" /><path d="M10 8l4 4-4 4" /><circle cx="19" cy="12" r="1.5" /></svg></span>
     <h3>Structured output</h3>
-    <p>Coerce stdout into the shape you need with chained methods: <code>.text()</code>, <code>.json()</code>, <code>.lines()</code>, <code>.bytes()</code>, or stream line-by-line with <code>.linesIter()</code>.</p>
+    <p>
+      Coerce stdout into the shape you need with chained methods: <code>.text()</code>, <code>.json()</code>, <code>.lines()</code>, <code>.bytes()</code>, or stream line-by-line with <code>.linesIter()</code>.
+    </p>
   </div>
   <div class="feat">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg></span>
     <h3>Batteries included</h3>
-    <p>Prompts (<code>$.confirm</code>, <code>$.select</code>), progress bars (<code>$.progress</code>), HTTP requests (<code>$.request</code>), and an immutable <code>Path</code> API.</p>
+    <p>
+      Prompts (<code>$.confirm</code>, <code>$.select</code>), progress bars (<code>$.progress</code>), HTTP requests (<code>$.request</code>), and an immutable <code>Path</code> API.
+    </p>
   </div>
   <div class="feat">
-    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/></svg></span>
+    <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L5 10.5V19h8.5z" /><path d="M16 8L2 22" /><path d="M17.5 15H9" /></svg></span>
     <h3>Portable</h3>
-    <p>Pure TypeScript and WebAssembly. No native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes. No vendor lock-in.</p>
+    <p>
+      Pure TypeScript and WebAssembly. No native dependencies, no compile step, no postinstall scripts. The code runs the same across all Node-compatible runtimes. No vendor lock-in.
+    </p>
   </div>
 </div>
 
@@ -93,8 +103,8 @@ $.logStep("Deployed");
     <button class="tab" data-runtime="jsr" role="tab"><span class="dot"></span>JSR</button>
   </div>
   <div class="install-body">
-<pre data-pane="npm"><code class="language-bash">npm install dax</code></pre>
-<pre data-pane="jsr" hidden><code class="language-bash"># deno
+    <pre data-pane="npm"><code class="language-bash">npm install dax</code></pre>
+    <pre data-pane="jsr" hidden><code class="language-bash"># deno
 deno add dax@jsr:@david/dax
 # other
 npx jsr add dax@jsr:@david/dax</code></pre>

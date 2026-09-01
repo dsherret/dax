@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
-import * as colors from "@std/fmt/colors";
 import $, { build$, CommandBuilder, Path, PathRef } from "./mod.ts";
 import { assert } from "@std/assert";
+import { styleText } from "./src/console/styleText.ts";
 import { setNotTtyForTesting } from "./src/console/utils.ts";
 
 // Deno will not be a tty because it captures the pipes, but Node
@@ -180,8 +180,8 @@ Deno.test("setting logging", () => {
   test$.logError("Error");
 
   assertEquals(infoLogs, [["Info"]]);
-  assertEquals(warnLogs, [[colors.bold(colors.yellow("Warn"))]]);
-  assertEquals(errorLogs, [[colors.bold(colors.red("Error"))]]);
+  assertEquals(warnLogs, [[styleText(["bold", "yellow"], "Warn")]]);
+  assertEquals(errorLogs, [[styleText(["bold", "red"], "Error")]]);
 });
 
 Deno.test("printCommand", async () => {
@@ -204,10 +204,10 @@ Deno.test("printCommand", async () => {
   await $`echo 7`.printCommand(true);
 
   assertEquals(errorLogs, [
-    [colors.white(">"), colors.blue("echo 1")],
-    [colors.white(">"), colors.blue("echo 3")],
-    [colors.white(">"), colors.blue("echo 5")],
-    [colors.white(">"), colors.blue("echo 7")],
+    [styleText("white", ">"), styleText("blue", "echo 1")],
+    [styleText("white", ">"), styleText("blue", "echo 3")],
+    [styleText("white", ">"), styleText("blue", "echo 5")],
+    [styleText("white", ">"), styleText("blue", "echo 7")],
   ]);
 });
 
