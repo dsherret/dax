@@ -1,3 +1,4 @@
+import { which, whichSync } from "which";
 import {
   CommandBuilder,
   type Delay,
@@ -8,9 +9,7 @@ import {
   rawArg,
   type TailDisplayOptions,
   type TemplateExpr,
-  which,
   whichRealEnv,
-  whichSync,
 } from "@david/shell";
 import {
   Box,
@@ -151,12 +150,12 @@ type Outdent = typeof outdent;
  * Resolves a command name to a path asynchronously.
  * @internal
  */
-type Which = typeof import("@david/shell").which;
+type Which = typeof import("which").which;
 /**
  * Resolves a command name to a path synchronously.
  * @internal
  */
-type WhichSync = typeof import("@david/shell").whichSync;
+type WhichSync = typeof import("which").whichSync;
 
 /** Collection of built-in properties that come with a `$`. */
 export interface $BuiltInProperties<TExtras extends ExtrasObject = {}> {
