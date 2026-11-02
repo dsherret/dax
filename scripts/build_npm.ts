@@ -85,6 +85,8 @@ await build({
   },
   mappings: {
     "./src/test/server.deno.ts": "./src/test/server.node.ts",
+    // use the same npm package as @dsherret/shell so there's only one Path class
+    "jsr:@david/path": "@dsherret/path",
     "jsr:@david/shell": "@dsherret/shell",
     "jsr:@david/shell/internal": {
       name: "@dsherret/shell",
