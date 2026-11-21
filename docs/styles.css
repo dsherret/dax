@@ -733,7 +733,7 @@ footer {
 }
 .cat-peek:hover::after,
 .cat-peek:focus-visible::after {
-  background-image: url("https://david.deno.dev/posts/dax/cat.jpg");
+  background-image: url("https://dsherret.dev/posts/dax/cat.jpg");
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
